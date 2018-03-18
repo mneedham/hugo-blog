@@ -4,6 +4,7 @@ date="2018-01-18 23:35:25"
 title="Strava: Calculating the similarity of two runs"
 tag=['python', 'strava', 'running', 'strava-api', 'dtw', 'dynamic-time-warping', 'google-encoded-polyline-algorithm-format']
 category=['Software Development']
+description="Learn how to compare runs from the Strava API using the Dynamic Time Warping algorithm."
 +++
 
 <p>

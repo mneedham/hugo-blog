@@ -4,6 +4,7 @@ date="2017-09-29 06:09:58"
 title="Serverless: S3 - S3BucketPermissions - Action does not apply to any resource(s) in statement"
 tag=['aws', 's3', 'serverless']
 category=['Software Development']
+description="Learn what the \"S3BucketPermissions - Action does not apply to any resource(s) in statement\" error message means & how to apply permissions on S3."
 +++
 
 <p>

@@ -4,6 +4,7 @@ date="2017-08-11 16:01:50"
 title="Serverless: AWS HTTP Gateway - 502 Bad Gateway"
 tag=['aws-lambda', 'serverless', 'http-gateway']
 category=['Software Development']
+description="Learn how to get up and running with a simple Python Serverless function that works with an AWS HTTP gateway."
 +++
 
 <p>

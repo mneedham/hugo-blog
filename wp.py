@@ -59,6 +59,17 @@ for row in c.fetchall():
 
     print(row[4])
 
+    inner_c = db.cursor()
+    inner_c.execute("""\
+    SELECT meta_value from wp_postmeta
+    WHERE meta_key = "_yoast_wpseo_metadesc"
+    AND post_id = {0}
+    """.format(row[4]))
+
+    description = None
+    for irow in inner_c.fetchall():
+        description = irow[0]
+
     inner_c=db.cursor()
     inner_c.execute("""\
     select name, slug, taxonomy
@@ -83,6 +94,10 @@ for row in c.fetchall():
     f.write("title=\"{0}\"\n".format(title))
     f.write("tag={0}\n".format(tags))
     f.write("category={0}\n".format(categories))
+
+    if description:
+        f.write("description=\"{0}\"\n".format(description.replace('"', '\\"')))
+
     f.write("+++\n\n")
     f.write(content)  # python will convert \n to os.linesep
     f.close()

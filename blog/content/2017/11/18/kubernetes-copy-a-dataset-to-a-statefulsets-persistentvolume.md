@@ -4,6 +4,7 @@ date="2017-11-18 12:44:37"
 title="Kubernetes: Copy a dataset to a StatefulSet's PersistentVolume"
 tag=['neo4j', 'kubernetes']
 category=['neo4j', 'Kubernetes']
+description="In this post we'll learn how to copy an existing dataset to the PersistentVolumes used by a Neo4j cluster running on Kubernetes."
 +++
 
 <p>

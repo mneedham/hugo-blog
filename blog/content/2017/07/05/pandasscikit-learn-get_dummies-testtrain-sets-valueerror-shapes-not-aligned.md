@@ -4,6 +4,7 @@ date="2017-07-05 15:42:08"
 title="Pandas/scikit-learn: get_dummies test/train sets - ValueError: shapes not aligned"
 tag=['python', 'pandas']
 category=['Python']
+description="How do I use panda's get_dummies function to generate matching dummy columns across training and test datasets so that scikit-learn models can be trained?"
 +++
 
 <p>

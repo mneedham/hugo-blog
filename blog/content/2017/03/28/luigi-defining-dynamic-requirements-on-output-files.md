@@ -4,6 +4,7 @@ date="2017-03-28 05:39:04"
 title="Luigi: Defining dynamic requirements (on output files)"
 tag=['python', 'luigi']
 category=['Python']
+description="In this post we show how to create requirements between Luigi tasks where those requirements aren't known at design time i.e. we have dynamic requirements."
 +++
 
 <p>In <a href="http://www.markhneedham.com/blog/2017/03/25/luigi-externalprogramtask-example-converting-json-csv/">my last blog post</a> I showed how to convert a JSON document containing meetup groups into a CSV file using Luigi, the Python library for building data pipelines. As well as creating that CSV file I wanted to go back to the <a href="https://www.meetup.com/meetup_api/">meetup.com API</a> and download all the members of those groups.</p>

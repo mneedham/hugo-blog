@@ -4,6 +4,7 @@ date="2017-09-19 19:30:09"
 title="Neo4j: Cypher - Create Cypher map with dynamic keys"
 tag=['neo4j', 'cypher', 'apoc']
 category=['neo4j']
+description="Learn how to create maps with dynamic keys using Neo4j's Cypher query language and the APOC procedure library."
 +++
 
 <p>

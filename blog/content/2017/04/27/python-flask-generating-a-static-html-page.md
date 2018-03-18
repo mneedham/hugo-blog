@@ -4,6 +4,7 @@ date="2017-04-27 20:59:56"
 title="Python: Flask - Generating a static HTML page"
 tag=['python']
 category=['Python']
+description="Learn how to generate a static HTML page using Python's Flask library."
 +++
 
 <p>

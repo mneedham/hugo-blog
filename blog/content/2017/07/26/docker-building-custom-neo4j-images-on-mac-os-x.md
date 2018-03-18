@@ -4,6 +4,7 @@ date="2017-07-26 22:20:23"
 title="Docker: Building custom Neo4j images on Mac OS X"
 tag=['neo4j', 'docker']
 category=['neo4j']
+description="In this post we look at how to build a custom Neo4j Docker image on Mac OS X."
 +++
 
 I sometimes needs to create custom Neo4j Docker images to try things out and wanted to share my work flow, mostly for future Mark but also in case it's useful to someone else. 

@@ -4,6 +4,7 @@ date="2017-12-28 11:03:56"
 title="Ethereum Hello World Example using solc and web3"
 tag=['ethereum', 'blockchain', 'smart-contracts']
 category=['Ethereum']
+description="Learn how to code a Hello World example on the Ethereum blockchain using solc, the Solidity smart contract language, and the web3 client library."
 +++
 
 <p>

@@ -4,6 +4,7 @@ date="2017-11-06 16:17:35"
 title="Neo4j Browser: Expected entity id to be an integral value"
 tag=['javascript', 'neo4j', 'neo4j-browser']
 category=['neo4j']
+description="Learn how to handle the 'Expected entity id to be an integral value' error that you get if you pass in 32 bit integer values as params to a query."
 +++
 
 <p>

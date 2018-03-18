@@ -4,6 +4,7 @@ date="2017-11-19 07:16:56"
 title="Python 3: TypeError: unsupported format string passed to numpy.ndarray.__format__"
 tag=['python', 'python3']
 category=['Python']
+description="This post explains how to work around a change in how Python string formatting works for numpy arrays between Python 2 and Python 3."
 +++
 
 <p>

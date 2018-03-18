@@ -4,6 +4,7 @@ date="2017-09-30 21:23:11"
 title="AWS: Spinning up a Neo4j instance with APOC installed"
 tag=['neo4j', 'aws', 'apoc', 'ami']
 category=['neo4j']
+description="Learn how to spin up an ES2 instance on AWS with Neo4j and the Awesome Procedures on Cypher (APOC) library installed by default."
 +++
 
 <p>

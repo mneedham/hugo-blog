@@ -4,6 +4,7 @@ date="2017-04-05 23:49:45"
 title="AWS Lambda: Programmatically scheduling a CloudWatchEvent"
 tag=['lambda', 'aws', 'aws-lambda']
 category=['Software Development']
+description="Creating triggers in AWS Lambda is really easy from the console but we want to automate that process. In this post we'll create triggers programatically."
 +++
 
 <p>

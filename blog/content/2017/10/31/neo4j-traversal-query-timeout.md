@@ -4,6 +4,7 @@ date="2017-10-31 21:43:17"
 title="Neo4j: Traversal query timeout"
 tag=['neo4j', 'traversal-api']
 category=['neo4j']
+description="Learn how to set a timeout in a Neo4j user defined procedure that uses the traversal API."
 +++
 
 <p>

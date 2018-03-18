@@ -4,6 +4,7 @@ date="2017-11-28 19:52:13"
 title="Python: polyglot - ModuleNotFoundError: No module named 'icu'"
 tag=['nlp', 'python', 'polyglot']
 category=['Python']
+description="Learn how to get around the ModuleNotFoundError: No module named ‘icu’ error when installing Python's polyglot NLP library"
 +++
 
 <p>

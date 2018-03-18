@@ -4,6 +4,7 @@ date="2017-10-06 16:13:33"
 title="Neo4j: Cypher - Deleting duplicate nodes"
 tag=['neo4j', 'cypher']
 category=['neo4j']
+description="Sometimes we might accidentally create duplicate nodes in our Neo4j graph database. In this post I show how to remove them with a simple Cypher query."
 +++
 
 <p>

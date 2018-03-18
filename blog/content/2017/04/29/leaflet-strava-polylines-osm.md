@@ -4,6 +4,7 @@ date="2017-04-29 15:36:36"
 title="Leaflet: Mapping Strava runs/polylines on Open Street Map"
 tag=['python', 'leafletjs', 'strava']
 category=['Javascript']
+description="Learn how to take the polyline returned by the Strava API and plot it onto Open Street Map using the Leaflet javascript library."
 +++
 
 <p>

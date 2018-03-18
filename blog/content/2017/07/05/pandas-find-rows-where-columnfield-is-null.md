@@ -4,6 +4,7 @@ date="2017-07-05 14:31:04"
 title="Pandas: Find rows where column/field is null"
 tag=['python', 'pandas', 'data-science']
 category=['Python']
+description="In this post we look at how to find null values in a Pandas dataframe."
 +++
 
 <p>

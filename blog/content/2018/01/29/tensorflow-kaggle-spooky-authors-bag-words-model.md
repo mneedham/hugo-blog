@@ -4,6 +4,7 @@ date="2018-01-29 06:51:10"
 title="Tensorflow: Kaggle Spooky Authors Bag of Words Model"
 tag=['kaggle', 'machine-learning', 'tensorflow']
 category=['Machine Learning']
+description="In this mini tutorial you can learn how to create a Tensorflow Bag of Words model for Kaggle'e Spooky Authors halloween competition."
 +++
 
 <p>

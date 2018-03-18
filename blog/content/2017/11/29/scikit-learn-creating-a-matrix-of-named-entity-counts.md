@@ -4,6 +4,7 @@ date="2017-11-29 23:01:38"
 title="scikit-learn: Creating a matrix of named entity counts"
 tag=['nlp', 'scikit-learn', 'polyglot', 'ner', 'entity-extraction']
 category=['Python']
+description="Learn how to create a matrix of named entities using scikit-learn's CountVectorizer and then train a model on it as part of machine learning pipeline."
 +++
 
 <p>

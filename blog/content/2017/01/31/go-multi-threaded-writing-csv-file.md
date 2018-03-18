@@ -4,6 +4,7 @@ date="2017-01-31 05:57:11"
 title="Go: Multi-threaded writing to a CSV file"
 tag=['go', 'golang']
 category=['Go']
+description="Writing to a CSV from multiple threads in the Go programming language."
 +++
 
 As part of a Go script I've been working on I wanted to write to a CSV file from multiple Go routines, but realised that the built in CSV Writer isn't thread safe.

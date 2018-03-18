@@ -4,6 +4,7 @@ date="2017-03-30 22:38:47"
 title="My top 10 technology podcasts"
 tag=['software-development', 'podcasts']
 category=['Software Development']
+description="A collection of my favourite technology podcasts covering data science, data engineering, bitcoin, Kubernetes, software development, and more."
 +++
 
 <p>For the last six months I&#8217;ve been listening to 2 or 3 technology podcasts every day while out running and on my commute and I thought it&#8217;d be cool to share some of my favourites.</p>

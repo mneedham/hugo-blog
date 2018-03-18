@@ -4,6 +4,7 @@ date="2017-03-25 14:09:59"
 title="Luigi: An ExternalProgramTask example - Converting JSON to CSV"
 tag=['python', 'luigi', 'data-science', 'data-engineering']
 category=['Python']
+description="A worked example showing how to call an external program with Luigi - a Python tool for building complex data pipelines."
 +++
 
 <p>

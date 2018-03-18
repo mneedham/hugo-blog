@@ -4,6 +4,7 @@ date="2017-01-21 10:49:46"
 title="Go vs Python: Parsing a JSON response from a HTTP API"
 tag=['go', 'golang']
 category=['Python']
+description="Parsing meetup.com's HTTP API using Go and Python."
 +++
 
 As part of a <a href="https://www.meetup.com/graphdb-london/events/236256437/">recommendations with Neo4j talk</a> that I've presented a few times over the last year I have a set of scripts that download some data from the <a href="https://www.meetup.com/meetup_api/">meetup.com API</a>.

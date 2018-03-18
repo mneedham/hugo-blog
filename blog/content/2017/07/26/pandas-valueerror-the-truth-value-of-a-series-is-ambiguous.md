@@ -4,6 +4,7 @@ date="2017-07-26 21:41:55"
 title="Pandas: ValueError: The truth value of a Series is ambiguous."
 tag=['python', 'pandas', 'data-science']
 category=['Data Science']
+description="In this post we look at how to work around the ValueError: The truth value of a Series is ambiguous when adding a new column to a DataFrame."
 +++
 
 <p>

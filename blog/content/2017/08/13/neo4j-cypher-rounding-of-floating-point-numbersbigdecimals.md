@@ -4,6 +4,7 @@ date="2017-08-13 07:23:46"
 title="Neo4j: Cypher - Rounding of floating point numbers/BigDecimals"
 tag=['neo4j', 'cypher', 'apoc']
 category=['neo4j']
+description="Learn how to deal with floating point arithmetic and rounding errors when working with Neo4j's Cypher query language. APOC comes to the rescue."
 +++
 
 <p>

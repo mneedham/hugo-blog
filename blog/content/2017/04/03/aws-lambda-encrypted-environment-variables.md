@@ -4,6 +4,7 @@ date="2017-04-03 05:49:53"
 title="AWS Lambda: Encrypted environment variables"
 tag=['lambda', 'aws-lambda']
 category=['Software Development']
+description="In this post we look at how to pass encrypted environment variables to an AWS lambda function and then decrypt them inside the function."
 +++
 
 <p>Continuing on from my post showing how to create a <a href="http://www.markhneedham.com/blog/2017/04/02/aws-lambda-programatically-create-a-python-hello-world-function/">'Hello World' AWS lambda function</a> I wanted to pass encrypted environment variables to my function.</p>

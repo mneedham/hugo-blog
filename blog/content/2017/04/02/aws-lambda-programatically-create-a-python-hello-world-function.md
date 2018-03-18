@@ -4,6 +4,7 @@ date="2017-04-02 22:11:47"
 title="AWS Lambda: Programatically create a Python 'Hello World' function"
 tag=['aws', 'aws-lambda']
 category=['Software Development']
+description="Learn how to programatically create a Python AWS Lambda function and all the surrounding config."
 +++
 
 <p>

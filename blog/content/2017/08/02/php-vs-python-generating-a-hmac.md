@@ -4,6 +4,7 @@ date="2017-08-02 06:09:10"
 title="PHP vs Python: Generating a HMAC"
 tag=['python', 'php']
 category=['Python']
+description="In this post I show how to generate a Base 64 encoded HMAC using Python and compare it to the same code in PHP."
 +++
 
 <p>

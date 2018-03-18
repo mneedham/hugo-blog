@@ -4,6 +4,7 @@ date="2017-11-17 18:10:28"
 title="Kubernetes 1.8: Using Cronjobs to take Neo4j backups"
 tag=['neo4j', 'kubernetes', 'cronjob', 'backup']
 category=['neo4j', 'Kubernetes']
+description="Learn how to take backups of Neo4j clusters deployed on Kubernetes using the Cronjob feature released in Kubernetes 1.8."
 +++
 
 <p>

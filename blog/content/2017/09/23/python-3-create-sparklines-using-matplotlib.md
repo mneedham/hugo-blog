@@ -4,6 +4,7 @@ date="2017-09-23 06:51:56"
 title="Python 3: Create sparklines using matplotlib"
 tag=['python', 'sparklines', 'python3', 'edward-tufte', 'matplotlib']
 category=['Python']
+description="Learn how to create Edward Tufte style sparklines graphics using Python's matplotlib libary."
 +++
 
 <p>
