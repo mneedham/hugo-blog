@@ -1,0 +1,76 @@
+---
+draft: false
+date: "2018-03-19 21:38:13"
+title: "Neo4j: Using the Neo4j Import Tool with the Neo4j Desktop"
+tag: ['neo4j', 'neo4j-import', 'neo4j-desktop']
+category: ['Neo4j']
+---
+
+Last week as part of a modelling and import webinar I showed how to use the https://neo4j.com/docs/operations-manual/current/tools/import/[Neo4j Import Tool^] to create a graph of the https://www.yelp.com/dataset[Yelp Open Dataset^]:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/aWqQNDi7p9I" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+++++
+
+Afterwards I realised that I didn't show how to use the tool if you already have an existing database in place so this post will show how to do that.
+
+Imagine we have a Neo4j Desktop project that looks like this:
+
+image::{{<siteurl>}}/uploads/2018/03/2018-03-19_21-56-08.png[width="600px"]
+
+We run the Neo4j Import Tool from the command line and can find it by clicking 'Manage' and then selecting the 'Terminal' menu:
+
+image::{{<siteurl>}}/uploads/2018/03/2018-03-19_22-06-39.png[width="600px"]
+
+If we run the following command we can see that there's already an existing database:
+
+```
+$ ls -lh data/databases/
+total 0
+drwxr-xr-x  38 markneedham  staff   1.2K Mar 19 20:46 graph.db
+```
+
+We'll create the database in the `yelp.db` directory by running the following command:
+
+```
+export DATA=/Users/markneedham/projects/yelp-graph-algorithms/data/
+
+./bin/neo4j-admin import \
+    --mode=csv \
+    --database=yelp.db \
+    --nodes:Business $DATA/business_header.csv,$DATA/business.csv \
+    --nodes:Category $DATA/category_header.csv,$DATA/category.csv \
+    --nodes:User $DATA/user_header.csv,$DATA/user.csv \
+    --nodes:Review $DATA/review_header.csv,$DATA/review.csv \
+    --nodes:City $DATA/city_header.csv,$DATA/city.csv \
+    --nodes:Area $DATA/area_header.csv,$DATA/area.csv \
+    --nodes:Country $DATA/country_header.csv,$DATA/country.csv \
+    --relationships:IN_CATEGORY $DATA/business_IN_CATEGORY_category_header.csv,$DATA/business_IN_CATEGORY_category.csv \
+    --relationships:FRIENDS $DATA/user_FRIENDS_user_header.csv,$DATA/user_FRIENDS_user.csv \
+    --relationships:WROTE $DATA/user_WROTE_review_header.csv,$DATA/user_WROTE_review.csv \
+    --relationships:REVIEWS $DATA/review_REVIEWS_business_header.csv,$DATA/review_REVIEWS_business.csv \
+    --relationships:IN_CITY $DATA/business_IN_CITY_city_header.csv,$DATA/business_IN_CITY_city.csv \
+    --relationships:IN_AREA $DATA/city_IN_AREA_area_header.csv,$DATA/city_IN_AREA_area.csv \
+    --relationships:IN_COUNTRY $DATA/area_IN_COUNTRY_country_header.csv,$DATA/area_IN_COUNTRY_country.csv \
+    --ignore-missing-nodes=true \
+    --multiline-fields=true
+
+Neo4j version: 3.3.4
+Importing the contents of these files into /Users/markneedham/Library/Application Support/Neo4j Desktop/Application/neo4jDatabases/database-a4609400-daa6-48c3-a992-5c2637a43a8c/installation-3.3.4/data/databases/yelp.db:
+
+...
+
+IMPORT DONE in 11m 35s 798ms.
+Imported:
+  6764794 nodes
+  60993597 relationships
+  24574170 properties
+```
+
+Now we need to go to the `Settings` tab, uncomment the `dbms.active_database=graph.db` line, and point it at our Yelp database:
+
+image::{{<siteurl>}}/uploads/2018/03/2018-03-19_22-14-08.png[]
+
+When we press apply we'll be prompted to restart the database and once we do that we'll be ready to explore the Yelp dataset.
+
+I've written up more instructions explaining how to generate the CSV files in the https://github.com/mneedham/yelp-graph-algorithms[yelp-graph-algorithms^] repository.
