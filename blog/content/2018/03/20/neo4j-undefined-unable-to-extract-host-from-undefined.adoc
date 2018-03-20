@@ -1,0 +1,22 @@
+---
+draft: false
+date: "2018-03-20 17:51:10"
+title: "Neo4j Desktop: undefined: Unable to extract host from undefined"
+description: Learn how to work around a weird message in the Neo4j browser.
+tag: ['neo4j', 'neo4j-desktop']
+category: ['Neo4j']
+---
+
+During a training session I facilitated today one of the attendees got the following error message while trying to execute a query inside the Neo4j Desktop.
+
+image::{{<siteurl>}}/uploads/2018/03/2018-03-20_17-49-35.png[width="600px"]
+
+This error message happens if we try to run a query when the database hasn't been started, and would usually be accompanied by this screen:
+
+image::{{<siteurl>}}/uploads/2018/03/2018-03-20_17-56-48.png[width="600px"]
+
+On this occasion that wasn't happening, but we can easily fix it by going back to the project screen and starting the database:
+
+image::{{<siteurl>}}/uploads/2018/03/2018-03-20_17-58-54.png[width="600px"]
+
+Once we do that we'll be able to execute queries again.
