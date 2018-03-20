@@ -2,6 +2,7 @@
 draft: false
 date: "2018-03-19 21:38:13"
 title: "Neo4j: Using the Neo4j Import Tool with the Neo4j Desktop"
+description: Learn how to use the Neo4j Import Tool with an existing database in Neo4j Desktop
 tag: ['neo4j', 'neo4j-import', 'neo4j-desktop']
 category: ['Neo4j']
 ---
