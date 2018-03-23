@@ -1,12 +1,13 @@
 languageCode = "en-us"
 title = "Mark Needham"
-baseurl = "https://mneedham.github.io/blog/"
+baseurl = "http://markhneedham.com/blog/"
+# baseurl = "http://localhost:8000/"
 theme = "hugo-theme-crisp"
 
 [Params]
   Author = "Mark Needham"
   disqusShortname = "markhneedham12345"
-  disqus = "markhneedham12345"
+  disqus = "markhneedham"
   twitter = "markhneedham"
   gplus = "100354797468725665406"
   ga = "9991626"
