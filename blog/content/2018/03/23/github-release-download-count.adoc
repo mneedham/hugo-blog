@@ -1,0 +1,370 @@
+---
+draft: false
+date: "2018-03-23 15:49:48"
+title: "GitHub: Getting the download count for a release"
+description: "Learn how to get the download count for a GitHub release via the GraphQL API"
+tag: ['github', 'graphql']
+category: ['GraphQL']
+---
+
+At Neo4j we distribute several of our Developer Relations projects via GitHub Releases so I was curious whether there was a way to see how many people had downloaded them.
+
+I found an article explaining https://help.github.com/articles/getting-the-download-count-for-your-releases/[how to do it on v3 of the GitHub API^], but I've got used to the v4 GraphQL API and I'm not going back!
+Thankfully it's not too difficult to figure out.
+
+GitHub let you explore the API via the https://developer.github.com/v4/explorer/[GitHub GraphQL Explorer^] and the following query gets us the information we require:
+
+[source, graphql]
+----
+query Repositories($owner:String!, $name:String!) {
+  repository(owner: $owner, name: $name) {
+    nameWithOwner
+    releases(first: 5, orderBy: {field:CREATED_AT, direction:DESC}) {
+      totalCount
+      nodes {
+        releaseAssets(first: 1) {
+          nodes {
+            name
+            downloadCount
+            createdAt
+          }
+        }
+      }
+    }
+  }
+}
+----
+
+If we want to get the download counts for the most recent releases of the APOC library we can execute the query with the following parameters:
+
+[source, json]
+----
+{
+  "owner": "neo4j-contrib",
+  "name": "neo4j-apoc-procedures"
+}
+----
+
+And this is what the response looks like:
+
+[source, json]
+----
+{
+  "data": {
+    "repository": {
+      "nameWithOwner": "neo4j-contrib/neo4j-apoc-procedures",
+      "releases": {
+        "totalCount": 26,
+        "nodes": [
+          {
+            "releaseAssets": {
+              "nodes": [
+                {
+                  "name": "apoc-3.1.3.9-all.jar",
+                  "downloadCount": 94,
+                  "createdAt": "2018-02-23T19:52:54Z"
+                }
+              ]
+            }
+          },
+          {
+            "releaseAssets": {
+              "nodes": [
+                {
+                  "name": "apoc-3.3.0.2-all.jar",
+                  "downloadCount": 4405,
+                  "createdAt": "2018-02-23T19:26:26Z"
+                }
+              ]
+            }
+          },
+          {
+            "releaseAssets": {
+              "nodes": [
+                {
+                  "name": "apoc-3.2.3.6-all.jar",
+                  "downloadCount": 134,
+                  "createdAt": "2018-02-23T19:26:37Z"
+                }
+              ]
+            }
+          },
+          {
+            "releaseAssets": {
+              "nodes": [
+                {
+                  "name": "apoc-3.2.3.5-all.jar",
+                  "downloadCount": 3767,
+                  "createdAt": "2017-10-23T15:53:42Z"
+                }
+              ]
+            }
+          },
+          {
+            "releaseAssets": {
+              "nodes": [
+                {
+                  "name": "apoc-3.3.0.1-all.jar",
+                  "downloadCount": 15815,
+                  "createdAt": "2017-10-23T15:54:12Z"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+----
+
+This approach works well for getting the stats for a single repository but we need to write a different query to get multiple repositories at the same time.
+We can use the `nodes` function but that takes in an array of IDs so we need to look those up first.
+
+The following query gets the required information:
+
+[source, graphql]
+----
+query Repositories($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) {
+    id
+  }
+}
+----
+
+Let's lookup the IDs for a couple of repositories.
+First APOC:
+
+[source, json]
+----
+{
+  "owner": "neo4j-contrib",
+  "name": "neo4j-apoc-procedures"
+}
+----
+
+[source, json]
+----
+{
+  "data": {
+    "repository": {
+      "id": "MDEwOlJlcG9zaXRvcnk1MjUwOTIyMA=="
+    }
+  }
+}
+----
+
+And now Graph Algorithms:
+
+[source, json]
+----
+{
+  "owner": "neo4j-contrib",
+  "name": "neo4j-graph-algorithms"
+}
+----
+
+[source, json]
+----
+{
+  "data": {
+    "repository": {
+      "id": "MDEwOlJlcG9zaXRvcnk4MjI5MTgyOA=="
+    }
+  }
+}
+----
+
+Now we can get the stats for both repositories at the same time:
+
+[source, graphql]
+----
+query Repositories($ids: [ID!]!) {
+  nodes(ids: $ids) {
+    ... on Repository {
+      name
+      databaseId
+      releases(first: 50) {
+        nodes {
+          releaseAssets(first: 1) {
+            nodes {
+              name
+              release {
+                name
+              }
+              downloadCount
+            }
+          }
+        }
+      }
+    }
+  }
+}
+----
+
+And let's call it with the IDs of our repositories
+
+[source, json]
+----
+{
+  "ids": ["MDEwOlJlcG9zaXRvcnk1MjUwOTIyMA==", "MDEwOlJlcG9zaXRvcnk4MjI5MTgyOA=="]
+}
+----
+
+[source, json]
+----
+{
+  "data": {
+    "nodes": [
+      {
+        "name": "neo4j-apoc-procedures",
+        "databaseId": 52509220,
+        "releases": {
+          "nodes": [
+            {
+              "releaseAssets": {
+                "nodes": [
+                  {
+                    "name": "apoc-3.1.3.9-all.jar",
+                    "release": {
+                      "name": "Winter Release 3.1.3.9"
+                    },
+                    "downloadCount": 94
+                  }
+                ]
+              }
+            },
+            {
+              "releaseAssets": {
+                "nodes": [
+                  {
+                    "name": "apoc-3.3.0.2-all.jar",
+                    "release": {
+                      "name": "Winter Release 3.3.0.2"
+                    },
+                    "downloadCount": 4420
+                  }
+                ]
+              }
+            },
+            {
+              "releaseAssets": {
+                "nodes": [
+                  {
+                    "name": "apoc-3.2.3.6-all.jar",
+                    "release": {
+                      "name": "Winter Release 3.2.3.6"
+                    },
+                    "downloadCount": 135
+                  }
+                ]
+              }
+            },
+            {
+              "releaseAssets": {
+                "nodes": [
+                  {
+                    "name": "apoc-3.2.3.5-all.jar",
+                    "release": {
+                      "name": " APOC Fall Release 3.2.3.5"
+                    },
+                    "downloadCount": 3767
+                  }
+                ]
+              }
+            },
+            {
+              "releaseAssets": {
+                "nodes": [
+                  {
+                    "name": "apoc-3.3.0.1-all.jar",
+                    "release": {
+                      "name": "APOC Fall Release 3.3.0.1"
+                    },
+                    "downloadCount": 15823
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "neo4j-graph-algorithms",
+        "databaseId": 82291828,
+        "releases": {
+          "nodes": [
+            {
+              "releaseAssets": {
+                "nodes": [
+                  {
+                    "name": "graph-algorithms-algo-3.3.2.0.jar",
+                    "release": {
+                      "name": "Neo4j Graph Algorithms Release 3.3.2.0 - More Huge Graphs and Graph Loading"
+                    },
+                    "downloadCount": 5600
+                  }
+                ]
+              }
+            },
+            {
+              "releaseAssets": {
+                "nodes": [
+                  {
+                    "name": "graph-algorithms-algo-3.2.9.0.jar",
+                    "release": {
+                      "name": "Neo4j Graph Algorithms Release 3.2.9.0 - More Huge Graphs and Graph Loading"
+                    },
+                    "downloadCount": 30
+                  }
+                ]
+              }
+            },
+            {
+              "releaseAssets": {
+                "nodes": [
+                  {
+                    "name": "graph-algorithms-algo-3.3.0.0.jar",
+                    "release": {
+                      "name": "Neo4j Graph Algorithms Release 3.3.0.0 - Huge Graphs & More"
+                    },
+                    "downloadCount": 4244
+                  }
+                ]
+              }
+            },
+            {
+              "releaseAssets": {
+                "nodes": [
+                  {
+                    "name": "graph-algorithms-algo-3.2.5.2.jar",
+                    "release": {
+                      "name": "Neo4j Graph Algorithms Release 3.2.5.2 - Huge Graphs & More"
+                    },
+                    "downloadCount": 263
+                  }
+                ]
+              }
+            },
+            {
+              "releaseAssets": {
+                "nodes": [
+                  {
+                    "name": "graph-algorithms-algo-3.2.2.1.jar",
+                    "release": {
+                      "name": "Neo4j Graph Algorithms - Release 3.2.2.1"
+                    },
+                    "downloadCount": 392
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+----
+
+Success!
