@@ -1,0 +1,44 @@
+---
+draft: false
+date: "2018-04-02 04:20:00"
+title: "Python 3: Converting a list to a dictionary with dictionary comprehensions"
+description: "Convert a Python list to a dictionary using dictionary comprehensions."
+tag: ['python']
+category: ['Python']
+---
+
+When coding in Python I often find myself with lists containing key/value pairs that I want to convert to a dictionary.
+
+In a recent example I had the following code:
+
+[source, python]
+----
+values = [{'key': 'name', 'value': 'Mark'}, {'key': 'age', 'value': 34}]
+----
+
+And I wanted to create a dictionary that had the keys `name` and `age` and their respective values.
+The easiest way to convert this list to a dictionary is to iterate over the list and construct the dictionary key by key:
+
+[source, python]
+----
+attrs = {}
+for value in values:
+  attrs[value["key"]] = value["value"]
+
+>>> attrs
+{'name': 'Mark', 'age': 34}
+----
+
+It's annoying that I have to mutate `attrs` to add items in but it works.
+
+Much to my delight I https://stackoverflow.com/questions/4576115/convert-a-list-to-a-dictionary-in-python[recently learnt^] that Python 3 introduced http://www.diveintopython3.net/comprehensions.html[Dictionary Comprehensions^] which allow us to do the conversion in one line:
+
+[source, python]
+----
+>>> { value["key"]: value["value"] for value in values }
+{'name': 'Mark', 'age': 34}
+----
+
+Dictionary comprehensions are very similar to list comprehensions but we project a key/value pair rather than a single value for each item in our collection.
+
+You can see more examples in the http://www.diveintopython3.net/comprehensions.html#dictionarycomprehension[Dictionary Comprehensions section^] of the http://www.diveintopython3.net/[Dive Into Python 3 Guide^].
