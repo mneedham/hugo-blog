@@ -1,0 +1,74 @@
+---
+draft: false
+date: "2018-04-07 19:38:36"
+title: "Python: Serialize and Deserialize Numpy 2D arrays"
+description: Learn how to serialize and deserialize Numpy 2D arrays.
+tag: ['python', 'numpy']
+category: ['Python']
+---
+
+I've been playing around with saving and loading scikit-learn models and needed to serialize and deserialize Numpy arrays as part of the process.
+
+I could use pickle but that seems a bit overkill so I decided instead to save the byte representation of the array.
+We can get that representation by calling the `tobytes` method on a Numpy array:
+
+[source,python]
+----
+import numpy as np
+
+>>> np.array([ [1,2,3], [4,5,6], [7,8,9] ])
+array([[1, 2, 3],
+       [4, 5, 6],
+       [7, 8, 9]])
+
+>>> np.array([ [1,2,3], [4,5,6], [7,8,9] ]).tobytes()
+b'\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x06\x00\x00\x00\x00\x00\x00\x00\x07\x00\x00\x00\x00\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\t\x00\x00\x00\x00\x00\x00\x00'
+----
+
+If we want to go from the byte representation back to an array we can use the `frombuffer` method like this:
+
+[source, python]
+----
+as_bytes = np.array([ [1,2,3], [4,5,6], [7,8,9] ]).tobytes()
+
+>>> np.frombuffer(as_bytes)
+array([4.9e-324, 9.9e-324, 1.5e-323, 2.0e-323, 2.5e-323, 3.0e-323,
+       3.5e-323, 4.0e-323, 4.4e-323])
+----
+
+By default this method assumes that our array contains float values which is incorrect in this case.
+Let's save the array data type and restore it correctly:
+
+[source, python]
+----
+as_array = np.array([ [1,2,3], [4,5,6], [7,8,9] ])
+array_data_type = as_array.dtype.name
+as_bytes = as_array.tobytes()
+
+>>> as_array.dtype.name
+'int64'
+
+>>> np.frombuffer(as_bytes, dtype = array_data_type)
+array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+----
+
+Almost there.
+Now we need to store the shape of the original array and https://stackoverflow.com/questions/7165367/how-to-restore-a-2-dimensional-numpy-array-from-a-bytestring[reshape it^]:
+
+[source, python]
+----
+as_array = np.array([ [1,2,3], [4,5,6], [7,8,9] ])
+array_data_type = as_array.dtype.name
+array_shape = as_array.shape
+as_bytes = as_array.tobytes()
+
+>>> as_array.shape
+(3, 3)
+
+>>> np.frombuffer(as_bytes, dtype = array_data_type).reshape(array_shape)
+array([[1, 2, 3],
+       [4, 5, 6],
+       [7, 8, 9]])
+----
+
+All done!
