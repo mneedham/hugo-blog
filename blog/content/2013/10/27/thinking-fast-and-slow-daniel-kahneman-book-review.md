@@ -2,7 +2,7 @@
 draft = false
 date="2013-10-27 22:53:49"
 title="Thinking Fast and Slow - Daniel Kahneman: Book Review"
-tag=['book-review']
+tag=['book-review', 'books', 'kahneman', 'thinking', 'cognitive-bias']
 category=['Books']
 +++
 
@@ -19,7 +19,7 @@ category=['Books']
 </li>
 </ul>
 
-<p>…and the next 30+ chapters describe situations where System 1 can get us into trouble.</p>
+<p>...and the next 30+ chapters describe situations where System 1 can get us into trouble.</p>
 
 
 <p>The book focuses on different cognitive biases that humans get fooled by and there was a spell of about 100 pages starting around chapter 4 where it started to feel repetitive and I felt like putting the book down.</p>
@@ -32,13 +32,13 @@ category=['Books']
 
 
 <ul>
-<li><a href="http://en.wikipedia.org/wiki/Outcome_bias">Outcome bias</a> - this bias describes the tendency to <strong>build a story around events after we already know the outcome</strong> and come to the conclusion that the outcome was inevitable. For example, many people claim that they 'knew well before it happened that the 2008 financial crisis was inevitable'. 
+<li><a href="http://en.wikipedia.org/wiki/Outcome_bias">Outcome bias</a> - this bias describes the tendency to <strong>build a story around events after we already know the outcome</strong> and come to the conclusion that the outcome was inevitable. For example, many people claim that they 'knew well before it happened that the 2008 financial crisis was inevitable'.
 
 Kahneman points out that we only remember the intuitions which turned out to be true, noone talks about those intuitions which turned out to be false. He also cautions us to consider the role that luck plays in any success.</li>
 <li>Intuitions vs Formulas - Kahneman quotes <a href="http://en.wikipedia.org/wiki/Paul_E._Meehl">Paul Meehl</a> who suggests that <strong>most of the time human decision makers are inferior to a prediction formula</strong> even when they are given the score suggested by the formula.
 
 In the world of software this reliance on intuition is often used when interviewing people for jobs and choosing who to hire based on an intuitive judgement. Kahneman suggests making a list of about 6 traits that are pre-requisites for the position and then ranking each candidate against those. The candidate who scores the highest is the best choice.</li>
-<li>Over reliance on representativeness - often <strong>we judge the probability of something based on stereotypes rather than taking the base rate of the population into account</strong>. 
+<li>Over reliance on representativeness - often <strong>we judge the probability of something based on stereotypes rather than taking the base rate of the population into account</strong>.
 
 e.g. if we saw a person reading The New York Times on the subway which of the following is a better bet about this stranger?
 
@@ -69,4 +69,3 @@ People who were presented with the first option were much more likely to favour 
 
 
 <p>I'd encourage you to read the book if you find human decision making interesting although I'd try and forget everything I've said as you've probably been inadvertently <a href="http://en.wikipedia.org/wiki/Priming_(psychology)">primed</a> by me.</p>
-

@@ -10,7 +10,7 @@ theme = "hugo-theme-crisp"
   disqus = "markhneedham"
   twitter = "markhneedham"
   gplus = "100354797468725665406"
-  ga = "9991626"
+  ga = "UA-9991626-1"
 
 [taxonomies]
   tag = "tag"

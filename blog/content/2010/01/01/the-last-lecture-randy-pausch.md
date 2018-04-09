@@ -2,7 +2,7 @@
 draft = false
 date="2010-01-01 14:32:58"
 title="The Last Lecture - Randy Pausch"
-tag=['books']
+tag=['books', 'book-review']
 category=['Books']
 +++
 
@@ -19,7 +19,7 @@ While I think they're certainly right I'm not sure that <a href="http://www.mark
 
 <li><strong>The brick walls are there for a reason</strong> - Pausch describes how we'll often come across obstacles stopping or blocking us from what we want to do but that we shouldn't be discouraged, they are there so that we can see how much we really want something. I think this is just generally true and not just related to software development.</li>
 
-<li><strong>The skill of self assessment</strong> - Pausch suggests that we need know what we don't know which I think is perhaps the best advice in the book. We need to recognise our true abilities but also have a sense of our flaws and create feedback loops to allow this to happen. 
+<li><strong>The skill of self assessment</strong> - Pausch suggests that we need know what we don't know which I think is perhaps the best advice in the book. We need to recognise our true abilities but also have a sense of our flaws and create feedback loops to allow this to happen.
 
 My colleague Liz Douglass has come up with the idea of <a href="http://lizdouglass.wordpress.com/2009/11/16/friday-feedback-frenzies/">Feedback Frenzies</a> to help create this feedback loop and this is one of the best ideas I've come across for doing this.</li>
 
@@ -35,4 +35,3 @@ I think we can do this much more in the software world. There sometimes seems to
 </ul>
 
 The Last Lecture is one of the best presentations I've had the chance to watch - I'd certainly recommend it.
-

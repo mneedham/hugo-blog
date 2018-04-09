@@ -2,7 +2,7 @@
 draft = false
 date="2011-02-26 03:06:48"
 title="Books: Know why you're reading it "
-tag=['learning']
+tag=['learning', 'books']
 category=['Books']
 +++
 
@@ -28,7 +28,7 @@ I don't think it always needs to be quite as organised as this but I've certainl
 
 When reading <a href="http://www.faqs.org/docs/artu/">The Art of Unix Programming</a> I felt that I was learning a lot of different things for the first ten chapters or so but then it started to get quite boring for me so I skimmed the rest of the book and ended up reading just half of the chapters completely.
 
-The amusing thing for me is that I knew about this technique a couple of years ago but I still don't use it which I think that comes down to having a bit of a psychological thing about needing to finish books. 
+The amusing thing for me is that I knew about this technique a couple of years ago but I still don't use it which I think that comes down to having a bit of a psychological thing about needing to finish books.
 
 At the moment I have around 15 books which I've partially read and at the back of my mind I know that I want to go and read the rest of them even though there will undoubtably be varying returns from doing that!
 

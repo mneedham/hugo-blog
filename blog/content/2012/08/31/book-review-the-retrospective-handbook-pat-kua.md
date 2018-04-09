@@ -2,7 +2,7 @@
 draft = false
 date="2012-08-31 21:18:19"
 title="Book Review: The Retrospective Handbook - Pat Kua"
-tag=['retrospective']
+tag=['retrospective', 'books', 'book-review']
 category=['Books']
 +++
 
@@ -15,7 +15,7 @@ In actual fact <strong>Pat has done a great job making the topic accessible to a
 These were some of the things that I took away:
 
 <ul>
-<li>One of the most interesting parts of the book was a section titled 'Be Aware of Cultural Dimensions' where Pat covers some of the different challenges we have when people from different cultures work together. 
+<li>One of the most interesting parts of the book was a section titled 'Be Aware of Cultural Dimensions' where Pat covers some of the different challenges we have when people from different cultures work together.
 
 I found the <strong>power distance index</strong> (PDI) especially interesting:
 
@@ -33,7 +33,7 @@ The US/UK tend to have low PDI whereas India has a high PDI - something I found 
 A common, shared picture is only possible if all participants give their input freely and share their view of the story. This is difficult if one or two people are allowed to dominate discussions. Part of your role as a facilitator is to use whatever techniques you can to ensure a balanced conversation occurs.
 </blockquote>
 
-I think this is much easier for an external facilitator to do as they won't have the burden of inter team politics/hierarchy to deal with. 
+I think this is much easier for an external facilitator to do as they won't have the burden of inter team politics/hierarchy to deal with.
 
 Pat goes on to suggests splitting the group up into smaller groups as one technique to get people involved, an approach I've found works  and from my experience this works really well and gets around the problem that many people aren't comfortable discussing things in big groups.
 </li>
@@ -45,7 +45,7 @@ He suggests a variety of different techniques including bringing food or running
 <li>Another good tip is that <strong>when creating actions we don't need to spend time getting someone to sign up for them right there and then</strong> - an alternative is to encourage people to walk the wall and pick ones they feel they can take care of.</li>
 </ul>
 
-I think this book compliments Esther Derby/Diana Larsen's '<a href="http://www.amazon.co.uk/Agile-Retrospectives-Making-Pragmatic-Programmers/dp/0977616649/ref=sr_1_1?ie=UTF8&qid=1346394439&sr=8-1">Agile Retrospectives</a>' really well. 
+I think this book compliments Esther Derby/Diana Larsen's '<a href="http://www.amazon.co.uk/Agile-Retrospectives-Making-Pragmatic-Programmers/dp/0977616649/ref=sr_1_1?ie=UTF8&qid=1346394439&sr=8-1">Agile Retrospectives</a>' really well.
 
 I find their book really useful for finding exercises to use in retrospectives to keep it interesting whereas Pat's book is more about the challenges you're likely to face during the retrospective itself.
 

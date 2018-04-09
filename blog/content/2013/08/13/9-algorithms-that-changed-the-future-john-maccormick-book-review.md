@@ -2,7 +2,7 @@
 draft = false
 date="2013-08-13 20:00:45"
 title="9 algorithms that changed the future - John MacCormick: Book Review"
-tag=['books']
+tag=['books', 'algorithms', 'book-review']
 category=['Books']
 +++
 
@@ -14,7 +14,7 @@ category=['Books']
 <h3>My Thoughts</h3>
 
 <p>I came across this book while idly browsing <a href="http://www.foyles.co.uk/">a book store</a> and since I've found most introduction to algorithms books very dry I thought it'd be interesting to see what one aimed at the general public would be like.</p>
- 
+
 
 <p>Overall it was an enjoyable read and I quite like the pattern that the author used for each algorithm, which was:</p>
 
@@ -45,4 +45,3 @@ I didn't realise that Sergey Brin and Larry Page had published a paper back in 1
 </ul>
 
 <p>I enjoyed the book and I've got some interesting articles/papers to add to my reading list. Even if you already know all the algorithms I think it's interesting to hear them described from a completely different angle to see if you learn something new.</p>
-

@@ -2,7 +2,7 @@
 draft = false
 date="2013-09-30 22:48:13"
 title="On Writing Well - William Zinsser: Book Review"
-tag=['books', 'book-review']
+tag=['books', 'book-review', 'writing']
 category=['Books']
 +++
 
@@ -36,10 +36,9 @@ I've found this to be the case multiple times although you can achieve the same 
 </ul>
 
 <p>I gleaned these insights mostly from the first half of the book.</p>
- 
+
 
 <p>The second half focused on different forms of writing and showed how to apply the lessons from earlier in the book. Although not all the forms were applicable to me I still found it interesting to read as the author has a nice way with words and you want to keep reading the next sentence.</p>
 
 
 <p>My main concern having read the book is ensuring that <strong>I don't paralyse my ability to finish blog posts</strong> by rewriting ad infinitum.</p>
-

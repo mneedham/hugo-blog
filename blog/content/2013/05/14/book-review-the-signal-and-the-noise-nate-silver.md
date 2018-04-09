@@ -2,7 +2,7 @@
 draft = false
 date="2013-05-14 00:16:56"
 title="Book Review: The Signal and the Noise - Nate Silver"
-tag=['books']
+tag=['books', 'book-review', 'statistics']
 category=['Books']
 +++
 
@@ -79,4 +79,3 @@ The book mainly focuses on the latter.
 
 
 <p>Overall though I found it an interesting read although there are probably a few places that you can skim over the detail and still get the gist of what he's saying.</p>
-

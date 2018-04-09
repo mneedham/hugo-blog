@@ -2,7 +2,7 @@
 draft = false
 date="2010-07-12 16:07:12"
 title="Linchpin: Book Review"
-tag=['books', 'linchpin']
+tag=['books', 'linchpin', 'book-review']
 category=['Books']
 +++
 
@@ -12,7 +12,7 @@ I've read a couple of Seth Godin's other books - <a href="http://www.amazon.co.u
 
 This is the first book that I've read on the <a href="http://itunes.apple.com/us/app/kindle/id302584613?mt=8">iPad's Kindle application</a> and it was a reasonably good reading experience - I particularly like the fact that you can make notes and highlight certain parts of the text.
 
-It's also possible to see which areas of the book other Kindle users have highlighted and you can <a href="http://kindle.amazon.com/your_reading">see your highlights/notes via the Kindle website</a>. 
+It's also possible to see which areas of the book other Kindle users have highlighted and you can <a href="http://kindle.amazon.com/your_reading">see your highlights/notes via the Kindle website</a>.
 
 <h3>The Review</h3>
 

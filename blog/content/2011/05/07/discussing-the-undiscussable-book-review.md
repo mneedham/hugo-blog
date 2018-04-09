@@ -2,7 +2,7 @@
 draft = false
 date="2011-05-07 00:45:42"
 title="Discussing the Undiscussable: Book Review"
-tag=['books']
+tag=['books', 'communication', 'feedback', 'book-review']
 category=['Books']
 +++
 
@@ -10,7 +10,7 @@ I came across <a href="http://www.markhneedham.com/blog/2011/01/13/chris-argyris
 
 In the book Noonan runs through a series of different tools that <a href="http://en.wikipedia.org/wiki/Chris_Argyris">Chris Argyris</a> originally came up with for helping people to handle difficult conversational situations more effectively.
 
-I really like the way the book is written. 
+I really like the way the book is written.
 
 A lot of books of this ilk come across to me as being very idealistic but Noonan avoids that by describing his own mistakes in trying to implement Argyris' ideas. This makes the book much more accessible to me.
 
@@ -19,11 +19,11 @@ He also repeatedly points out that even though you might understand the tools th
 These were some of the ideas that stood out for me from my reading over the last few months:
 
 <ul>
-<li>Advocacy/Inquiry - Noonan suggests that when we're discussing a topic it's important to <strong>advocate our opinion but also be open to people challenging it</strong> so that we can learn if there are any gaps in our understanding or anything that we're missing. 
+<li>Advocacy/Inquiry - Noonan suggests that when we're discussing a topic it's important to <strong>advocate our opinion but also be open to people challenging it</strong> so that we can learn if there are any gaps in our understanding or anything that we're missing.
 
-This seems quite similar to Bob Sutton's '<a href="http://bobsutton.typepad.com/my_weblog/2006/07/strong_opinions.html">Strong Opinions, Weakly Held</a>' which I've come across several times in the past. 
+This seems quite similar to Bob Sutton's '<a href="http://bobsutton.typepad.com/my_weblog/2006/07/strong_opinions.html">Strong Opinions, Weakly Held</a>' which I've come across several times in the past.
 
-One anti pattern which comes from not doing this is known as '<a href="http://www.markhneedham.com/blog/2011/04/13/feedback-easing-in/">easing in</a>' where we try to get the other person to advocate our opinion through the use of various leading questions. 
+One anti pattern which comes from not doing this is known as '<a href="http://www.markhneedham.com/blog/2011/04/13/feedback-easing-in/">easing in</a>' where we try to get the other person to advocate our opinion through the use of various leading questions.
 
 The problem is that they tend to know exactly what we're doing and it can come across as being quite manipulative.
 </li>
@@ -37,7 +37,7 @@ I think it's a step too far to believe that I won't ever climb the inference lad
 </li>
 <li>Recovery time - There is constant reference throughout the book to our recovery time i.e. <strong>how quickly do we realise that we've made a mistake by participating in a defensive routine</strong>.
 
-Argyris' tools are quite useful for helping us to reduce our recovery time because they are reflective in nature and when we reflect on a situation we tend to see where we've gone wrong! 
+Argyris' tools are quite useful for helping us to reduce our recovery time because they are reflective in nature and when we reflect on a situation we tend to see where we've gone wrong!
 
 Noonan suggests that it's inevitable we'll make mistakes but the key is to try and detect our mistakes sooner and then hopefully reduce the number that we make.
 </li>
@@ -49,6 +49,6 @@ I still make loads of the mistakes that the book points out and I've noticed tha
 
 It's also useful to be hanging around other people who are studying Argyris' work as you can then help each other out.
 
-One of the initial books that Chris Argyris published describing these tools was '<a href="http://actiondesign.com/resources/research/action-science">Action Science</a>' (available as a free PDF). 
+One of the initial books that Chris Argyris published describing these tools was '<a href="http://actiondesign.com/resources/research/action-science">Action Science</a>' (available as a free PDF).
 
 I initially tried reading that before this book but I found it a bit hard to follow but I'll probably try it again at some stage.

@@ -2,7 +2,7 @@
 draft = false
 date="2008-12-09 00:14:48"
 title="Taiichi Ohno's Workplace Management: Book Review"
-tag=['lean', 'toyota', 'book-review']
+tag=['lean', 'toyota', 'book-review', 'books']
 category=['Books']
 +++
 

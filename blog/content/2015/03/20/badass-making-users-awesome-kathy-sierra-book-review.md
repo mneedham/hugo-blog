@@ -2,7 +2,7 @@
 draft = false
 date="2015-03-20 07:30:55"
 title="Badass: Making users awesome - Kathy Sierra: Book Review"
-tag=['books']
+tag=['books', 'book-review', 'users']
 category=['Books']
 +++
 
@@ -17,7 +17,7 @@ I really enjoyed the book and have found myself returning to it almost every day
 
 
 <p>
-There were a few things that I've taken away and have been going on about to anyone who will listen. 
+There were a few things that I've taken away and have been going on about to anyone who will listen.
 </p>
 
 
@@ -85,7 +85,7 @@ I'd heard good things about the <a href="http://mallet.cs.umass.edu/">MALLET</a>
 Extract topics for HIMYM corpus ->
 Train a topic model with mallet ->
 Tweak an existing topic model that uses mallet ->
-Run an existing topic model that uses mallet -> 
+Run an existing topic model that uses mallet ->
 Install mallet
 ~~~
 
@@ -133,4 +133,3 @@ The other awesome thing about this book is that I've come away with a bunch of o
 <p>
 In summary, if learning is your thing get yourself a copy of the book and read it over a few times - so many great tips, I've only covered a few.
 </p>
-

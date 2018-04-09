@@ -2,7 +2,7 @@
 draft = false
 date="2010-11-21 17:02:14"
 title="The Adventures of Johnny Bunko -  The Last Career Guide You'll Ever Need: Book Review"
-tag=['books']
+tag=['books', 'book-review', 'career']
 category=['Books']
 +++
 
@@ -59,7 +59,7 @@ Pink talks about making excellent mistakes which he describes as 'mistakes that 
 
 I think this is somewhat linked to the idea of failing fast although it seems to be perhaps one level beyond that.
 
-Sumeet gave a talk at XConf where he described <a href="http://www.learninggeneralist.com/2010/08/thoughtworks-university-story-of-our.html">the new approach to ThoughtWorks University</a> and pointed out that one of the most important goals was to allow attendees to make 'excellent mistakes' 
+Sumeet gave a talk at XConf where he described <a href="http://www.learninggeneralist.com/2010/08/thoughtworks-university-story-of-our.html">the new approach to ThoughtWorks University</a> and pointed out that one of the most important goals was to allow attendees to make 'excellent mistakes'
 
 One observation I have here is that smaller companies seems more willing to make excellent mistakes. As organisations grow the aversion to risk because of worries about loss of reputation increases which makes excellent mistakes less likely.
 
@@ -71,4 +71,4 @@ Pink talks about the importance of doing work which actually has some meaning or
 
 This is probably the one that I can relate to least. I'm writing software which is what I'm passionate about but I wouldn't say the problems I work on are having much impact on the world.
 
-This one therefore leaves me with the most to think about. 
+This one therefore leaves me with the most to think about.

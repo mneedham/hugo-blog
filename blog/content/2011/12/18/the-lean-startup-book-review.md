@@ -2,7 +2,7 @@
 draft = false
 date="2011-12-18 21:00:04"
 title="The Lean Startup: Book Review"
-tag=['lean-startup']
+tag=['lean-startup', 'books', 'book-review']
 category=['Books']
 +++
 
@@ -16,9 +16,9 @@ I'd always considered the MVP to effectively be the first release of any product
 
 On a lot of the projects that I've worked on we start after the point at which the business has decided what their product vision is and we're responsible for implementing it. They haven't necessarily then gone on to make a big return from building the product which I always found strange.
 
-The most frequent argument I've heard against releasing an 'incomplete' product early in the organisations that I've worked for is that it could ruin their brand if they took this approach. One suggestion the book makes is to release the product under a spin off subsidiary if we're worried about that. 
+The most frequent argument I've heard against releasing an 'incomplete' product early in the organisations that I've worked for is that it could ruin their brand if they took this approach. One suggestion the book makes is to release the product under a spin off subsidiary if we're worried about that.
 
-The book also discussed the ways that we need to treat early adopters of a product and mainstream customers differently. 
+The book also discussed the ways that we need to treat early adopters of a product and mainstream customers differently.
 
 For example <strong>early adopters won't mind/may actually prefer to play with an unfinished product</strong> if they can help influence its future direction.
 
@@ -40,7 +40,7 @@ I especially enjoyed the parts of the book where Ries talks about ways that some
 
 I think the danger of thinking that they were following lean startup principles is that it can lead to us not thinking through problems ourselves which I guess is the same problem with any framework/methodology.
 
-I'm intrigued as to whether it will make a difference to the overall success rate of startups or not if they follow the ideas from the book. 
+I'm intrigued as to whether it will make a difference to the overall success rate of startups or not if they follow the ideas from the book.
 
 I imagine we'll see some ideas failing much more quickly than they might have otherwise and the suggestion is that when this happens we need to<strong> pivot and try and find another approach that will make money</strong>. Despite that, there there will come a point when the startup runs out of money without finding a way to monetise their product and it'll be game over.
 

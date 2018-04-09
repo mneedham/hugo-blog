@@ -2,7 +2,7 @@
 draft = false
 date="2008-12-29 20:52:59"
 title="Talent is Overrated: Book Review"
-tag=['books']
+tag=['books', 'book-review', 'talent']
 category=['Books']
 +++
 
@@ -19,7 +19,7 @@ I'm interested in how we can apply deliberate practice in software development, 
 <h4>What did I learn?</h4>
 
 <ul>
-<li>The first section of the book is spent dismissing the notion that innate talent is what makes people who are world class in their field so good at what they do. Research is cited showing that it is only through <strong>10,000 hours of practice</strong> that world class performance can be achieved. 
+<li>The first section of the book is spent dismissing the notion that innate talent is what makes people who are world class in their field so good at what they do. Research is cited showing that it is only through <strong>10,000 hours of practice</strong> that world class performance can be achieved.
 
 Although I agree that the best performers do have to put in a lot of practice to become good at what they do, I'm still of the opinion that people have some skills they are naturally better at than others and if these are the ones they chose to practice they are always going to be better than someone who didn't start off with that ability. I think this idea is discussed more in Outliers than in this book though.</li>
 <li><strong>Deliberate practice</strong> is described as something which is:
@@ -39,7 +39,7 @@ Benjamin Franklin's approach to improving his writing involved comparing his eff
 
 The key with any approach that we take seems to be to ensure that the tasks we're working on are just slightly above our level of competence, an idea I have previously read about in <a href="http://softwarecraftsmanship.oreilly.com/wiki">Apprenticeship Patterns</a> and <a href="http://www.markhneedham.com/blog/2008/10/06/pragmatic-learning-and-thinking-book-review/">Pragmatic Learning and Thinking</a>.
 </li>
-<li>With regards to improving skills, three models are suggested for non-work related practice: 
+<li>With regards to improving skills, three models are suggested for non-work related practice:
 	<ul>
 		<li><strong>Music Model</strong> - Break down activity into smaller pieces; analyse each for ares of improvement; repeatedly practice each area. This is a useful approach for practicing presentations and speeches where we know beforehand what we want to do.</li>
 <li><strong>Chess Model</strong> - Study real games; practice the situations from the games; compare what you did vs what happened in the real game. This approach has been applied in business for many years, disguised as the case method. </li>

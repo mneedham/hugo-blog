@@ -2,7 +2,7 @@
 draft = false
 date="2014-10-13 23:59:25"
 title="The Hard Thing About Hard Things - Ben Horowitz: Book Review"
-tag=['books']
+tag=['books', 'book-review', 'horowitz']
 category=['Books']
 +++
 
@@ -38,7 +38,7 @@ I've certainly worked on projects in the past where the view projected by the mo
 
 
 <li>
-Lead Bullets - <strong>fix the problem, don't run away from it</strong>. 
+Lead Bullets - <strong>fix the problem, don't run away from it</strong>.
 
 Horowitz describes a couple of situations where his products have been inferior to their competitors and it's been tempting to take the easy way out by not fixing the product.
 
@@ -87,9 +87,9 @@ This is something that he's also <a href="http://www.bhorowitz.com/titles_and_pr
 His suggestion for mitigating the problem is to have a "properly constructed and highly disciplined promotion process" in place. He describes this like so:
 
 <blockquote>
-When a manager wishes to promote an employee, she will submit that employee for review with an explanation of why she believes her employee satisfies the skill criteria required for the level.	
+When a manager wishes to promote an employee, she will submit that employee for review with an explanation of why she believes her employee satisfies the skill criteria required for the level.
 
-The committee should compare the employee to both the level’s skill description and the skills of the other employees at that level to determine whether or not to approve the promotion. 
+The committee should compare the employee to both the level’s skill description and the skills of the other employees at that level to determine whether or not to approve the promotion.
 </blockquote>
 
 
@@ -101,7 +101,7 @@ The committee should compare the employee to both the level’s skill descriptio
 <blockquote>The wrong kind of ambition is ambition for the executive's personal success regardless of the company's outcome.
 </blockquote>
 
-This suggestion comes from the chapter in which Horowitz discusses how to minimise politics in an organisation. 
+This suggestion comes from the chapter in which Horowitz discusses how to minimise politics in an organisation.
 
 I really like this idea but it seems like a difficult thing to judge/achieve. In my experience people often have their own goals which aren't necessarily completely aligned with the company's. Perhaps complete alignment isn't as important unless you're right at the top of the company?
 
@@ -123,4 +123,3 @@ He goes on to describe a few stories of how political behaviour can subtly creep
 
 
 <p>Definitely worth a read.</p>
-

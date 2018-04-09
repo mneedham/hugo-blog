@@ -2,7 +2,7 @@
 draft = false
 date="2009-05-24 19:25:07"
 title="Real World Functional Programming: Book Review"
-tag=['c', 'net', 'books', 'f']
+tag=['c', 'net', 'books', 'f', 'book-review']
 category=['Books']
 +++
 
