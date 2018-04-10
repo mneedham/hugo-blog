@@ -2,7 +2,7 @@
 draft = false
 date="2009-03-21 10:36:52"
 title="Lean Thinking: Book Review"
-tag=['lean']
+tag=['lean', 'books', 'book-review']
 category=['Books']
 +++
 
@@ -37,4 +37,4 @@ I like this because too often the human instinct is to take the risk free approa
 </ul>
 
 <h3>In Summary</h3>
-I found this book very heavy reading - it's taken me almost three months to complete it! The stories hold good lessons but I found The Toyota Way to be a much easier read. 
+I found this book very heavy reading - it's taken me almost three months to complete it! The stories hold good lessons but I found The Toyota Way to be a much easier read.

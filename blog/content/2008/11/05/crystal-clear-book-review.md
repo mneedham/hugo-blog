@@ -2,7 +2,7 @@
 draft = false
 date="2008-11-05 08:01:26"
 title="Crystal Clear: Book Review"
-tag=['xp', 'agile', 'crystal-clear', 'alistair-cockburn']
+tag=['xp', 'agile', 'crystal-clear', 'alistair-cockburn', 'books', 'book-review']
 category=['Books']
 +++
 
@@ -32,6 +32,6 @@ From my experience the key benefit of the agile approach touted is the ability t
 </ul>
 
 <h3>In Summary</h3>
-The biggest idea I came away with after reading this book was the idea that we should always be looking to <strong>continuously improve</strong>. At one stage the book refers to Kaizen - a term from the Toyota Production System which means 'continuous improvement'. As a result of reading this book I became more aware of this term and came across <a href="http://www.kaizenconf.com/">Kaizen Conf</a> which took place in the US last week. 
+The biggest idea I came away with after reading this book was the idea that we should always be looking to <strong>continuously improve</strong>. At one stage the book refers to Kaizen - a term from the Toyota Production System which means 'continuous improvement'. As a result of reading this book I became more aware of this term and came across <a href="http://www.kaizenconf.com/">Kaizen Conf</a> which took place in the US last week.
 
 I think it would serve as a good introduction to the Agile world - it's not quite as strict as something like Extreme Programming but it seems to get across most of the same ideas.

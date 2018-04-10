@@ -2,7 +2,7 @@
 draft = false
 date="2008-09-15 10:52:33"
 title="Clean Code: Book Review"
-tag=['object-mentor', 'clean-code', 'uncle-bob']
+tag=['object-mentor', 'clean-code', 'uncle-bob', 'books', 'book-review']
 category=['Books']
 +++
 
@@ -36,7 +36,7 @@ I came out with an improved understanding of how the <a href="http://en.wikipedi
 
 <li>One of my favourite quotes from the book is the following
 <blockquote>Master programmers think of systems as stories to be told rather than programs to be written</blockquote>
-This almost requires a paradigm shift and makes it unacceptable to write code that isn't expressive. I am far from being a Master programmer but if I can write code that is easy for other people to understand then I feel I'm starting to get somewhere. 
+This almost requires a paradigm shift and makes it unacceptable to write code that isn't expressive. I am far from being a Master programmer but if I can write code that is easy for other people to understand then I feel I'm starting to get somewhere.
 
 I also found the following statement revealing as I was under the assumption that experienced developers wrote code like this first time
 

@@ -2,7 +2,7 @@
 draft = false
 date="2008-10-21 23:34:40"
 title="Fearless Change: Book Review"
-tag=['books', 'gladwell', 'fearless-change']
+tag=['books', 'gladwell', 'fearless-change', 'book-review']
 category=['Books']
 +++
 
@@ -41,6 +41,6 @@ I hoped to learn some ideas with regards to handling these situations more effec
 <h3>In summary</h3>
 While I have pointed out some of my favourite patterns from this book, it contains a catalogue of around 50 of them so there are many other ideas that others may find useful.
 
-I imagine this book would be especially useful if you are working in an environment where you want to make significant changes - it provides a lot of information around the best ways to do so. 
+I imagine this book would be especially useful if you are working in an environment where you want to make significant changes - it provides a lot of information around the best ways to do so.
 
 The <a href="">InfoQ interview</a> provides quite a good introduction to what else you can expect from this book.

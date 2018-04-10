@@ -2,13 +2,13 @@
 draft = false
 date="2008-11-19 06:53:08"
 title="The Toyota Way: Book Review"
-tag=['lean', 'toyota', 'toyota-way']
+tag=['lean', 'toyota', 'toyota-way', 'books', 'book-review']
 category=['Books']
 +++
 
 <h3>The Book</h3>
 
-<a href="http://www.amazon.co.uk/Toyota-Way-Management-Principles-Manufacturer/dp/0071392319/ref=sr_1_1?ie=UTF8&s=books&qid=1227011994&sr=8-1">The Toyota Way</a> by Jeffrey Liker	
+<a href="http://www.amazon.co.uk/Toyota-Way-Management-Principles-Manufacturer/dp/0071392319/ref=sr_1_1?ie=UTF8&s=books&qid=1227011994&sr=8-1">The Toyota Way</a> by Jeffrey Liker
 <h3>The Review</h3>
 
 I was initially very skeptical about the value of lean in software development but became intrigued as to its potential value after listening to <a href="http://jchyip.blogspot.com/">Jason</a> championing it. Since The Toyota Way is the book where many of the ideas originated from I thought it only made sense for this to be my first port of call to learn about lean.
@@ -30,7 +30,7 @@ My doubts about lean come from my perception of an <strong>overly tool based foc
 <li>It was interesting to note the <strong>similarities between mass production thinking and waterfall</strong> compared to the Toyota/lean/agile approach to solving the same problem. My favourite quote referring to this was:
 
 <blockquote>
-What is the ideal way to organize your equipment and processes? In traditional mass production thinking...,the answer seems obvious: group similar machines and similarly skilled people together. 
+What is the ideal way to organize your equipment and processes? In traditional mass production thinking...,the answer seems obvious: group similar machines and similarly skilled people together.
 </blockquote>
 This is a completely different approach to the cross functional teams that we assemble for agile projects and which are used in Toyota.
 </li>

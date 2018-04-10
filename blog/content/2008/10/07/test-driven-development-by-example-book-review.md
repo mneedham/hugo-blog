@@ -2,7 +2,7 @@
 draft = false
 date="2008-10-07 23:17:19"
 title="Test Driven Development By Example: Book Review"
-tag=['tdd', 'kent-beck']
+tag=['tdd', 'kent-beck', 'books', 'book-review']
 category=['Books']
 +++
 

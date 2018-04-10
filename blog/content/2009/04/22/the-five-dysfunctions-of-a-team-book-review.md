@@ -2,7 +2,7 @@
 draft = false
 date="2009-04-22 06:50:43"
 title="The Five Dysfunctions of a Team: Book Review"
-tag=['books', 'teams']
+tag=['books', 'teams', 'book-review']
 category=['Books']
 +++
 
