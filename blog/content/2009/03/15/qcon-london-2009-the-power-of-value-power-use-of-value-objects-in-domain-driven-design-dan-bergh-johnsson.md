@@ -2,7 +2,7 @@
 draft = false
 date="2009-03-15 09:45:19"
 title="QCon London 2009: The Power of Value - Power Use of Value Objects in Domain Driven Design - Dan Bergh Johnsson"
-tag=['qconlondon', 'qcon', 'infoq']
+tag=['qconlondon', 'qcon', 'infoq', 'conferences']
 category=['QCon']
 +++
 

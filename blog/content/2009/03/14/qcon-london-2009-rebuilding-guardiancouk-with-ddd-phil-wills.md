@@ -2,7 +2,7 @@
 draft = false
 date="2009-03-14 14:23:43"
 title="QCon London 2009: Rebuilding guardian.co.uk with DDD - Phil Wills"
-tag=['qconlondon', 'qcon', 'infoq']
+tag=['qconlondon', 'qcon', 'infoq', 'conferences']
 category=['QCon']
 +++
 

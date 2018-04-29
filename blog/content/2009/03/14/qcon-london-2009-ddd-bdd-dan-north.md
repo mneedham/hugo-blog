@@ -2,7 +2,7 @@
 draft = false
 date="2009-03-14 01:28:04"
 title="QCon London 2009: DDD & BDD - Dan North"
-tag=['qconlondon', 'qcon', 'infoq']
+tag=['qconlondon', 'qcon', 'infoq', 'conferences']
 category=['QCon']
 +++
 
@@ -17,7 +17,7 @@ The slides for the presentation are <a href="http://qconlondon.com/london-2009/f
 <h4>What did I learn?</h4>
 
 <ul>
-<li>Dan briefly covered some of the Domain Driven Design basics, including quoting <a href="http://jimmynilsson.com/blog/">Jimmy Nilsson</a> on what it actually is: 
+<li>Dan briefly covered some of the Domain Driven Design basics, including quoting <a href="http://jimmynilsson.com/blog/">Jimmy Nilsson</a> on what it actually is:
 
 <blockquote>Focus on the domain and letting it affect the software very much</blockquote>
 A fairly succinct way of summing up the book in one sentence I think!

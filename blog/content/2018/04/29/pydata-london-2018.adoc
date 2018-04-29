@@ -1,0 +1,75 @@
++++
+draft = false
+date="2018-04-29 11:54:02"
+title="PyData London 2018 Conference Experience Report"
+tag=['python', 'pydata', 'pydata2018', 'pydatalondon', 'conferences', 'data-science']
+category=['Python']
++++
+
+Over the last few days I attended https://pydata.org/london2018/schedule/[PyData London 2018^] and wanted to share my experience.
+The PyData series of conferences aim to bring together users and developers of data analysis tools to share ideas and learn from each other.
+I presented a talk on https://www.youtube.com/watch?v=VGCCVNlZmRI[building a recommendation with Python and Neo4j^] at the 2016 version but didn't attend last year.
+
+The organisers said there were ~ 550 attendees spread over 1 day of tutorials and 2 days of talks.
+From what I could tell most attendees were Data Scientists so I was in the minority as a Software Developer.
+
+== tl;dr
+
+* Text Analysis using Tensorflow is the (new) hotness.
+* Everything else seems to centre around scikit-learn's API.
+* The on site childcare the conference provided was a great idea. Hopefully that will catch on at other conferences.
+* This is a great conference for learning how to apply technology to solve data problems.
+
+There were a lot of talks so I'll just give a shoutout to a few of my favourite ones.
+
+== Friday
+
+Gilbert François Duivesteijn's tutorial about https://pydata.org/london2018/schedule/presentation/9/[tagging his team's Slack messages^] was very interesting and something that I hadn't thought about before.
+Gilbert's team have a channel where they indicate if they're working from home, off sick, at a client meeting, etc and he wanted to automatically classify these messages.
+It was mostly standard scikit-learn stuff except Gilbert wrote his own tokenizer because people often don't punctuate Slack messages properly and this was messing up the classifier.
+
+After getting an introduction to text analysis by Gilbert I was hoping to attend Kajal Puri's talk about https://pydata.org/london2018/schedule/presentation/12/[building text classification models^], but that one was cancelled.
+At the last minute Vincent D. Warmerdam stepped in and did a mini tutorial showing how to use the https://github.com/jmschrei/pomegranate[pomegranate^] library to do probabilistic modelling.
+It was very cool but I'm not sure that I have a problem to use it on at the moment.
+
+In the afternoon I attended a session on https://pydata.org/london2018/schedule/presentation/8/[Network Science with NetworkX^] run by https://twitter.com/mridul_seth[Mridul Seth^] which used the https://www.macalester.edu/~abeverid/thrones.html[Game of Thrones^] dataset - the exact same one that we've been using in our network science training sessions, so I was quite excited about that.
+The room was absolutely packed for this one and most people hadn't done anything with graphs yet based on a show of hands at the beginning of the session.
+Most of the session was spent https://github.com/MridulS/pydata-networkx/blob/master/Game%20of%20Thrones%20-%20Lecture%20.ipynb[exploring the changing influence of Game of Thrones characters^] over the different books.
+I'm currently working on a NetworkX API for Neo4j Graph Algorithms so if you like NetworkX and want to try out Neo4j take a look at the https://github.com/neo4j-graph-analytics/networkx-neo4j[neo4j-graph-analytics/networkx-neo4j^] repository and let me know what you think.
+
+== Saturday
+
+http://theowindebank.co.uk/cv.html[Theo Windebank^] spoke about https://pydata.org/london2018/schedule/presentation/26/[how the BBC are using semantic web and linked data technologies to build a content graph^] of the data they have inside the BBC.
+There was an interesting discussion about why these technologies haven't taken off as they were expected to, and Theo observed that companies probably aren't going to open up all their data but that the tools are still useful for making sense of data inside an organisation.
+
+image::{{<siteurl>}}/uploads/2018/04/IMG_20180428_144134.jpg[width="600px", alt="BBC Connected Data"]
+
+
+Mike Walmsley explained how the https://www.zooniverse.org/[Zooniverse^] are https://pydata.org/london2018/schedule/presentation/33/[using a combination of deep learning and humans to help label galaxies^].
+This is a technique called Active Learning, which I first came across when playing around with the https://github.com/dedupeio/dedupe[dedupe^] library.
+
+I also watched https://twitter.com/arplynn/[Alistair Lynn^]'s https://pydata.org/london2018/schedule/presentation/19/[talk about A/B testing^] in which he talked through his experience A/B testing features https://www.thread.com/[thread.com^].
+My main take away was that it's much easier to manage multiple tests if you assign users into buckets and assign the control or test based on the bucket rather than dealing with users individually.
+He also emphasised the need to be aware of our own tendency to confirmation bias when looking at test results.
+
+https://thuijskens.github.io/about/[Thomas Huijskens^] gave a great overview of the different ways that we can https://pydata.org/london2018/schedule/presentation/31/[select features for our machine learning models^].
+Apart from scikit-learn he suggested using http://rasbt.github.io/mlxtend/[mlxtend^] and https://github.com/skggm/skggm[skggm^] to help with this process.
+Now I need to enter some Kaggle competitions so I can give them a try!
+
+== Sunday
+
+Sunday opened with a https://pydata.org/london2018/schedule/presentation/51/[keynote^] by https://twitter.com/EGouillart[Emmanuelle Gouillart^] about her experience working on http://scikit-image.org/[scikit-image^] and encouraged others to get involved with open source science.
+There was also an excellent section on the importance of well written documentation to help get people ramped up on your project.
+Emmanuelle also thanked the PyData organisers for having onsite childcare, without which she may have been unable to attend.
+
+image::{{<siteurl>}}/uploads/2018/04/IMG_20180429_090920_small.jpg[width="600px", alt="On Site Childcare #ftw"]
+
+As one of my side projects I'm trying to work out how to parse ingredient names from recipes and I'm not sure where to start, so I was quite happy to attend a talk by Carsten van Weelden where he https://pydata.org/london2018/schedule/presentation/55/[showed how to use Tensorflow to solve a similar problem^]. https://www.textkernel.com/[Carsten's team^] are pulling job titles and company names out of resumes using Recurrent Neural Networks and I think I now know enough to get started with my problem.
+The https://drive.google.com/file/d/1dJ4nKTvoxslMsckgPMzgG23WPbeEK32T/view[slides from this talk^] were very helpful.
+
+https://twitter.com/astroadamh[Adam Hill^] presented https://pydata.org/london2018/schedule/presentation/17/[Searching for Shady Patterns: Shining a light on UK corporate ownership^], in which he showed how DataKind and Global Witness used Neo4j to find leads for investigative journalism to expose corrupt practices from the corporate ownership dataset.
+Adam presented his early work on this project at the https://www.meetup.com/graphdb-london/[Neo4j London Meetup^] in March 2017 so it was really cool to see how far it's come along.
+
+I also attended Aileen Nielsen's talk about fairness and inclusion in our work.
+Aileen went through many different examples of how unconscious bias can creep into algorithms if we're not careful.
+It reminded me of the book I recently read - https://www.amazon.co.uk/Weapons-Math-Destruction-Increases-Inequality-ebook/dp/B01LDFCP0S/[Weapons of Math Destruction: How Big Data Increases Inequality and Threatens Democracy^] - which was actually referenced towards the end of the talk.
