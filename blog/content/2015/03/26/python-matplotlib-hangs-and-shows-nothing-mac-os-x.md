@@ -2,7 +2,7 @@
 draft = false
 date="2015-03-26 00:02:54"
 title="Python: matplotlib hangs and shows nothing (Mac OS X)"
-tag=['python']
+tag=['python', 'matplotlib']
 category=['Python']
 +++
 
@@ -76,8 +76,7 @@ If I run this script a Python window pops up and contains the following image wh
 
 
 <blockquote>
-With the TkAgg backend, which uses the Tkinter user interface toolkit, you can use matplotlib from an arbitrary non-gui python shell. 
+With the TkAgg backend, which uses the Tkinter user interface toolkit, you can use matplotlib from an arbitrary non-gui python shell.
 </blockquote>
 
 <p>Current state: Wishing for ggplot!</p>
-

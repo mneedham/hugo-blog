@@ -2,7 +2,7 @@
 draft = false
 date="2016-08-14 18:56:35"
 title="Python: matplotlib, seaborn, virtualenv - Python is not installed as a framework"
-tag=['python']
+tag=['python', 'matplotlib']
 category=['Python']
 +++
 
@@ -14,7 +14,7 @@ Over the weekend I was following <a href="https://github.com/thomhopmans/themark
 
 ~~~bash
 
-$ python 5_content_based_recommender/run.py 
+$ python 5_content_based_recommender/run.py
 Traceback (most recent call last):
   File "5_content_based_recommender/run.py", line 14, in <module>
     import seaborn as sns
@@ -72,7 +72,7 @@ And call that function instead of my virtualenv's python:
 
 ~~~bash
 
-$ frameworkpython 5_content_based_recommender/run.py 
+$ frameworkpython 5_content_based_recommender/run.py
 ~~~
 
 <p>This time the matplotlib visualisation works:</p>
@@ -83,4 +83,3 @@ $ frameworkpython 5_content_based_recommender/run.py
 </div>
 
 <p>#win</p>
-

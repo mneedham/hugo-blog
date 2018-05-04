@@ -1,0 +1,54 @@
++++
+draft = false
+date="2018-05-04 22:03:08"
+title="Python via virtualenv on Mac OS X: RuntimeError: Python is not installed as a framework."
+tag=['python', 'virtualenv', 'matplotlib']
+category=['Python']
++++
+
+I've previously written https://markhneedham.com/blog/2016/08/14/python-matplotlibseabornvirtualenv-python-is-not-installed-as-a-framework/[a couple^] https://markhneedham.com/blog/2015/03/26/python-matplotlib-hangs-and-shows-nothing-mac-os-x/[of blog posts^] about my troubles getting matplotlib to play nicely and I run into a slightly different variant today while following Sidath Asiri's https://towardsdatascience.com/hello-world-in-tensorflow-973e6c38e8ed[Hello World in TensorFlow^] tutorial.
+
+When I ran the script using a version of Python installed via virtualenv I got the following exception:
+
+[source,bash]
+----
+Traceback (most recent call last):
+  File "iris.py", line 4, in <module>
+    from matplotlib import pyplot as plt
+  File "/Users/markneedham/projects/tensorflow-playground/a/lib/python3.6/site-packages/matplotlib/pyplot.py", line 116, in <module>
+    _backend_mod, new_figure_manager, draw_if_interactive, _show = pylab_setup()
+  File "/Users/markneedham/projects/tensorflow-playground/a/lib/python3.6/site-packages/matplotlib/backends/__init__.py", line 60, in pylab_setup
+    [backend_name], 0)
+  File "/Users/markneedham/projects/tensorflow-playground/a/lib/python3.6/site-packages/matplotlib/backends/backend_macosx.py", line 17, in <module>
+    from matplotlib.backends import _macosx
+RuntimeError: Python is not installed as a framework. The Mac OS X backend will not be able to function correctly if Python is not installed as a framework. See the Python documentation for more information on installing Python as a framework on Mac OS X. Please either reinstall Python as a framework, or try one of the other backends. If you are using (Ana)Conda please install python.app and replace the use of 'python' with 'pythonw'. See 'Working with Matplotlib on OSX' in the Matplotlib FAQ for more information.
+----
+
+The solution this time was actually the same as it was in my post where I https://markhneedham.com/blog/2015/03/26/python-matplotlib-hangs-and-shows-nothing-mac-os-x/[described matplotlib hanging^].
+Instead of:
+
+[source,python]
+----
+from matplotlib import pyplot as plt
+----
+
+We need to define a different backend, like this:
+
+[source,python]
+----
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+----
+
+I also learnt an even simpler way of solving the problem via https://stackoverflow.com/questions/34977388/matplotlib-runtimeerror-python-is-not-installed-as-a-framework[this StackOverflow post^].
+We can achieve the same outcome by creating a file at `~/.matplotlib/matplotlibrc` and populating it with the following text:
+
+[source,bash]
+----
+$ cat ~/.matplotlib/matplotlibrc
+backend: TkAgg
+----
+
+Now we can go back to importing matplotlib without the need to define the backend each time.
+Success!
