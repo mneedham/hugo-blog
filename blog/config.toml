@@ -1,6 +1,6 @@
 languageCode = "en-us"
 title = "Mark Needham"
-baseurl = "http://markhneedham.com/blog/"
+baseurl = "https://markhneedham.com/blog/"
 # baseurl = "http://localhost:8000/blog/"
 theme = "hugo-theme-crisp"
 
