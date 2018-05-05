@@ -1,0 +1,144 @@
++++
+draft = false
+date="2018-05-05 00:31:34"
+title="Tensorflow 1.8: Hello World using the Estimator API"
+tag=['python', 'machine-learning', 'tensorflow', 'machine-learning', 'data-science']
+category=['Machine Learning']
++++
+
+Over the last week I've been going over various Tensorflow tutorials and one of the best ones when getting started is Sidath Asiri's https://towardsdatascience.com/hello-world-in-tensorflow-973e6c38e8ed[Hello World in TensorFlow^], which shows how to build a simple linear classifier on the Iris dataset.
+
+I'll use the same data as Sidath, so if you want to follow along you'll need to download these files:
+
+* http://download.tensorflow.org/data/iris_training.csv[iris_training.csv^]
+* http://download.tensorflow.org/data/iris_test.csv[iris_test.csv]
+
+== Loading data
+
+The way we load data will remain exactly the same - we'll still be reading it into a Pandas dataframe:
+
+[source,python]
+----
+import pandas as pd
+import tensorflow as tf
+
+train_data = pd.read_csv("iris_training.csv", names=['f1', 'f2', 'f3', 'f4', 'f5'])
+test_data = pd.read_csv("iris_test.csv", names=['f1', 'f2', 'f3', 'f4', 'f5'])
+----
+
+The next bit is slightly different though.
+We want to split these dataframes into features ('X') and labels ('Y').
+The label is a value 1, 2, or 3, which indicates which type of flower that row represents.
+
+In Sidath's tutorial he created a one hot encoding for those values, such that:
+
+[source,text]
+----
+0 -> [1,0,0]
+1 -> [0,1,0]
+2 -> [0,0,1]
+----
+
+We won't do that.
+Instead we'll leave that column as a single value.
+
+[source,python]
+----
+train_x = train_data[['f1', 'f2', 'f3', 'f4']]
+train_y = train_data.ix[:, 'f5']
+
+test_x = test_data[['f1', 'f2', 'f3', 'f4']]
+test_y = test_data.ix[:, 'f5']
+----
+
+== Defining features
+
+Next we need to define our features in terms of Tensors.
+There are some quite nice helper functions that can help us out here:
+
+[source,python]
+----
+feature_columns = [tf.feature_column.numeric_column(key=key) for key in train_x.keys()]
+----
+
+== Creating the classifier
+
+And finally we can create our classifier!
+
+[source,python]
+----
+classifier = tf.estimator.LinearClassifier(feature_columns=feature_columns, n_classes=3)
+----
+
+We feed in the features that we created above and we tell the classifier that it should be predicting 3 classes.
+
+==  Training the classifier
+
+Now we need to train our model.
+To do this we need to https://www.tensorflow.org/programmers_guide/estimators[create an input function^] that returns a tuple containing:
+
+* a dictionary in which the keys are feature names and the values are Tensors (or SparseTensors) containing the corresponding feature data
+* a Tensor containing one or more labels
+
+I spent a while going around in circles trying to figure out how to do this but eventually stumbled across a helpful example from the https://github.com/tensorflow/models/blob/master/samples/core/get_started/iris_data.py#L30[Tensorflow samples^] repository.
+This is what our function looks like:
+
+[source,python]
+----
+def train_input_fn(features, labels, batch_size):
+    dataset = tf.data.Dataset.from_tensor_slices((dict(features), labels))
+    return dataset.shuffle(1000).repeat().batch(batch_size)
+----
+
+And now we can use it to feed data into the `train` function:
+
+[source,python]
+----
+classifier.train(
+    input_fn=lambda: train_input_fn(train_x, train_y, 100),
+    steps=2000)
+----
+
+So far so good!
+
+==  Evaluating the classifier
+
+Finally we can evaluate how well our model is doing.
+We'll create another input function, but this one won't bother shuffling the data:
+
+[source,python]
+----
+def eval_input_fn(features, labels, batch_size):
+    features = dict(features)
+    inputs = (features, labels)
+    dataset = tf.data.Dataset.from_tensor_slices(inputs)
+    assert batch_size is not None, "batch_size must not be None"
+    return dataset.batch(batch_size)
+----
+
+And now we can call the `evaluate` function:
+
+[source,python]
+----
+eval_result = classifier.evaluate(
+    input_fn=lambda: eval_input_fn(test_x, test_y, 100))
+
+print('\nTest set accuracy: {accuracy:0.3f}\n'.format(**eval_result))
+----
+
+If we run the program we'll see the following output:
+
+[source,python]
+----
+$ python iris_estimator.py
+
+Test set accuracy: 0.967
+----
+
+== All the codez
+
+Below you can see https://gist.github.com/mneedham/12754c600fc99c8cbaa626e126337966[all the code in one script^] that you can try out yourself.
+
+++++
+<script src="https://gist.github.com/mneedham/12754c600fc99c8cbaa626e126337966.js"></script>
+++++
