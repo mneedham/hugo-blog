@@ -4,6 +4,7 @@ date="2018-05-04 22:03:08"
 title="Python via virtualenv on Mac OS X: RuntimeError: Python is not installed as a framework."
 tag=['python', 'virtualenv', 'matplotlib']
 category=['Python']
+description="Learn how to work around the RuntimeError: Python is not installed as a framework. error that you might see running matplotlib on Mac OS X."
 +++
 
 I've previously written https://markhneedham.com/blog/2016/08/14/python-matplotlibseabornvirtualenv-python-is-not-installed-as-a-framework/[a couple^] https://markhneedham.com/blog/2015/03/26/python-matplotlib-hangs-and-shows-nothing-mac-os-x/[of blog posts^] about my troubles getting matplotlib to play nicely and I run into a slightly different variant today while following Sidath Asiri's https://towardsdatascience.com/hello-world-in-tensorflow-973e6c38e8ed[Hello World in TensorFlow^] tutorial.
