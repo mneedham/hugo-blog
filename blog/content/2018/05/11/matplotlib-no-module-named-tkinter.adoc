@@ -1,0 +1,45 @@
++++
+draft = true
+date="2018-05-11 08:08:21"
+title="Matplotlib: ModuleNotFoundError: No module named '_tkinter'"
+tag=['python', 'matplotlib']
+category=['Python']
+// description="A simple tutorial to help you get started with Tensorflow using the Estimator API released in Tensorflow 1.4, using the Iris dataset."
++++
+
+[source, bash]
+----
+$ python tsne.py
+Traceback (most recent call last):
+  File "tsne.py", line 16, in <module>
+    import pylab
+  File "/Users/markneedham/Downloads/tsne_python/a/lib/python3.6/site-packages/pylab.py", line 1, in <module>
+    from matplotlib.pylab import *
+  File "/Users/markneedham/Downloads/tsne_python/a/lib/python3.6/site-packages/matplotlib/pylab.py", line 252, in <module>
+    from matplotlib import cbook, mlab, pyplot as plt
+  File "/Users/markneedham/Downloads/tsne_python/a/lib/python3.6/site-packages/matplotlib/pyplot.py", line 115, in <module>
+    _backend_mod, new_figure_manager, draw_if_interactive, _show = pylab_setup()
+  File "/Users/markneedham/Downloads/tsne_python/a/lib/python3.6/site-packages/matplotlib/backends/__init__.py", line 62, in pylab_setup
+    [backend_name], 0)
+  File "/Users/markneedham/Downloads/tsne_python/a/lib/python3.6/site-packages/matplotlib/backends/backend_tkagg.py", line 4, in <module>
+    from . import tkagg  # Paint image to Tk photo blitter extension.
+  File "/Users/markneedham/Downloads/tsne_python/a/lib/python3.6/site-packages/matplotlib/backends/tkagg.py", line 5, in <module>
+    from six.moves import tkinter as Tk
+  File "/Users/markneedham/Downloads/tsne_python/a/lib/python3.6/site-packages/six.py", line 92, in __get__
+    result = self._resolve()
+  File "/Users/markneedham/Downloads/tsne_python/a/lib/python3.6/site-packages/six.py", line 115, in _resolve
+    return _import_module(self.mod)
+  File "/Users/markneedham/Downloads/tsne_python/a/lib/python3.6/site-packages/six.py", line 82, in _import_module
+    __import__(name)
+  File "/usr/local/Cellar/python/3.6.5/Frameworks/Python.framework/Versions/3.6/lib/python3.6/tkinter/__init__.py", line 36, in <module>
+    import _tkinter # If this fails your Python may not be configured for Tk
+ModuleNotFoundError: No module named '_tkinter'
+----
+
+https://stackoverflow.com/questions/36760839/why-my-python-installed-via-home-brew-not-include-tkinter
+
+[source, bash]
+----
+$ brew install tcl-tk
+$ echo 'export PATH="/usr/local/opt/tcl-tk/bin:$PATH"' >> ~/.bash_profile
+----
