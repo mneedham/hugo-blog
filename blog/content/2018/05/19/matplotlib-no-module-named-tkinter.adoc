@@ -1,10 +1,10 @@
 +++
 draft = true
-date="2018-05-11 08:08:21"
+date="2018-05-18 08:08:21"
 title="Matplotlib: ModuleNotFoundError: No module named '_tkinter'"
 tag=['python', 'matplotlib']
 category=['Python']
-// description="A simple tutorial to help you get started with Tensorflow using the Estimator API released in Tensorflow 1.4, using the Iris dataset."
+description="Work around the No module name _tkinter error."
 +++
 
 [source, bash]
