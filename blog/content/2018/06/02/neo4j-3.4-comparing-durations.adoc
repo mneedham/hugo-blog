@@ -71,7 +71,7 @@ Now we're ready to write some queries.
 
 == How do I display those durations in a more friendly format?
 
-In case we're now used to expressing durations only using seconds we can https://neo4j.com/docs/developer-manual/current/cypher/syntax/temporal/#cypher-temporal-accessing-components-durations[extract individual time units^] from the duration with the following query:
+In case we're not used to expressing durations only using seconds we can https://neo4j.com/docs/developer-manual/current/cypher/syntax/temporal/#cypher-temporal-accessing-components-durations[extract individual time units^] from the duration with the following query:
 
 [source, cypher]
 ----
