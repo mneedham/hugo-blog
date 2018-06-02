@@ -7,7 +7,7 @@ category=['Neo4j']
 description="Learn how to work with the new Duration type that was introduced in Neo4j 3.4"
 +++
 
-Neo4j 3.4 saw the introduction of the temporal date type, which my colleague https://twitter.com/adamcowley[Adam Cowley^] covered in his https://www.adamcowley.co.uk/neo4j/temporal-native-dates/[excellent blog post^], and in this post I want to share my experience using durations from my https://www.strava.com/[Strava^] runs.
+Neo4j 3.4 saw the https://neo4j.com/blog/neo4j-graph-database-3-4-ga-release/[introduction of the temporal date type^], which my colleague https://twitter.com/adamcowley[Adam Cowley^] covered in his https://www.adamcowley.co.uk/neo4j/temporal-native-dates/[excellent blog post^], and in this post I want to share my experience using durations from my https://www.strava.com/[Strava^] runs.
 
 I'll show how to load the whole Strava dataset in another blog post but for now we'll just manually create some durations based on the elapsed time in seconds that Strava provides.
 We can run the following query to convert duration in seconds into the duration type:
