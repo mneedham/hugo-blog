@@ -1,0 +1,249 @@
++++
+draft = false
+date="2018-06-02 03:24:21"
+title="Neo4j 3.4: Comparing durations"
+tag=['neo4j', 'datetime', 'cypher']
+category=['Neo4j']
+description="Learn how to work with the new Duration type that was introduced in Neo4j 3.4"
++++
+
+Neo4j 3.4 saw the introduction of the temporal date type, which my colleague Adam Cowley covered in his https://www.adamcowley.co.uk/neo4j/temporal-native-dates/[excellent blog post^], and in this post I want to share my experience uses durations from my Strava runs.
+
+I'll show how to load the whole Strava dataset in another blog post but for now we'll just manually create some durations based on the elapsed time in seconds that Strava provides.
+We can run the following query to convert duration in seconds into the duration type:
+
+[source, cypher]
+----
+WITH [2882, 2666, 2802, 3001, 3253, 2615, 2780, 2820, 2583, 2253] AS elapsedTimes
+UNWIND range(0, size(elapsedTimes) - 1) AS index
+RETURN elapsedTimes[index] AS timeInSeconds,
+       duration("PT" + elapsedTimes[index] + "S") AS d1,
+       duration({seconds: elapsedTimes[index]}) AS d2
+----
+
+[source, text]
+----
+╒═══════════════╤═════════════╤═════════════╕
+│"timeInSeconds"│"d1"         │"d2"         │
+╞═══════════════╪═════════════╪═════════════╡
+│2882           │"P0M0DT2882S"│"P0M0DT2882S"│
+├───────────────┼─────────────┼─────────────┤
+│2666           │"P0M0DT2666S"│"P0M0DT2666S"│
+├───────────────┼─────────────┼─────────────┤
+│2802           │"P0M0DT2802S"│"P0M0DT2802S"│
+├───────────────┼─────────────┼─────────────┤
+│3001           │"P0M0DT3001S"│"P0M0DT3001S"│
+├───────────────┼─────────────┼─────────────┤
+│3253           │"P0M0DT3253S"│"P0M0DT3253S"│
+├───────────────┼─────────────┼─────────────┤
+│2615           │"P0M0DT2615S"│"P0M0DT2615S"│
+├───────────────┼─────────────┼─────────────┤
+│2780           │"P0M0DT2780S"│"P0M0DT2780S"│
+├───────────────┼─────────────┼─────────────┤
+│2820           │"P0M0DT2820S"│"P0M0DT2820S"│
+├───────────────┼─────────────┼─────────────┤
+│2583           │"P0M0DT2583S"│"P0M0DT2583S"│
+├───────────────┼─────────────┼─────────────┤
+│2253           │"P0M0DT2253S"│"P0M0DT2253S"│
+└───────────────┴─────────────┴─────────────┘
+----
+
+So far so good.
+
+== Creating nodes with `Duration` property
+
+Let's create a node with a `Run` label to represent each of these:
+
+[source, cypher]
+----
+WITH [2882, 2666, 2802, 3001, 3253, 2615, 2780, 2820, 2583, 2253] AS elapsedTimes
+UNWIND range(0, size(elapsedTimes) - 1) AS index
+CREATE (:Run {id: index, elapsedTime: duration({seconds: elapsedTimes[index]}) })
+----
+
+[source, cypher]
+----
+Added 10 labels, created 10 nodes, set 20 properties, completed after 17 ms.
+----
+
+Great.
+Now we're ready to write some queries.
+
+== How do I display those durations in a more friendly format?
+
+In case we're now used to expressing durations only using seconds we can https://neo4j.com/docs/developer-manual/current/cypher/syntax/temporal/#cypher-temporal-accessing-components-durations[extract individual time units^] from the duration with the following query:
+
+[source, cypher]
+----
+MATCH (r:Run)
+RETURN r.id, r.elapsedTime.minutes AS mins, r.elapsedTime.secondsOfMinute AS secs
+ORDER BY r.elapsedTime DESC
+LIMIT 5
+----
+
+[source, cypher]
+----
+╒══════╤══════╤══════╕
+│"r.id"│"mins"│"secs"│
+╞══════╪══════╪══════╡
+│4     │54    │13    │
+├──────┼──────┼──────┤
+│3     │50    │1     │
+├──────┼──────┼──────┤
+│0     │48    │2     │
+├──────┼──────┼──────┤
+│7     │47    │0     │
+├──────┼──────┼──────┤
+│2     │46    │42    │
+└──────┴──────┴──────┘
+----
+
+Note that I used `secondsOfMinutes` and not `seconds`.
+If you use `seconds` it will give you the total number of seconds rather than the seconds of the minute:
+
+[source, cypher]
+----
+MATCH (r:Run)
+RETURN r.elapsedTime.seconds AS secs
+ORDER BY r.elapsedTime DESC
+LIMIT 5
+----
+
+[source, text]
+----
+╒══════╕
+│"secs"│
+╞══════╡
+│3253  │
+├──────┤
+│3001  │
+├──────┤
+│2882  │
+├──────┤
+│2820  │
+├──────┤
+│2802  │
+└──────┘
+----
+
+== How do I pad the minutes and seconds?
+
+Although the output is nicer than displaying the full duration, I'd quite like to have each duration displayed as `MM:SS` and https://neo4j-contrib.github.io/neo4j-apoc-procedures/#_text_functions[APOC^] comes to the rescue, and in particular the  `apoc.text.lpad` function.
+The following query does exactly what I want:
+
+[source, cypher]
+----
+MATCH (r:Run)
+RETURN r.id,
+       apoc.text.lpad(toString(r.elapsedTime.minutes), 2, "0") + ":" +
+       apoc.text.lpad(toString(r.elapsedTime.secondsOfMinute), 2, "0") AS time
+ORDER BY r.elapsed	Time DESC
+LIMIT 5
+----
+
+[source, text]
+----
+╒══════╤═══════╕
+│"r.id"│"time" │
+╞══════╪═══════╡
+│4     │"54:13"│
+├──────┼───────┤
+│3     │"50:01"│
+├──────┼───────┤
+│0     │"48:02"│
+├──────┼───────┤
+│7     │"47:00"│
+├──────┼───────┤
+│2     │"46:42"│
+└──────┴───────┘
+----
+
+== How many times did I run less than 45 minutes?
+
+What if I want to filter my runs to only find the shorter ones?
+
+[source, cypher]
+----
+MATCH (r:Run)
+WHERE r.elapsedTime < duration("PT45M")
+RETURN r.id, r.elapsedTime.minutes AS mins, r.elapsedTime.secondsOfMinute AS secs
+ORDER BY r.elapsedTime DESC
+----
+
+But that results in this error:
+
+[source, text]
+----
+Neo.ClientError.Statement.SyntaxError: Type mismatch: expected Float, Integer, Point, String, Date, Time, LocalTime, LocalDateTime or DateTime but was Duration (line 2, column 23 (offset: 44))
+"WHERE r.elapsedTime < duration("PT45M")"
+                               ^
+----
+
+If we want to compare durations we need to do that comparison by adding those durations to dates.
+We don't really care about dates for our query so we'll just use the current time to work around this issue.
+We can get that by calling the `localtime()` function.
+
+The following query will find all the runs of less than 45 minutes:
+
+[source, cypher]
+----
+MATCH (r:Run)
+WHERE localtime() + r.elapsedTime < localtime() + duration("PT45M")
+RETURN r.id, r.elapsedTime.minutes AS mins, r.elapsedTime.secondsOfMinute AS secs
+ORDER BY r.elapsedTime DESC
+----
+
+[source, text]
+----
+╒══════╤══════╤══════╕
+│"r.id"│"mins"│"secs"│
+╞══════╪══════╪══════╡
+│1     │44    │26    │
+├──────┼──────┼──────┤
+│5     │43    │35    │
+├──────┼──────┼──────┤
+│8     │43    │3     │
+├──────┼──────┼──────┤
+│9     │37    │33    │
+└──────┴──────┴──────┘
+----
+
+== How much shorter was this run than my longest run?
+
+We'll finish up with one final query, which was actually the real one I wanted to know the answer to!
+
+[source, cypher]
+----
+MATCH (r:Run)
+WITH MAX(r.elapsedTime) AS longestRun
+MATCH (r:Run)
+WITH r, longestRun - r.elapsedTime AS difference
+WHERE localtime() + difference > localtime() + duration("PT0S")
+RETURN r.id,
+       r.elapsedTime.minutes AS mins, r.elapsedTime.secondsOfMinute AS secs,
+       difference.minutes AS minutesShorter, difference.secondsOfMinute AS secondsShorter
+ORDER BY difference
+LIMIT 5
+----
+
+On line 5 we filter out the longest run from the result set by making sure the difference is greater than 0 seconds.
+
+[source, text]
+----
+╒══════╤══════╤══════╤════════════════╤════════════════╕
+│"r.id"│"mins"│"secs"│"minutesShorter"│"secondsShorter"│
+╞══════╪══════╪══════╪════════════════╪════════════════╡
+│3     │50    │1     │4               │12              │
+├──────┼──────┼──────┼────────────────┼────────────────┤
+│0     │48    │2     │6               │11              │
+├──────┼──────┼──────┼────────────────┼────────────────┤
+│7     │47    │0     │7               │13              │
+├──────┼──────┼──────┼────────────────┼────────────────┤
+│2     │46    │42    │7               │31              │
+├──────┼──────┼──────┼────────────────┼────────────────┤
+│6     │46    │20    │7               │53              │
+└──────┴──────┴──────┴────────────────┴────────────────┘
+----
+
+I hope that helps anyone playing around with the new `Duration` type.
+All that thinking about running has made me want to go for a run!
