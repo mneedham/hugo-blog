@@ -1,5 +1,5 @@
 +++
-draft = true
+draft = false
 date="2018-06-03 04:08:21"
 title="Neo4j 3.4: Formatting instances of the Duration and Datetime date types"
 tag=['neo4j', 'cypher', 'datetime']
