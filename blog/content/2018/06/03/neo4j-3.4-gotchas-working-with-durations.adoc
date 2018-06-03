@@ -104,7 +104,7 @@ Let's use `apoc.date.format` to format that a bit more nicely:
 [source, cypher]
 ----
 WITH duration({minutes: 21, seconds: 24}) AS elapsedTime,
-       toFloat(5000) AS distance
+     toFloat(5000) AS distance
 WITH duration({seconds: elapsedTime.seconds / distance * 1609.34}) AS pacePerMile,
      duration({seconds: elapsedTime.seconds / distance * 1000}) AS pacePerKm
 RETURN apoc.date.format(pacePerMile.milliseconds, "ms", "mm:ss") AS pacePerMile,
@@ -130,8 +130,10 @@ The following query should do the trick:
 WITH duration({minutes: 21, seconds: 24}) AS elapsedTime,
       toFloat(5000) AS distance
 WITH duration({seconds: elapsedTime.seconds / distance}) AS pacePerMetre
-RETURN apoc.date.format(toInteger(pacePerMetre.milliseconds * 1609.34), "ms", "mm:ss") AS pacePerMile,
-       apoc.date.format(pacePerMetre.milliseconds * 1000, "ms", "mm:ss") AS pacePerKm
+RETURN apoc.date.format(toInteger(pacePerMetre.milliseconds * 1609.34), "ms", "mm:ss")
+       AS pacePerMile,
+       apoc.date.format(pacePerMetre.milliseconds * 1000, "ms", "mm:ss")
+       AS pacePerKm
 ----
 
 Let's run that:
@@ -198,12 +200,15 @@ The following query does the trick, and we'll even add in `metresPerSecond` for 
 
 [source, cypher]
 ----
-WITH duration({minutes: 22, seconds: 24}) AS elapsedTime,
+WITH duration({minutes: 21, seconds: 24}) AS elapsedTime,
      toFloat(5000) AS distance
 WITH duration({seconds: elapsedTime.seconds / distance}) AS pacePerMetre
-RETURN apoc.date.format(toInteger(pacePerMetre.microseconds * (1609.34 / 1000)), "ms", "mm:ss") AS pacePerMile,
-       apoc.date.format(pacePerMetre.microseconds, "ms", "mm:ss") AS pacePerKm,
-       1.0 / (pacePerMetre.microseconds / 1000.0 / 1000.0) AS metresPerSecond
+RETURN apoc.date.format(toInteger(pacePerMetre.microseconds * 1.60934), "ms", "mm:ss")
+       AS pacePerMile,
+       apoc.date.format(pacePerMetre.microseconds, "ms", "mm:ss")
+       AS pacePerKm,
+       1.0 / (pacePerMetre.microseconds / 1000.0 / 1000.0)
+       AS metresPerSecond
 ----
 
 And if we run that:
