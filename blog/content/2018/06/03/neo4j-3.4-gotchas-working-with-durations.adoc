@@ -1,0 +1,222 @@
++++
+draft = false
+date="2018-06-03 20:11:21"
+title="Neo4j 3.4: Gotchas when working with Durations"
+tag=['neo4j', 'cypher', 'datetime']
+category=['Neo4j']
+description="Learn how to work around some rounding gotchas when working with Neo4j's new Duration data type."
++++
+
+Continuing with my explorations of Strava data in Neo4j I wanted to share some things I learnt while trying to work out my pace for certain distances.
+
+Before we get into the pace calculations let's first understand how the duration function works.
+If we run the following query we might expect to get back the same value that we put in...
+
+[source, cypher]
+----
+RETURN duration({seconds: 413.77}).seconds AS seconds
+----
+
+[source, text]
+----
+╒═════════╕
+│"seconds"│
+╞═════════╡
+│413      │
+└─────────┘
+----
+
+...but as you can see the value gets rounded down to the nearest number, losing us some accuracy.
+
+The rest of the value is available under the `millisecondsOfSecond` property, so we could retrieve the whole value by executing this query:
+
+[source, cypher]
+----
+WITH duration({seconds: 413.77}) AS duration
+RETURN duration.seconds AS s, duration.millisecondsOfSecond AS ms
+----
+
+[source, text]
+----
+╒═══╤════╕
+│"s"│"ms"│
+╞═══╪════╡
+│413│769 │
+└───┴────┘
+----
+
+That's now split into two different values but I want to get a single value in seconds which we can do by returning the value in milliseconds and dividing by 1,000:
+
+[source, cypher]
+----
+RETURN duration({seconds: 413.77}).milliseconds / 1000.0 AS seconds
+----
+
+[source, text]
+----
+╒═════════╕
+│"seconds"│
+╞═════════╡
+│413.769  │
+└─────────┘
+----
+
+== Calculating pace
+
+The actual problem I'm solving is to work out the pace I was running at for different distances.
+For example, we could represent my most recent predicted 5km like this:
+
+[source, cypher]
+----
+RETURN duration({minutes: 21, seconds: 24}) AS elapsedTime, toFloat(5000) AS distance
+----
+
+[source, cypher]
+----
+╒═════════════╤══════════╕
+│"elapsedTime"│"distance"│
+╞═════════════╪══════════╡
+│"P0M0DT1284S"│5000.0    │
+└─────────────┴──────────┘
+----
+
+If we want to work out my pace per mile and per kilometre we can write the following query:
+
+[source, cypher]
+----
+WITH duration({minutes: 21, seconds: 24}) AS elapsedTime,
+     toFloat(5000) AS distance
+RETURN duration({seconds: elapsedTime.seconds / distance * 1609.34}) AS pacePerMile,
+       duration({seconds: elapsedTime.seconds / distance * 1000}) AS pacePerKm
+----
+
+[source, text]
+----
+╒══════════════════════╤══════════════════════╕
+│"pacePerMile"         │"pacePerKm"           │
+╞══════════════════════╪══════════════════════╡
+│"P0M0DT413.278511999S"│"P0M0DT256.799999999S"│
+└──────────────────────┴──────────────────────┘
+----
+
+Let's use `apoc.date.format` to format that a bit more nicely:
+
+[source, cypher]
+----
+WITH duration({minutes: 21, seconds: 24}) AS elapsedTime,
+       toFloat(5000) AS distance
+WITH duration({seconds: elapsedTime.seconds / distance * 1609.34}) AS pacePerMile,
+     duration({seconds: elapsedTime.seconds / distance * 1000}) AS pacePerKm
+RETURN apoc.date.format(pacePerMile.milliseconds, "ms", "mm:ss") AS pacePerMile,
+       apoc.date.format(pacePerKm.milliseconds, "ms", "mm:ss") AS pacePerKm
+----
+
+[source, text]
+----
+╒═════════════╤═══════════╕
+│"pacePerMile"│"pacePerKm"│
+╞═════════════╪═══════════╡
+│"06:53"      │"04:16"    │
+└─────────────┴───────────┘
+----
+
+So far so good.
+We have a bit of duplication on lines 3 and 4 which we can remove by calculating the `pacePerMetre` and then multiplying that in the next step.
+
+The following query should do the trick:
+
+[source, cypher]
+----
+WITH duration({minutes: 21, seconds: 24}) AS elapsedTime,
+      toFloat(5000) AS distance
+WITH duration({seconds: elapsedTime.seconds / distance}) AS pacePerMetre
+RETURN apoc.date.format(toInteger(pacePerMetre.milliseconds * 1609.34), "ms", "mm:ss") AS pacePerMile,
+       apoc.date.format(pacePerMetre.milliseconds * 1000, "ms", "mm:ss") AS pacePerKm
+----
+
+Let's run that:
+
+[source, text]
+----
+╒═════════════╤═══════════╕
+│"pacePerMile"│"pacePerKm"│
+╞═════════════╪═══════════╡
+│"06:51"      │"04:16"    │
+└─────────────┴───────────┘
+----
+
+The `pacePerKm` still looks good but the `pacePerMile` is now 2 seconds less than it was before.
+The rounding has struck again but let's break it down and see exactly what's happened.
+
+The following query shows us how the rounding has resulted in completely different end values:
+
+[source, cypher]
+----
+WITH duration({minutes: 21, seconds: 24}) AS elapsedTime,
+     toFloat(5000) AS distance
+WITH duration({seconds: elapsedTime.seconds / distance * 1609.34}) AS pacePerMile,
+     duration({seconds: elapsedTime.seconds / distance}) AS pacePerMetre
+RETURN pacePerMile.milliseconds AS millis1,
+       pacePerMetre.milliseconds * 1609.34 AS millis2
+----
+
+[source, text]
+----
+╒═════════╤═════════╕
+│"millis1"│"millis2"│
+╞═════════╪═════════╡
+│413278   │411991.04│
+└─────────┴─────────┘
+----
+
+To solve our problem we'll need to return the `pacePerMetre` in microseconds and then convert it into `pacePerMile`.
+Let's first tweak the query above so that we get the same millisecond values:
+
+[source, cypher]
+----
+WITH duration({minutes: 21, seconds: 24}) AS elapsedTime,
+     toFloat(5000) AS distance
+WITH duration({seconds: elapsedTime.seconds / distance * 1609.34}) AS pacePerMile,
+     duration({seconds: elapsedTime.seconds / distance}) AS pacePerMetre
+RETURN pacePerMile.milliseconds AS millis1,
+       pacePerMetre.microseconds * 1.60934 AS millis2
+----
+
+[source, text]
+----
+╒═════════╤════════════╕
+│"millis1"│"millis2"   │
+╞═════════╪════════════╡
+│413278   │413276.90266│
+└─────────┴────────────┘
+----
+
+Now the 2nd value is actually more accurate but since we're only measuring down to the second it doesn't matter.
+We can use the same approach to get an accurate `pacePerMile` value.
+
+The following query does the trick, and we'll even add in `metresPerSecond` for good measure:
+
+[source, cypher]
+----
+WITH duration({minutes: 22, seconds: 24}) AS elapsedTime,
+     toFloat(5000) AS distance
+WITH duration({seconds: elapsedTime.seconds / distance}) AS pacePerMetre
+RETURN apoc.date.format(toInteger(pacePerMetre.microseconds * (1609.34 / 1000)), "ms", "mm:ss") AS pacePerMile,
+       apoc.date.format(pacePerMetre.microseconds, "ms", "mm:ss") AS pacePerKm,
+       1.0 / (pacePerMetre.microseconds / 1000.0 / 1000.0) AS metresPerSecond
+----
+
+And if we run that:
+
+[source, text]
+----
+╒═════════════╤═══════════╤══════════════════╕
+│"pacePerMile"│"pacePerKm"│"metresPerSecond" │
+╞═════════════╪═══════════╪══════════════════╡
+│"06:53"      │"04:16"    │3.8940961608105953│
+└─────────────┴───────────┴──────────────────┘
+----
+
+Sweet!
+
+That's all I've got for now but let me know in the comments if you've had a chance to play around with the temporal data type and what your experience has been like.
