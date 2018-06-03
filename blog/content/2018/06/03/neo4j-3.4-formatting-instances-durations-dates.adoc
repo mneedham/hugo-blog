@@ -1,0 +1,105 @@
++++
+draft = true
+date="2018-06-03 04:08:21"
+title="Neo4j 3.4: Formatting instances of the Duration and Datetime date types"
+tag=['neo4j', 'cypher', 'datetime']
+category=['Neo4j']
+description="Learn how to format the Duration and Datetime types introduced in Neo4j 3.4"
++++
+
+In my https://markhneedham.com/blog/2018/06/02/neo4j-3.4-comparing-durations/[last blog post^] I showed how to compare instances of Neo4j's https://neo4j.com/docs/developer-manual/current/cypher/syntax/temporal/#cypher-temporal-durations[Duration data type^], and in the middle of the post I realised that I needed to use the https://neo4j-contrib.github.io/neo4j-apoc-procedures/[APOC library^] to return the value in the format I wanted.
+This was the solution I ended up with:
+
+[source, cypher]
+----
+WITH duration({seconds: 100}) AS duration
+RETURN apoc.text.lpad(toString(duration.minutes), 2, "0") + ":" +
+       apoc.text.lpad(toString(duration.secondsOfMinute), 2, "0")
+----
+
+If we run that query this is the output:
+
+[source, text]
+----
+╒═══════╕
+│"value"│
+╞═══════╡
+│"01:40"│
+└───────┘
+----
+
+It works but it's not very nice so I wanted to see if I could come up with something better.
+
+== `apoc.text.format`
+
+My first attempt used the `apoc.text.format` function, which allows us to https://github.com/neo4j-contrib/neo4j-apoc-procedures/issues/269[format Strings in sprintf format^].
+This is how we can format the duration using that function:
+
+[source, cypher]
+----
+WITH duration({seconds: 100}) AS duration
+RETURN apoc.text.format("%02d:%02d", [duration.minutes, duration.secondsOfMinute]) AS value
+----
+
+This is better than our first version but what if we want to include the number of hours as well?
+We'd have to do this:
+
+[source, cypher]
+----
+WITH duration({minutes: 100, seconds: 30}) AS duration
+RETURN apoc.text.format("%02d:%02d:%02d", [duration.hours, duration.minutesOfHour, duration.secondsOfMinute]) AS value
+----
+
+If we execute that query we'll see this output:
+
+[source, text]
+----
+╒══════════╕
+│"value"   │
+╞══════════╡
+│"01:40:30"│
+└──────────┘
+----
+
+Not bad.
+At this point I remembered that APOC has lots of https://neo4j-contrib.github.io/neo4j-apoc-procedures/#_date_and_time_conversions[date formatting functions^] and I wondered if I could use one of them to make life even easier.
+
+== `apoc.date.format`
+
+Yes we can!
+If we can convert our duration into milliseconds we can use `apoc.date.format` to solve the problem.
+
+The following code does the trick:
+
+[source, cypher]
+----
+WITH duration({minutes: 100, seconds: 30}) AS duration
+RETURN apoc.date.format(duration.milliseconds, 'ms', 'HH:mm:ss') AS value
+----
+
+== Formatting dates
+
+We can use the same approach to format dates as well.
+We can extract the timestamp of a Datetime from the  `epochSeconds` property.
+The following query formats the current Datetime:
+
+[source, cypher]
+----
+RETURN apoc.date.format(datetime().epochSeconds, 's', 'MMM d yyyy') AS value
+----
+
+[source, text]
+----
+╒════════════╕
+│"value"     │
+╞════════════╡
+│"Jun 3 2018"│
+└────────────┘
+----
+
+If we want to extract the timestamp in milliseconds we can do that as well:
+
+[source, cypher]
+----
+RETURN apoc.date.format(datetime().epochMillis, 'ms', 'MMM d yyyy') AS value
+----
