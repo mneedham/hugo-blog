@@ -43,3 +43,8 @@ https://stackoverflow.com/questions/36760839/why-my-python-installed-via-home-br
 $ brew install tcl-tk
 $ echo 'export PATH="/usr/local/opt/tcl-tk/bin:$PATH"' >> ~/.bash_profile
 ----
+
+
+```
+brew install python --with-tcl-tk
+```

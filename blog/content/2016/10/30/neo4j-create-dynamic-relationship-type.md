@@ -2,7 +2,7 @@
 draft = false
 date="2016-10-30 22:12:50"
 title="Neo4j: Create dynamic relationship type"
-tag=['neo4j']
+tag=['neo4j', 'apoc', 'cypher']
 category=['neo4j']
 +++
 
@@ -81,4 +81,3 @@ RETURN rel
 <p>
 Much better!
 </p>
-
