@@ -1,0 +1,370 @@
++++
+draft = false
+date="2018-06-12 05:30:21"
+title="Neo4j: Building a graph of Strava activities"
+tag=['neo4j', 'cypher', 'apoc', 'strava']
+category=['Neo4j']
+description="Learn how to paginate through JSON APIs and load the data into Neo4j using only APOC's Load JSON procedure."
++++
+
+In my https://markhneedham.com/blog/2018/06/05/neo4j-apoc-loading-data-strava-paginated-json-api/[last post^] I showed how to import activities from Strava's API into Neo4j using only the APOC library, but that was only part of the graph so I thought I'd share the rest of what I've done.
+
+== The Graph Model
+
+In the previous post I showed how to import nodes with `Run` label, but there are some other pieces of data that I wanted to import as well.
+`Segments` are member created portions of a road where users can compete for time.
+A run can have `SegmentEfforts` on `Segments` where a segment effort will indicate how long it took to complete that segment.
+
+Each run also has 'best efforts' where Strava indicates a predicted time for different distances (e.g. 1km, 1 mile, 2 miles, 5km etc)
+In the graph model we'll create `DistanceEffort` nodes for each run and a `Distance` node to represent each distance.
+
+This is what our graph should look like.
+This diagram was created using http://www.apcjones.com/arrows/#[Alistair Jones' Arrows tool^] in case you want to create your own.
+
+image::{{<siteurl>}}/uploads/2018/06/strava-graph.svg[]
+
+== Create constraints
+
+Before we import any data we'll set up some constraints so we don't end up with duplicate nodes.
+When we create a constraint on a `(label, property)` pair an index is also created so it'll help speed up the import process as well.
+
+[source, cypher]
+----
+CREATE CONSTRAINT ON (d:Distance)
+ASSERT d.name is UNIQUE;
+
+CREATE CONSTRAINT ON (r:Run)
+ASSERT r.id is UNIQUE;
+
+CREATE CONSTRAINT ON (d:DistanceEffort)
+ASSERT d.id is UNIQUE;
+
+CREATE CONSTRAINT ON (s:SegmentEffort)
+ASSERT s.id is UNIQUE;
+
+CREATE CONSTRAINT ON (s:Segment)
+ASSERT s.id is UNIQUE;
+----
+
+== Importing data
+
+First we'll create a parameter that contains our Strava token for interacting with their API.
+You can generate a token via the https://www.strava.com/settings/api['Create and Manage Your App'^] page.
+
+[source, cypher]
+----
+:param stravaToken => "Bearer <strava-token>";
+----
+
+Now we're ready to import some data!
+
+The data we want to import comes from several different API endpoints, but we'll start with the `Run` nodes.
+We can get these from the http://developers.strava.com/docs/reference/#api-Activities-getLoggedInAthleteActivities[List Athlete Activities^] part of the API.
+
+This is a sample of what the response from that endpoint looks like:
+
+[source, json]
+----
+[
+  {
+      "name": "Morning Run",
+      "distance": 3465.8,
+      "moving_time": 1375,
+      "elapsed_time": 1420,
+      "total_elevation_gain": 0,
+      "type": "Run",
+      "id": 214959724,
+      "start_date": "2014-11-03T06:15:07Z",
+      "start_date_local": "2014-11-03T06:15:07Z",
+      "timezone": "(GMT+00:00) Europe/London",
+      "utc_offset": 0,
+      "average_speed": 2.521,
+      "max_speed": 6.9,
+      "has_heartrate": false,
+      "elev_high": 10,
+      "elev_low": 6,
+    },
+]
+----
+
+We will use the `apoc.load.jsonParams` procedure from the https://neo4j-contrib.github.io/neo4j-apoc-procedures/[APOC^] library to help us import this data.
+My colleague Jennifer Reif has https://medium.com/neo4j/explore-new-worlds-adding-plugins-to-neo4j-26e6a8e5d37e[written a blog post^] explaining how to install APOC and other plugins so check that out if you haven't used APOC yet.
+
+If we want to load the first 30 activities we could write the following query:
+
+[source, cypher]
+----
+WITH 'https://www.strava.com/api/v3/athlete/activities' AS uri
+CALL apoc.load.jsonParams(uri, {Authorization: $stravaToken}, null)
+YIELD value
+
+MERGE (run:Run {id: value.id})
+SET run.distance = toFloat(value.distance),
+    run.startDate = datetime(value.start_date_local),
+    run.elapsedTime = duration({seconds: value.elapsed_time}),
+    run.movingTime = duration({seconds: value.moving_time}),
+    run.name = value.name,
+    run.totalElevationGain = toInteger(value.total_elevation_gain),
+    run.elevationHigh = toFloat(value.elev_high),
+    run.elevationLow = toFloat(value.elev_low),
+    run.averageSpeed = toFloat(value.average_speed),
+    run.maximumSpeed = toFloat(value.max_speed)
+----
+
+We store the date using the new DateTime data type introduced in Neo4j 3.4 and the moving and elapsed times using the Duration data type.
+
+We could increase the number of activities from 30 to a maximum of 200 by setting the `per_page` parameter, but I have more activities than that so we're going to need to do some pagination.
+Luckily this API endpoint lets us pass in an `after` parameter which defines `An epoch timestamp to use for filtering activities that have taken place after a certain time`.
+We'll use this to help us paginate through the API and get all our activities since there are more of those than will be returned by one API call.
+
+As I explained in https://markhneedham.com/blog/2018/06/05/neo4j-apoc-loading-data-strava-paginated-json-api/[my previous post^], it took me a while to figure out how to handle the pagination using only APOC, but I eventually realised that the `apoc.periodic.commit` procedure would do the trick.
+The following query will import all our runs:
+
+[source, cypher]
+----
+CALL apoc.periodic.commit("
+  OPTIONAL MATCH (run:Run)
+  WITH run ORDER BY run.startDate DESC LIMIT 1
+  WITH coalesce(run.startDate.epochSeconds, 0) AS after
+  WITH 'https://www.strava.com/api/v3/athlete/activities?after=' + after AS uri
+  CALL apoc.load.jsonParams(uri, {Authorization: $stravaToken}, null)
+  YIELD value
+
+  MERGE (run:Run {id: value.id})
+  SET run.distance = toFloat(value.distance),
+      run.startDate = datetime(value.start_date_local),
+      run.elapsedTime = duration({seconds: value.elapsed_time}),
+      run.movingTime = duration({seconds: value.moving_time}),
+      run.name = value.name,
+      run.totalElevationGain = toInteger(value.total_elevation_gain),
+      run.elevationHigh = toFloat(value.elev_high),
+      run.elevationLow = toFloat(value.elev_low),
+      run.averageSpeed = toFloat(value.average_speed),
+      run.maximumSpeed = toFloat(value.max_speed)
+
+  RETURN CASE WHEN count(*) < 30 THEN 0 ELSE count(*) END AS count
+", {stravaToken: $stravaToken});
+----
+
+Now we need to import the distance and segment efforts for each run.
+This data is available via the http://developers.strava.com/docs/reference/#api-Activities-getActivityById[Get Activity^] endpoint, and we can use the `apoc.periodic.iterate` procedure to help iterate through all our runs.
+
+This is a sample of what the response from that endpoint looks like:
+
+
+[source, json]
+----
+{
+  "name": "Morning Run",
+  "distance": 10884.9,
+  "moving_time": 2918,
+  "elapsed_time": 2918,
+  "total_elevation_gain": 107,
+  "type": "Run",
+  "workout_type": 0,
+  "id": 1620188065,
+  "start_date": "2018-06-06T04:18:47Z",
+  "start_date_local": "2018-06-06T05:18:47Z",
+  "timezone": "(GMT+00:00) Europe/London",
+  "utc_offset": 3600,
+  "calories": 862.6,
+  "segment_efforts": [
+    {
+      "id": 40571736882,
+      "resource_state": 2,
+      "name": "Stanley to Bridge",
+      "elapsed_time": 82,
+      "moving_time": 82,
+      "start_date": "2018-06-06T04:19:04Z",
+      "start_date_local": "2018-06-06T05:19:04Z",
+      "distance": 322,
+      "segment": {
+        "id": 17875143,
+        "resource_state": 2,
+        "name": "Stanley to Bridge",
+        "activity_type": "Run",
+        "distance": 322,
+        "average_grade": 0,
+        "maximum_grade": 2.9,
+        "elevation_high": 71,
+        "elevation_low": 69,
+        "climb_category": 0,
+      },
+    },
+  ],
+  "best_efforts": [
+    {
+      "id": 3497998232,
+      "resource_state": 2,
+      "name": "400m",
+      "elapsed_time": 92,
+      "moving_time": 93,
+      "start_date": "2018-06-06T05:02:29Z",
+      "start_date_local": "2018-06-06T06:02:29Z",
+      "distance": 400,
+      "start_index": 2494,
+      "end_index": 2586,
+      "pr_rank": null,
+      "achievements": []
+    },
+    {
+      "id": 3497998233,
+      "resource_state": 2,
+      "name": "1/2 mile",
+      "elapsed_time": 190,
+      "moving_time": 191,
+      "start_date": "2018-06-06T05:01:23Z",
+      "start_date_local": "2018-06-06T06:01:23Z",
+      "distance": 805,
+      "start_index": 2431,
+      "end_index": 2618,
+      "pr_rank": 1,
+    },
+
+  ],
+
+}
+----
+
+The following query imports this data into our graph:
+
+[source, cypher]
+----
+CALL apoc.periodic.iterate(
+  "MATCH (run:Run)
+   RETURN run",
+  "WITH run, 'https://www.strava.com/api/v3/activities/' + run.id +
+              '?include_all_efforts=true' AS uri
+   CALL apoc.load.jsonParams(uri,{Authorization:$stravaToken},null)
+   YIELD value
+
+   WITH run, value
+   UNWIND value.best_efforts AS bestEffort
+   MERGE (distance:Distance {name: bestEffort.name})
+   ON CREATE SET distance.distance = toFloat(bestEffort.distance)
+   MERGE (effort:DistanceEffort {id: bestEffort.id})
+   ON CREATE SET effort.elapsedTime = duration({seconds: bestEffort.elapsed_time}),
+                 effort.movingTime = duration({seconds: bestEffort.moving_time})
+   MERGE (effort)-[:DISTANCE]->(distance)
+   MERGE (run)-[:DISTANCE_EFFORT]->(effort)
+
+   WITH run, value, count(*) AS count
+
+   UNWIND value.segment_efforts AS segmentEffort
+   MERGE (segment:Segment {id: segmentEffort.segment.id})
+   ON CREATE SET segment.name = segmentEffort.segment.name,
+                 segment.distance = toFloat(segmentEffort.segment.distance)
+   MERGE (effort:SegmentEffort {id: segmentEffort.id})
+   ON CREATE SET effort.elapsedTime = duration({seconds: segmentEffort.elapsed_time}),
+                 effort.movingTime = duration({seconds: segmentEffort.moving_time})
+   MERGE (effort)-[:SEGMENT]->(segment)
+   MERGE (run)-[:SEGMENT_EFFORT]->(effort)",
+  {batchSize: 10, parallel:false, params: {stravaToken: $stravaToken}});
+----
+
+We already have our `Run` nodes created so we iterate through those and call the API endpoint one time for each run.
+We then use the `UNWIND` clause to process the arrays contained in the JSON response for `best_efforts` and `segment_efforts` and connect those to the `Run` node.
+
+That's the main structure of the graph, but I also wanted to import some more detail about the segments which was available from the http://developers.strava.com/docs/reference/#api-Segments-getSegmentById[Get Segment^] endpoint.
+
+[source, cypher]
+----
+CALL apoc.periodic.iterate(
+  "MATCH (segment:Segment) RETURN segment",
+  "WITH segment, 'https://www.strava.com/api/v3/segments/' + segment.id AS uri
+   CALL apoc.load.jsonParams(uri,{Authorization:$stravaToken},null)
+   YIELD value
+   WITH segment, value
+   SET segment.averageGrade = toFloat(value.average_grade),
+       segment.maximumGrade = toFloat(value.maximum_grade),
+       segment.totalElevationGain = toFloat(value.total_elevation_gain),
+       segment.elevationHigh = toFloat(value.elevation_high),
+       segment.elevationLow = toFloat(value.elevation_low)
+   ",
+  {batchSize: 10, parallel:false, params: {stravaToken: $stravaToken}});
+----
+
+== What have we imported?
+
+Now that we've got the data imported let's write a few queries to check how much data we've imported.
+
+=== How many runs are there?
+
+[source, cypher]
+----
+MATCH (:Run)
+RETURN count(*)
+----
+
+[source, text]
+----
+╒══════════╕
+│"count(*)"│
+╞══════════╡
+│604       │
+└──────────┘
+----
+
+=== How many segments?
+
+[source, cypher]
+----
+MATCH (:Segment)
+RETURN count(*)
+----
+
+[source, text]
+----
+╒══════════╕
+│"count(*)"│
+╞══════════╡
+│382       │
+└──────────┘
+----
+
+=== How many efforts on those segments?
+
+[source, cypher]
+----
+MATCH (:SegmentEffort)
+RETURN count(*)
+----
+
+[source, text]
+----
+╒══════════╕
+│"count(*)"│
+╞══════════╡
+│2913      │
+└──────────┘
+----
+
+=== Which segment has the most efforts?
+
+[source, cypher]
+----
+MATCH (segment:Segment)
+RETURN segment.name AS segment, size((segment)<-[:SEGMENT]-()) AS efforts
+ORDER BY efforts DESC
+LIMIT 5
+----
+
+[source, text]
+----
+╒══════════════════════╤═════════╕
+│"segment"             │"efforts"│
+╞══════════════════════╪═════════╡
+│"Lap of the track"    │348      │
+├──────────────────────┼─────────┤
+│"York to Vet"         │201      │
+├──────────────────────┼─────────┤
+│"Stanley to Bridge"   │158      │
+├──────────────────────┼─────────┤
+│"Bridge Road (down)"  │83       │
+├──────────────────────┼─────────┤
+│"Overton to Beresford"│67       │
+└──────────────────────┴─────────┘
+----
+
+These are just a few exploratory queries we can do on this dataset.
+In my next post I'll show how to query some more complex patterns.
