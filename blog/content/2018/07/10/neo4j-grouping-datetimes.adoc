@@ -1,5 +1,5 @@
 +++
-draft = true
+draft = false
 date="2018-07-10 04:21:00"
 title="Neo4j: Grouping Datetimes"
 tag=['neo4j', 'cypher', 'strava']
@@ -7,25 +7,16 @@ category=['Neo4j']
 description="Learn how to query a Strava activity graph using Py2neo v4."
 +++
 
+In my continued link:/blog/2018/06/12/neo4j-building-strava-graph/[analysis of Strava runs^] I wanted to try and find my best runs grouped by different time components, which was actually much easier than I was expecting.
+
+== Importing the dataset
+
+If you want to try out the examples below you can execute the following `LOAD CSV` commands to load the data:
 
 [source,cypher]
 ----
-CALL apoc.export.csv.query(
-  "MATCH (r:Run)
-   RETURN r.id AS id,
-          r.distance AS distance,
-          r.movingTime AS movingTime,
-          r.elapsedTime AS elapsedTime,
-          r.startDate AS startDate,
-          r.averageSpeed AS averageSpeed,
-          r.totalElevationGain AS totalElevationGain
-   ORDER BY r.startDate",
-  "/tmp/runs.csv", {})
-----
-
-[source,cypher]
-----
-LOAD CSV WITH HEADERS FROM "https://github.com/mneedham/strava/raw/master/runs.csv" AS row
+LOAD CSV WITH HEADERS FROM "https://github.com/mneedham/strava/raw/master/runs.csv"
+AS row
 MERGE (run:Run {id: toInteger(row.id)})
 SET run.distance = toFloat(row.distance),
     run.movingTime = duration(row.movingTime),
@@ -37,12 +28,187 @@ SET run.distance = toFloat(row.distance),
 
 [source,cypher]
 ----
-LOAD CSV WITH HEADERS FROM "https://github.com/mneedham/strava/raw/master/efforts.csv" AS row
+LOAD CSV WITH HEADERS FROM "https://github.com/mneedham/strava/raw/master/efforts.csv"
+AS row
 MATCH (run:Run {id: toInteger(row.runId)})
 MERGE (effort:Effort {id: toInteger(row.effortId)})
-SET effort.movingTime = duration(row.movingTime), effort.elapsedTime = duration(row.elapsedTime)
+SET effort.movingTime = duration(row.movingTime),
+    effort.elapsedTime = duration(row.elapsedTime)
 MERGE (distance:Distance {name: row.name})
 SET distance.distance = toFloat(row.distance)
 MERGE (distance)<-[:DISTANCE]-(effort)
 MERGE (effort)<-[:DISTANCE_EFFORT]-(run)
 ----
+
+== Finding best segment efforts
+
+I want to find the best efforts at running 10km.
+We can write the following query to find the most recent attempts:
+
+[source,cypher]
+----
+MATCH (distance:Distance {name: "10k"})<-[:DISTANCE]-(effort)<-[:DISTANCE_EFFORT]-(run)
+
+WITH effort { .elapsedTime,
+              pace: duration({seconds: effort.elapsedTime.seconds /
+                                       distance.distance * 1000  }),
+              startDate: run.startDate
+            }
+
+RETURN apoc.date.format(effort.startDate.epochSeconds, 's', 'MMM d yyyy') AS dateOfRun,
+       apoc.date.format(effort.elapsedTime.milliseconds, 'ms', 'mm:ss') AS time,
+       apoc.date.format(effort.pace.milliseconds, "ms", "mm:ss") AS pace
+ORDER BY effort.startDate DESC
+LIMIT 10
+----
+
+We're using the https://neo4j-contrib.github.io/neo4j-apoc-procedures/[APOC library^] to format the results a bit more cleanly.
+If we run that query we'll see the following output:
+
+[source,text]
+----
++-----------------------------------+
+| dateOfRun     | time    | pace    |
++-----------------------------------+
+| "Jul 7 2018"  | "46:07" | "04:36" |
+| "Jul 6 2018"  | "46:10" | "04:37" |
+| "Jul 4 2018"  | "45:53" | "04:35" |
+| "Jul 2 2018"  | "46:34" | "04:39" |
+| "Jun 30 2018" | "49:13" | "04:55" |
+| "Jun 29 2018" | "48:02" | "04:48" |
+| "Jun 27 2018" | "44:48" | "04:28" |
+| "Jun 25 2018" | "45:24" | "04:32" |
+| "Jun 23 2018" | "46:00" | "04:36" |
+| "Jun 22 2018" | "45:15" | "04:31" |
++-----------------------------------+
+----
+
+We could tweak that query to filter and sort the results in different ways, but what if I want to find my quickest 10km effort per month or per quarter?
+
+== `date.truncate`
+
+We can use the https://neo4j.com/docs/developer-manual/current/cypher/functions/temporal/#functions-temporal-truncate-overview[`date.truncate`^] function to do this.
+
+For example, the following query will find the month for today's date:
+
+[source,cypher]
+----
+RETURN date.truncate("month", datetime()) AS value
+----
+
+[source,text]
+----
++------------+
+| value      |
++------------+
+| 2018-07-01 |
++------------+
+----
+
+== Group by month
+
+Let's update our query to fastest 10km effort per month.
+The following query will calculate this:
+
+[source,cypher]
+----
+MATCH (distance:Distance {name: "10k"})<-[:DISTANCE]-(effort)<-[:DISTANCE_EFFORT]-(run)
+
+WITH effort { .elapsedTime,
+              pace: duration({seconds: effort.elapsedTime.seconds /
+                                       distance.distance * 1000  }),
+              startDate: run.startDate
+            }
+
+WITH date.truncate("month", effort.startDate) AS month, effort
+ORDER BY effort.pace
+WITH month, collect(effort)[0] AS effort
+
+RETURN month,
+       apoc.date.format(effort.startDate.epochSeconds, 's', 'MMM d yyyy') AS dateOfRun,
+       apoc.date.format(effort.elapsedTime.milliseconds, 'ms', 'mm:ss') AS time,
+       apoc.date.format(effort.pace.milliseconds, "ms", "mm:ss") AS pace
+ORDER BY month
+----
+
+The three lines in the middle of the query do most of the work:
+
+[source, cypher]
+----
+WITH date.truncate("month", effort.startDate) AS month, effort
+ORDER BY effort.pace
+WITH month, collect(effort)[0] AS effort
+----
+
+We truncate the `startDate` of the effort to pull out the month and then sort the efforts by `pace`.
+The lower the pace the quicker the effort.
+We then use the `collect` function to take all our efforts and put them into an array grouped by `month`.
+Finally we take the first one in that collection, which will be the fastest one!
+
+This is the output from running that query:
+
+[source,text]
+----
+
++------------------------------------------------+
+| month      | dateOfRun     | time    | pace    |
++------------------------------------------------+
+| 2016-01-01 | "Jan 10 2016" | "54:08" | "05:24" |
+| 2017-01-01 | "Jan 22 2017" | "52:50" | "05:17" |
+| 2017-12-01 | "Dec 29 2017" | "47:49" | "04:46" |
+| 2018-01-01 | "Jan 27 2018" | "46:17" | "04:37" |
+| 2018-02-01 | "Feb 3 2018"  | "46:48" | "04:40" |
+| 2018-03-01 | "Mar 17 2018" | "46:13" | "04:37" |
+| 2018-05-01 | "May 19 2018" | "45:02" | "04:30" |
+| 2018-06-01 | "Jun 9 2018"  | "44:05" | "04:24" |
+| 2018-07-01 | "Jul 4 2018"  | "45:53" | "04:35" |
++------------------------------------------------+
+----
+
+My best run was in June, but I wasn't too far behind in May.
+There's still some work to do this month - my best effort this month is much slower than the previous two.
+
+== Group by quarter
+
+We can find the fastest run by quarter as well by changed the first parameter we pass to the `date.truncate` function:
+
+[source,cypher]
+----
+MATCH (distance:Distance {name: "10k"})<-[:DISTANCE]-(effort)<-[:DISTANCE_EFFORT]-(run)
+
+WITH effort { .elapsedTime,
+              pace: duration({seconds: effort.elapsedTime.seconds /
+                                       distance.distance * 1000  }),
+              startDate: run.startDate
+            }
+
+WITH date.truncate("quarter", effort.startDate) AS quarter, effort
+ORDER BY effort.pace
+WITH quarter, collect(effort)[0] AS effort
+
+RETURN "Q" + quarter.quarter + " " + quarter.year AS date,
+       apoc.date.format(effort.startDate.epochSeconds, 's', 'MMM d yyyy') AS dateOfRun,
+       apoc.date.format(effort.elapsedTime.milliseconds, 'ms', 'mm:ss') AS time,
+       apoc.date.format(effort.pace.milliseconds, "ms", "mm:ss") AS pace
+ORDER BY quarter
+----
+
+For this one we do a little bit of extra work so that the quarter date displays in a nicer way:
+
+[source,text]
+----
++-----------------------------------------------+
+| date      | dateOfRun     | time    | pace    |
++-----------------------------------------------+
+| "Q1 2016" | "Jan 10 2016" | "54:08" | "05:24" |
+| "Q1 2017" | "Jan 22 2017" | "52:50" | "05:17" |
+| "Q4 2017" | "Dec 29 2017" | "47:49" | "04:46" |
+| "Q1 2018" | "Mar 17 2018" | "46:13" | "04:37" |
+| "Q2 2018" | "Jun 9 2018"  | "44:05" | "04:24" |
+| "Q3 2018" | "Jul 4 2018"  | "45:53" | "04:35" |
++-----------------------------------------------+
+----
+
+I've clearly got a bit of work to do this quarter to match my best effort in Q2 2018!
+
+We could continue grouping by different components but this will probably do for now!
