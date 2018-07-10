@@ -1,7 +1,7 @@
 +++
 draft = false
 date="2018-07-10 04:21:00"
-title="Neo4j: Grouping Datetimes"
+title="Neo4j 3.4: Grouping Datetimes"
 tag=['neo4j', 'cypher', 'strava']
 category=['Neo4j']
 description="Learn how to query a Strava activity graph using Py2neo v4."

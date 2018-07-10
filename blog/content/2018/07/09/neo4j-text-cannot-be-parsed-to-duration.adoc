@@ -2,7 +2,7 @@
 +++
 draft = false
 date="2018-07-09 18:21:00"
-title="Neo4j: Syntax Error - Text cannot be parsed to a Duration (aka dealing with empty durations)"
+title="Neo4j 3.4: Syntax Error - Text cannot be parsed to a Duration (aka dealing with empty durations)"
 tag=['neo4j', 'cypher', 'strava', "datetime"]
 category=['Neo4j']
 description="Learn how to handle empty durations when using Neo4j 3.4's new temporal data type"
