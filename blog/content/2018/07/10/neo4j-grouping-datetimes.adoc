@@ -1,6 +1,6 @@
 +++
 draft = true
-date="2018-07-09 18:21:00"
+date="2018-07-10 04:21:00"
 title="Neo4j: Grouping Datetimes"
 tag=['neo4j', 'cypher', 'strava']
 category=['Neo4j']
@@ -33,4 +33,16 @@ SET run.distance = toFloat(row.distance),
     run.startDate = datetime(row.startDate),
     run.averageSpeed = toFloat(run.averageSpeed),
     run.totalElevationGain = toInteger(run.totalElevationGain)
+----
+
+[source,cypher]
+----
+LOAD CSV WITH HEADERS FROM "https://github.com/mneedham/strava/raw/master/efforts.csv" AS row
+MATCH (run:Run {id: toInteger(row.runId)})
+MERGE (effort:Effort {id: toInteger(row.effortId)})
+SET effort.movingTime = duration(row.movingTime), effort.elapsedTime = duration(row.elapsedTime)
+MERGE (distance:Distance {name: row.name})
+SET distance.distance = toFloat(row.distance)
+MERGE (distance)<-[:DISTANCE]-(effort)
+MERGE (effort)<-[:DISTANCE_EFFORT]-(run)
 ----
