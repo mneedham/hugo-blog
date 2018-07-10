@@ -1,0 +1,155 @@
+
++++
+draft = false
+date="2018-07-09 18:21:00"
+title="Neo4j: Syntax Error - Text cannot be parsed to a Duration (aka dealing with empty durations)"
+tag=['neo4j', 'cypher', 'strava', "datetime"]
+category=['Neo4j']
+description="Learn how to handle empty durations when using Neo4j 3.4's new temporal data type"
++++
+
+As I continued with my travels with Neo4j 3.4's https://neo4j.com/docs/developer-manual/current/cypher/functions/temporal/#functions-duration-create-components[temporal data type^] I came across some fun edge cases when dealing with empty durations while importing data.
+
+Imagine we're trying to create 3 nodes from the following array of input data.
+Two of the rows have invalid durations!
+
+[source, cypher]
+----
+UNWIND [
+ {id: 12345, duration: "PT2M20S"},
+ {id: 12346, duration: ""},
+ {id: 12347, duration: null}
+] AS row
+
+MERGE (run:Run {id: row.id})
+SET run.duration = duration(row.duration)
+----
+
+If we run that query we'll get this error message:
+
+[source,text]
+----
+Neo.ClientError.Statement.SyntaxError: Text cannot be parsed to a Duration
+""
+ ^
+----
+
+It doesn't like the empty string.
+Let's see how we can detect that:
+
+[source,cypher]
+----
+UNWIND [
+ {id: 12345, duration: "PT2M20S"},
+ {id: 12346, duration: ""},
+ {id: 12347, duration: null}
+] AS row
+
+return row.duration AS value,
+       trim(row.duration) = "" AS isEmpty
+----
+
+[source,text]
+----
++---------------------+
+| value     | isEmpty |
++---------------------+
+| "PT2M20S" | FALSE   |
+| ""        | TRUE    |
+| NULL      | NULL    |
++---------------------+
+----
+
+
+Now let's use our conditional statement in the import query:
+
+[source, cypher]
+----
+UNWIND [
+ {id: 12345, duration: "PT2M20S"},
+ {id: 12346, duration: ""},
+ {id: 12347, duration: null}
+] AS row
+
+MERGE (run:Run {id: row.id})
+SET run.duration = CASE WHEN trim(row.duration) = ""   THEN null
+                        ELSE duration(row.duration) END
+----
+
+[source, text]
+----
+Invalid call signature
+----
+
+Hmmm still not happy.
+This time the null is the issue - passing a null value to the duration function returns an `Invalid call signature` response.
+
+Let's update our conditonal check to detect null values as well:
+
+[source,cypher]
+----
+UNWIND [
+ {id: 12345, duration: "PT2M20S"},
+ {id: 12346, duration: ""},
+ {id: 12347, duration: null}
+] AS row
+
+return row.duration AS value,
+       exists(row.duration) AS isNotNull,
+       trim(row.duration) = "" AS isEmpty
+----
+
+[source,text]
+----
++---------------------------------+
+| value     | isNotNull | isEmpty |
++---------------------------------+
+| "PT2M20S" | TRUE      | FALSE   |
+| ""        | TRUE      | TRUE    |
+| NULL      | FALSE     | NULL    |
++---------------------------------+
+----
+
+Now let's use those conditional checks in our first query:
+
+[source, cypher]
+----
+UNWIND [
+ {id: 12345, duration: "PT2M20S"},
+ {id: 12346, duration: ""},
+ {id: 12347, duration: null}
+] AS row
+
+MERGE (run:Run {id: row.id})
+SET run.duration = CASE WHEN not(exists(row.duration)) THEN null
+                        WHEN trim(row.duration) = ""   THEN null
+                        ELSE duration(row.duration) END
+----
+
+[source,text]
+----
+Added 3 nodes, Set 4 properties, Added 3 labels
+----
+
+Looks happy.
+Let's find our newly created nodes:
+
+[source,cypher]
+----
+MATCH (run:Run)
+WHERE run.id IN range(12345,12347)
+RETURN run
+----
+
+[source,text]
+----
++------------------------------------------+
+| run                                      |
++------------------------------------------+
+| (:Run {duration: P0M0DT140S, id: 12345}) |
+| (:Run {id: 12346})                       |
+| (:Run {id: 12347})                       |
++------------------------------------------+
+----
+
+As expected two of them don't have a duration since none was provided.

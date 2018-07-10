@@ -1,0 +1,36 @@
++++
+draft = true
+date="2018-07-09 18:21:00"
+title="Neo4j: Grouping Datetimes"
+tag=['neo4j', 'cypher', 'strava']
+category=['Neo4j']
+description="Learn how to query a Strava activity graph using Py2neo v4."
++++
+
+
+[source,cypher]
+----
+CALL apoc.export.csv.query(
+  "MATCH (r:Run)
+   RETURN r.id AS id,
+          r.distance AS distance,
+          r.movingTime AS movingTime,
+          r.elapsedTime AS elapsedTime,
+          r.startDate AS startDate,
+          r.averageSpeed AS averageSpeed,
+          r.totalElevationGain AS totalElevationGain
+   ORDER BY r.startDate",
+  "/tmp/runs.csv", {})
+----
+
+[source,cypher]
+----
+LOAD CSV WITH HEADERS FROM "https://github.com/mneedham/strava/raw/master/runs.csv" AS row
+MERGE (run:Run {id: toInteger(row.id)})
+SET run.distance = toFloat(row.distance),
+    run.movingTime = duration(row.movingTime),
+    run.elapsedTime = duration(row.elapsedTime),
+    run.startDate = datetime(row.startDate),
+    run.averageSpeed = toFloat(run.averageSpeed),
+    run.totalElevationGain = toInteger(run.totalElevationGain)
+----
