@@ -1,0 +1,90 @@
++++
+draft = false
+date="2018-07-15 15:10:00"
+title="Python: Parallel download files using requests"
+tag=['python', 'requests', 'strava']
+category=['Python']
+description="Learn how to download multiple files at the same time."
++++
+
+I often find myself downloading web pages with Python's http://docs.python-requests.org/en/master/[requests library^] to do some local scrapping when building datasets but I've never come up with a good way for downloading those pages in parallel.
+
+Below is the code that I use.
+First we'll import the required libraries:
+
+[source,python]
+----
+import os
+import requests
+from time import time as timer
+----
+
+And now a function that streams a response into a local file:
+
+[source,python]
+----
+def fetch_url(entry):
+    path, uri = entry
+    if not os.path.exists(path):
+        r = requests.get(uri, stream=True)
+        if r.status_code == 200:
+            with open(path, 'wb') as f:
+                for chunk in r:
+                    f.write(chunk)
+    return path
+----
+
+Let's download some web pages:
+
+[source,python]
+----
+urls = [
+    ("/tmp/1.html", "https://markhneedham.com/blog/2018/07/10/neo4j-grouping-datetimes/"),
+    ("/tmp/2.html", "https://markhneedham.com/blog/2018/07/09/neo4j-text-cannot-be-parsed-to-duration/"),
+    ("/tmp/3.html", "https://markhneedham.com/blog/2018/06/15/neo4j-querying-strava-graph-py2neo/"),
+    ("/tmp/4.html", "https://markhneedham.com/blog/2018/06/12/neo4j-building-strava-graph/"),
+    ("/tmp/5.html", "https://markhneedham.com/blog/2018/06/05/neo4j-apoc-loading-data-strava-paginated-json-api/"),
+    ("/tmp/6.html", "https://markhneedham.com/blog/2018/06/03/neo4j-3.4-gotchas-working-with-durations/"),
+    ("/tmp/7.html", "https://markhneedham.com/blog/2018/06/03/neo4j-3.4-formatting-instances-durations-dates/"),
+    ("/tmp/8.html", "https://markhneedham.com/blog/2018/06/02/neo4j-3.4-comparing-durations/"),
+    ("/tmp/9.html", "https://markhneedham.com/blog/2018/05/19/interpreting-word2vec-glove-embeddings-sklearn-neo4j-graph-algorithms/"),
+    ("/tmp/10.html", "https://markhneedham.com/blog/2018/05/11/node2vec-tensorflow/")
+]
+
+start = timer()
+for entry in urls:
+    fetch_url(entry)
+
+print(f"Elapsed Time: {timer() - start}")
+
+Elapsed Time: 2.0800578594207764
+----
+
+Great!
+That code does the job but how do we parallelise it?
+
+I came across https://stackoverflow.com/questions/16181121/a-very-simple-multithreading-parallel-url-fetching-without-queue/27986480#27986480[a neat approach in a StackOverflow reply^] which can be plugged into my existing code really easily.
+We'll use the https://docs.python.org/2/library/multiprocessing.html[multiprocessing^] library to help us out so let's get that imported:
+
+[source,python]
+----
+from multiprocessing.pool import ThreadPool
+----
+
+And now we create a thread pool and then call out to our `fetch_url` function with the list of URLs that we created earlier on:
+
+[source,python]
+----
+results = ThreadPool(8).imap_unordered(fetch_url, urls)
+for path in results:
+    print(path)
+
+print(f"Elapsed Time: {timer() - start}")
+
+Elapsed Time: 0.47546887397766113
+----
+
+Cool!
+It's 5x quicker and that's just for 10 pages - as we download more pages we'll see even more benefit from this approach.
+
+This post is more for future Mark than anyone else so...to future me, you're welcome!
