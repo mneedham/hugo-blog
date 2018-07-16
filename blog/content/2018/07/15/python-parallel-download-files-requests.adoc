@@ -2,7 +2,7 @@
 draft = false
 date="2018-07-15 15:10:00"
 title="Python: Parallel download files using requests"
-tag=['python', 'requests', 'strava']
+tag=['python', 'requests']
 category=['Python']
 description="Learn how to download multiple files at the same time."
 +++
