@@ -1,0 +1,330 @@
++++
+draft = false
+date="2018-07-16 05:25:00"
+title="Qucik "
+tag=['quickgraph', 'neo4j', "graph-algorithms"]
+category=['Python']
+description="Learn how to download multiple files at the same time."
++++
+
+I've always wanted to build a dependency graph of libraries in the Python ecosytem but I never quite got around to it...until now!
+I thought I might be able to get a dump of all the libraries and their dependencies, but while searching I came across this article which does a good job of explaining https://dustingram.com/articles/2018/03/05/why-pypi-doesnt-know-dependencies[why that's not possible^].
+
+== Finding Python Dependencies
+
+The best we can do is generate a dependency graph of our locally installed packages using the excellent https://github.com/naiquevin/pipdeptree[pipdeptree^] tool.
+
+I installed the library...
+
+[source,bash]
+----
+pip install pipdeptree
+----
+
+And then ran this command to generate a JSON file containing all the dependencies:
+
+[source,bash]
+----
+pipdeptree --json-tree > /tmp/deps.json
+----
+
+The resulting file is uploaded as a https://gist.github.com/mneedham/4ac262fa5a369de4d3ceb1f3eb1b8c08/raw[GitHub gist^] in case you want to take a look.
+
+== Importing Python Dependencies into Neo4j
+
+My initial plan was to process the JSON using APOC's Load JSON procedure, but after looking at the JSON file I realised that there was a recursive dependency chain and it'd be much easier to process it in a programming language.
+
+image::{{<siteurl>}}/uploads/2018/07/python-deps.png[]
+
+We can write a function that returns https://stackoverflow.com/questions/38254304/can-generators-be-recursive[a recursive generator^] of libraries and their immediate parent.
+
+First let's import our dependencies:
+
+[source, python]
+----
+import requests
+import csv
+from neo4j.v1 import GraphDatabase
+----
+
+And now for the recursive generator:
+
+[source, python]
+----
+def process_deps(items, parent=None):
+    for item in items:
+        yield (parent, item["key"])
+        yield from process_deps(item["dependencies"], item["key"])
+----
+
+Now let's process the JSON file using the requests library and pass our `library, parent` pairs to a Cypher query:
+
+[source, python]
+----
+driver = GraphDatabase.driver("bolt://localhost", auth=("neo4j", "neo"))
+
+r = requests.get("https://gist.github.com/mneedham/4ac262fa5a369de4d3ceb1f3eb1b8c08/raw")
+response = r.json()
+
+with driver.session() as session:
+    for parent, library in process_deps(response):
+        params = {
+            "library": library,
+            "parent": parent
+        }
+        result = session.run("""\
+        MERGE (l:Library {name: $library})
+        WITH l
+        CALL apoc.do.when(
+            $parent is null,
+            "RETURN library, null as parent",
+            "WITH $library AS library
+             MERGE (parent:Library {name: $parent})
+             MERGE (parent)-[:DEPENDS_ON]->(library)
+             RETURN library, parent",
+            {library: l, parent: $parent})
+        YIELD value
+        RETURN value
+        """, params)
+        print(result.peek())
+----
+
+== Which library is directly depended on the most?
+
+[source,cypher]
+----
+MATCH (l:Library)
+RETURN l.name AS dependency, size((l)<-[:DEPENDS_ON]-()) AS dependOnMe
+ORDER BY dependOnMe DESC
+LIMIT 5
+----
+
+[source,text]
+----
++--------------------------+
+| dependency  | dependOnMe |
++--------------------------+
+| "six"       | 22         |
+| "numpy"     | 20         |
+| "traitlets" | 9          |
+| "pandas"    | 6          |
+| "ipykernel" | 5          |
++--------------------------+
+----
+
+== Which library is indirectly depended on the most?
+
+
+[source,cypher]
+----
+MATCH (l:Library)
+RETURN l.name AS dependency, size((l)<-[:DEPENDS_ON*]-()) AS dependOnMe
+ORDER BY dependOnMe DESC
+LIMIT 5
+----
+
+[source,text]
+----
++---------------------------------+
+| dependency         | dependOnMe |
++---------------------------------+
+| "six"              | 386        |
+| "ipython-genutils" | 252        |
+| "decorator"        | 247        |
+| "traitlets"        | 215        |
+| "jupyter-core"     | 80         |
++---------------------------------+
+----
+
+== What's the most important library?
+
+[source,cypher]
+----
+CALL algo.pageRank.stream("Library", "DEPENDS_ON")
+YIELD nodeId, score
+
+MATCH (l) WHERE id(l) = nodeId
+RETURN l.name AS library, apoc.math.round(score,5) AS score, size((l)<-[:DEPENDS_ON*]-()) AS deps
+ORDER BY score DESC
+LIMIT 5
+----
+
+[source,text]
+----
++-------------------------------+
+| library      | score   | deps |
++-------------------------------+
+| "six"        | 2.0916  | 386  |
+| "numpy"      | 1.54518 | 70   |
+| "traitlets"  | 0.63128 | 215  |
+| "decorator"  | 0.47954 | 247  |
+| "setuptools" | 0.40907 | 42   |
++-------------------------------+
+----
+
+Most of the libraries in the top 5 are indirectly depended on by many other libraries but `numpy` and `setuptools` have fewer dependencies.
+This tells us that those libraries are either being depended on by other important libraries or the libraries that do depend on it don't depend on many other libraries.
+
+Let's explore, but first we'll store the `pagerank` on each node rather than returning it:
+
+[source,cypher]
+----
+CALL algo.pageRank("Library", "DEPENDS_ON")
+----
+
+And now let's have a look at numpy's direct dependencies:
+
+[source,cypher]
+----
+MATCH (l:Library {name: "numpy"})<-[:DEPENDS_ON*]-(library)
+RETURN DISTINCT library.name AS library,
+       apoc.math.round(library.pagerank,5) AS pagerank,
+       size((library)-[:DEPENDS_ON]->()) AS directDependencies
+ORDER BY pagerank DESC
+LIMIT 5
+----
+
+[source,text]
+----
++----------------------------------------------+
+| library.name | pagerank | directDependencies |
++----------------------------------------------+
+| "scipy"      | 0.39481  | 1                  |
+| "pandas"     | 0.37213  | 3                  |
+| "pyarrow"    | 0.27975  | 2                  |
+| "patsy"      | 0.23685  | 2                  |
+| "matplotlib" | 0.20419  | 7                  |
++----------------------------------------------+
+----
+
+The first 4 don't have many direct dependencies so numpy will be picking up a decent amount of page rank when they diffuse their score to their neighbours.
+
+== Which libraries are closest to the others?
+
+Another metric we can calculate is Closeness Centrality which will tell us how far a library is from all the others.
+A score of `1.0` would indicate that a library has a direct relationship to all other libraries.
+
+[source,cypher]
+----
+CALL algo.closeness.harmonic.stream("Library", "DEPENDS_ON")
+YIELD nodeId, centrality
+
+MATCH (l) WHERE id(l) = nodeId
+
+RETURN l.name, centrality
+ORDER BY centrality DESC
+LIMIT 5
+----
+
+[source,cypher]
+----
++-----------------------------------+
+| l.name      | centrality          |
++-----------------------------------+
+| "fastai"    | 0.5948412698412698  |
+| "numpy"     | 0.49034391534391536 |
+| "six"       | 0.4850529100529101  |
+| "traitlets" | 0.4510582010582011  |
+| "ipython"   | 0.4337301587301587  |
++-----------------------------------+
+----
+
+Most of our usual suspects but a surprise entry in 1st place, what's going on there?!
+Presumably `fastai` has lots of dependencies, but let's write a query to find out:
+
+[source,cypher]
+----
+MATCH (l:Library)
+RETURN l.name AS library,
+       size((l)-[:DEPENDS_ON]->()) AS dependencies
+ORDER BY dependencies DESC
+LIMIT 5
+----
+
+[source,text]
+----
++---------------------------+
+| library    | dependencies |
++---------------------------+
+| "fastai"   | 48           |
+| "spacy"    | 15           |
+| "thinc"    | 14           |
+| "notebook" | 11           |
+| "ipython"  | 11           |
++---------------------------+
+----
+
+3x as many as the next library - that explains the high Closeness Centrality score then!
+
+== Which libraries are local bridges?
+
+A local bridge in graph theory is a node that connects together what would otherwise be separate sets of nodes.
+In a social graph this would be the person that floats between different groups of people and connects those groups together.
+
+The Betweenness Centrality algorithm calculates the shortest paths between all pairs of nodes in the graph and works out how many times a node exists on those shortest paths.
+The following query will calculate this for our dataset:
+
+[source, cypher]
+----
+CALL algo.betweenness.stream("Library", "DEPENDS_ON", {direction: "BOTH"})
+YIELD nodeId, centrality
+
+MATCH (l) WHERE id(l) = nodeId
+
+RETURN l.name, centrality
+ORDER BY centrality DESC
+LIMIT 5
+----
+
+We're passing in the parameter `direction:BOTH` to this one because we want to consider shortest paths that follow the `DEPENDS_ON` relationship in both directions.
+
+[source,text]
+----
++-------------------------------+
+| l.name   | centrality         |
++-------------------------------+
+| "fastai" | 3070.7207126421904 |
+| "six"    | 1775.4608218578815 |
+| "numpy"  | 1266.0317694087814 |
+| "thinc"  | 800.7187125911584  |
+| "spacy"  | 744.5286608128714  |
++-------------------------------+
+----
+
+`fastai` comes out top again, but it was a bit skewed in terms of its number of direct dependencies.
+
+What if we run the algorithm again but this time excluding `fastai`?
+
+[source,cypher]
+----
+CALL algo.betweenness.stream(
+  "MATCH (l:Library) WHERE l.name <> 'fastai' RETURN id(l) AS id",
+  "MATCH (l1)-[:DEPENDS_ON]-(l2) RETURN id(l1) AS source, id(l2) AS target",
+  {direction: "BOTH", graph: "cypher"})
+YIELD nodeId, centrality
+
+MATCH (l) WHERE id(l) = nodeId
+
+RETURN l.name, centrality
+ORDER BY centrality DESC
+LIMIT 5
+----
+
+[source,cypher]
+----
++----------------------------------+
+| l.name      | centrality         |
++----------------------------------+
+| "six"       | 3388.1133979422216 |
+| "traitlets" | 1623.367944728101  |
+| "numpy"     | 1213.7796551878075 |
+| "spacy"     | 1125.8103540366847 |
+| "ipython"   | 999.9845917367674  |
++----------------------------------+
+----
+
+We're mostly back to our usual suspects.
+`spacy` is the only one in this list that didn't appear in the top 5 for either of the other measures of centrality.
+
+We could do a lot more exploration on this dataset but this is meant to be a QuickGraph so I'll leave it there.
+And if anyone has more packages installed locally send me a link to your JSON file and I'll run it over that and we'll see what we can discover!
