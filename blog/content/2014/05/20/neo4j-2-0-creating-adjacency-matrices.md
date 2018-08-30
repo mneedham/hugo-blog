@@ -212,7 +212,7 @@ ORDER BY g1.name
 <p>We can create cartesian products in other scenarios as well. For example let's say we only want to compare the first 5 meetup groups ordered by name.</p>
 
 
-<p>First we'll get the top 5 groups:
+<p>First we'll get the top 5 groups:</p>
 
 
 ~~~cypher
@@ -332,4 +332,3 @@ ORDER BY g1.name
 ~~~
 
 <p>And we're done!</p>
-
