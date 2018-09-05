@@ -1,0 +1,151 @@
++++
+draft = false
+date="2018-09-05 07:26:00"
+title="Neo4j: Using LOAD CSV to process csv.gz files from S3"
+tag=['s3', 'neo4j']
+category=['Neo4j']
+description="Learn how to apply Neo4j Graph Algorithms to a graph of the Python ecosystem."
++++
+
+I've been building some training material for the https://graphconnect.com/[GraphConnect^] conference that happens in a couple of weeks time and I wanted to load gzipped CSV files.
+I got this working using Cypher's LOAD CSV command with the file stored locally, but when I uploaded it to S3 it didn't work as I expected.
+
+I uploaded the file to an S3 bucket and then tried to read it back like this:
+
+[source, cypher]
+----
+load csv with headers from "https://guides.neo4j.com/listings/data/nyc/listings.csv.gz" AS row
+return row
+LIMIT 1
+----
+
+I was expecting to get back a map of key/value pairs, but instead I got this:
+
+[source, text]
+----
+╒══════════════════════════════════════════════════════════════════════╕
+│"row"                                                                 │
+╞══════════════════════════════════════════════════════════════════════╡
+│{"\u001f�?�i[\u0002�listings.csv\u0000��r�H�.�{\u001c��ҩ)ۻA�\u0000�8│
+│q��([e�Z���gb�\u0001���6�\u0001P2�Ď��0�N��K�#̣�'�����\u0000(ɦˮ�ݻ\\u00│
+│17["qI$V�\�o}+�9Q��a|�~�FN6M�U�>�O�":"Mo8\u000f�q2�h�g�Wi2\u000f�\u000│
+│074\u0013\u0013�y�o�	���<","\/��U8��i�?�ޗ]$4l\u001a>�m?���OYH��\u001│
+│f�d��{�o�$Y��c\u001ad�$�a�9�~�����_�>]��a����4\u0019�E>�>\u0004to�z�│
+│�<Yzp�R���d\u001d�K%�\u001f=�":null,"/�Μ�_\u0006N�^.�t�d+\u001a8���│
+│Wy��N�q\u0015�a\u0010O��}2�\u0007)N	�$I\u0017I2{��\u0006�m\u0018�9q�\│
+│u0007���~����O��	�<H�)_j����}��p�b���~\u0018�Ж�":null}                │
+└──────────────────────────────────────────────────────────────────────┘
+----
+
+After a bit of reading, I realised that the problem is to do with the meta data associated with the file.
+On initial upload it had `Content-Type` set to `application-x-gzip`.
+
+image::{{<siteurl>}}/uploads/2018/09/default_metadata.png[]
+
+We want the file to be processed as if it's a CSV file, so to start with we need to change that to `text/csv`.
+But that isn't quite enough as I found out by changing that value and running the command again!
+
+We also need to set `Content-Encoding` to `gzip`, something that I learnt that from Vince Veselosky's https://gist.github.com/veselosky/9427faa38cee75cd8e27[handy gist^]
+
+Our meta data should now look like this:
+
+image::{{<siteurl>}}/uploads/2018/09/metadata.png[]
+
+And if we run our query again we get more familiar output:
+
+[source, text]
+----
+╒══════════════════════════════════════════════════════════════════════╕
+│"row"                                                                 │
+╞══════════════════════════════════════════════════════════════════════╡
+│{"host_verifications":"['email', 'phone', 'facebook', 'reviews', 'jumi│
+│o', 'government_id']","country":"United States","notes":"Please no coo│
+│king at night but you can warm up food in the microwave and use the ki│
+│tchen ","is_business_travel_ready":"f","picture_url":"https://a0.musca│
+│che.com/im/pictures/d0489e42-4333-4360-911f-413d503fe146.jpg?aki_polic│
+│y=large","house_rules":"no-smoking/please take off your shoes: cleanin│
+│g fees $40","requires_license":"f","calendar_last_scraped":"2018-08-07│
+│","first_review":"2008-10-13","neighborhood_overview":"","review_score│
+│s_cleanliness":"9","number_of_reviews":"170","is_location_exact":"t","│
+│space":"-PLEASE BOOK DIRECTLY. NO NEED TO SEND A REQUEST FOR DATES CAL│
+│ENDAR IS UP TO DATE ALL AIRBNB RESERVATIONS WILL BE HONORED Nice, comf│
+│ortable, and clean private guest room with shared bathroom (2 people m│
+│ax) - full size bed. In very nice apartment on central Park North 4th │
+│floor walk-up. same place as Chez chic #2, max capacity of the rooms 2│
+│ people). You will share the apt with me and my little family. Daily c│
+│leaning in common areas. Located one block from Subway 2/3,B/C on 110t│
+│h street, Bus M1,2,3,4 at the corner, central park across the street. │
+│ Your room: full size bed (sleeps two), desk, Digital Tv/DVD, wifi int│
+│ernet, A/C, closet and desk. Sheets/Towels provided. Iron/air dryer pr│
+│ovided. Separate Full bathroom shared with guestroom room #2. Access t│
+│o the Kitchen from 8AM weekdays or anytime during the weekend and ligh│
+│t cooking, access to kitchen at all times but no cooking in the evenin│
+│g.  The apartment: spacious newly renovated, hardwood floors,3BD, 2Bat│
+│h apartment with Living room","review_scores_checkin":"10","cleaning_f│
+│ee":"$60.00","host_location":"New York, New York, United States","pric│
+│e":"$59.00","experiences_offered":"none","reviews_per_month":"1.42","n│
+│eighbourhood":"Harlem","review_scores_location":"9","square_feet":null│
+│,"state":"NY","id":"2515","host_identity_verified":"t","longitude":"-7│
+│3.95367574543542","weekly_price":"$720.00","bed_type":"Real Bed","revi│
+│ew_scores_accuracy":"9","review_scores_value":"9","host_response_time"│
+│:"within a day","host_about":" loves to host and welcome travelers fro│
+│m around the world in our family Apt.","bathrooms":"1.0","bedrooms":"1│
+│","zipcode":"10026","market":"New York","extra_people":"$39.00","licen│
+│se":null,"country_code":"US","transit":"Subway 2.3.B.C. at 110th stree│
+│t around the corner and bus M.2.3.4 at the corner","xl_picture_url":nu│
+│ll,"name":"Stay at Chez Chic budget room #1","availability_60":"22","h│
+│ost_thumbnail_url":"https://a0.muscache.com/im/users/2758/profile_pic/│
+│1338267836/original.jpg?aki_policy=profile_small","host_neighbourhood"│
+│:"Harlem","cancellation_policy":"strict_14_with_grace_period","beds":"│
+│2","instant_bookable":"f","scrape_id":"20180806171147","amenities":"{T│
+│V,"Cable TV",Internet,Wifi,"Air conditioning",Kitchen,"Free street par│
+│king","Buzzer/wireless intercom",Heating,"Family/kid friendly","Smoke │
+│detector","Carbon monoxide detector","Fire extinguisher",Essentials,Sh│
+│ampoo,"Lock on bedroom door",Hangers,"Hair dryer",Iron,"Laptop friendl│
+│y workspace","Children’s books and toys","Window guards","Pack ’n Play│
+│/travel crib","Hot water",Microwave,"Coffee maker",Refrigerator,"Dishe│
+│s and silverware","Cooking basics",Oven,Stove,"Host greets you"}","hos│
+│t_url":"https://www.airbnb.com/users/show/2758","neighbourhood_cleanse│
+│d":"Harlem","access":"Guests will have their PRIVATE BATHROOM (NOTE: S│
+│hared between June 22-Aug 22) (shared with 2nd guestroom if there are │
+│guests), and the kitchen","city":"New York","latitude":"40.79920479936│
+│168","description":"Step into our artistic spacious apartment and enjo│
+│y your artistic Guest room with original artwork from NY artists. Shar│
+│ed with my little family however we often out and you won't see us muc│
+│h. across the street from Central Park - the busy city minutes away bu│
+│t sleeping in quiet at night! -PLEASE BOOK DIRECTLY. NO NEED TO SEND A│
+│ REQUEST FOR DATES CALENDAR IS UP TO DATE ALL AIRBNB RESERVATIONS WILL│
+│ BE HONORED Nice, comfortable, and clean private guest room with share│
+│d bathroom (2 people max) - full size bed. In very nice apartment on c│
+│entral Park North 4th floor walk-up. same place as Chez chic #2, max c│
+│apacity of the rooms 2 people). You will share the apt with me and my │
+│little family. Daily cleaning in common areas. Located one block from │
+│Subway 2/3,B/C on 110th street, Bus M1,2,3,4 at the corner, central pa│
+│rk across the street.  Your room: full size bed (sleeps two), desk, Di│
+│gital Tv/DVD, wifi internet, A/C, closet and desk. Sheets/Towels provi│
+│ded. Iron/air dryer provided. Separate F","require_guest_phone_verific│
+│ation":"f","thumbnail_url":null,"review_scores_communication":"9","nei│
+│ghbourhood_group_cleansed":"Manhattan","jurisdiction_names":null,"stre│
+│et":"New York, NY, United States","has_availability":"t","medium_url":│
+│null,"property_type":"Apartment","host_response_rate":"86%","availabil│
+│ity_90":"52","require_guest_profile_picture":"f","summary":"Step into │
+│our artistic spacious apartment and enjoy your artistic Guest room wit│
+│h original artwork from NY artists. Shared with my little family howev│
+│er we often out and you won't see us much. across the street from Cent│
+│ral Park - the busy city minutes away but sleeping in quiet at night!"│
+│,"monthly_price":"$1,690.00","security_deposit":"$0.00","availability_│
+│365":"317","smart_location":"New York, NY","availability_30":"6","cale│
+│ndar_updated":"5 days ago","listing_url":"https://www.airbnb.com/rooms│
+│/2515","guests_included":"2","maximum_nights":"21","host_has_profile_p│
+│ic":"t","host_picture_url":"https://a0.muscache.com/im/users/2758/prof│
+│ile_pic/1338267836/original.jpg?aki_policy=profile_x_medium","host_id"│
+│:"2758","host_listings_count":"3","host_total_listings_count":"3","hos│
+│t_acceptance_rate":"N/A","review_scores_rating":"93","minimum_nights":│
+│"2","last_review":"2018-07-05","calculated_host_listings_count":"3","a│
+│ccommodates":"3","interaction":"We will have a list of Harlem restaura│
+│nts and points of interest ready for you, as well as a subway map of N│
+│YC and pratical infos.","host_is_superhost":"f","host_since":"2008-09-│
+│06","host_name":"Steph","last_scraped":"2018-08-07","room_type":"Priva│
+│te room"}                                                             │
+└──────────────────────────────────────────────────────────────────────┘
+----
