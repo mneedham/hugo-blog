@@ -1,0 +1,63 @@
++++
+draft = false
+date="2018-09-18 07:56:00"
+title="matploblib - MatplotlibDeprecationWarning: Adding an axes using the same arguments as a previous axes currently reuses the earlier instance.  In a future version, a new instance will always be created and returned."
+tag=['python', 'matplotlib']
+category=['Python']
+description="Learn how to avoid a MatplotlibDeprecationWarning message when editing axes."
++++
+
+In my last post I showed how to link:/blog/2018/09/18/matplotlib-remove-axis-legend/[remove axes legends from a matplotlib chart^], and while writing the post I actually had the change the code I used as my initial approach is now deprecated.
+
+As in the previous post, we'll first import pandas and matplotlib:
+
+[source, python]
+----
+import pandas as pd
+
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+
+plt.style.use('fivethirtyeight')
+----
+
+And we'll still use this DataFrame:
+
+[source, python]
+----
+df = pd.DataFrame({"label": ["A", "B", "C", "D"], "count": [12, 19, 5, 10]})
+----
+
+My initial approach to remove all legends was this:
+
+[source, python]
+----
+df.plot(kind='bar', x='label', y='count', legend=None)
+plt.axes().xaxis.set_label_text("")
+plt.tight_layout()
+plt.savefig("/tmp/matplotlib_no_x_no_y.svg")
+plt.close()
+----
+
+If we run this code the chart will still be generated, but we'll also receive the following error message:
+
+[source, text]
+----
+/Users/markneedham/projects/matplotlib-examples/a/lib/python3.6/site-packages/matplotlib/cbook/deprecation.py:107: MatplotlibDeprecationWarning: Adding an axes using the same arguments as a previous axes currently reuses the earlier instance.  In a future version, a new instance will always be created and returned.  Meanwhile, this warning can be suppressed, and the future behavior ensured, by passing a unique label to each axes instance.
+  warnings.warn(message, mplDeprecation, stacklevel=1)
+----
+
+The problem is on the 2nd line.
+Instead of mutating the axes via the `plt` object, we need to capture the `AxesSubplot` object returned by the `plot()` function and update that instead:
+
+[source, python]
+----
+ax = df.plot(kind='bar', x='label', y='count', legend=None)
+ax.xaxis.set_label_text("")
+plt.tight_layout()
+plt.savefig("/tmp/matplotlib_no_x_no_y.svg")
+plt.close()
+----
+
+If we run this version of the code our chart will be generated and we won't have that deprecation message anymore.

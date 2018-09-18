@@ -1,6 +1,6 @@
 +++
 draft = false
-date="2018-09-18 08:55"
+date="2018-09-18 07:55:00"
 title="matploblib - Remove axis legend"
 tag=['python', 'matplotlib']
 category=['Python']
