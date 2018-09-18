@@ -1,0 +1,78 @@
++++
+draft = false
+date="2018-09-18 08:55"
+title="matploblib - Remove axis legend"
+tag=['python', 'matplotlib']
+category=['Python']
+description="Learn how to remove all axis legends from a matplotlib chart."
++++
+
+I've been working with matplotlib a bit recently, and I wanted to remove all axis legends from my chart.
+It took me a bit longer than I expected to figure it out so I thought I'd write it up.
+
+Before we do anything let's import matplotlib as well as pandas, since we're going to plot data from a pandas DataFrame.
+
+[source, python]
+----
+import pandas as pd
+
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+
+plt.style.use('fivethirtyeight')
+----
+
+Next we'll create a DataFrame with one column called `label` and another called `count`:
+
+[source, python]
+----
+df = pd.DataFrame({"label": ["A", "B", "C", "D"], "count": [12, 19, 5, 10]})
+----
+
+We want to plot a bar chart with the label on the x-axis and the count on the y-axis.
+The following code will plot a chart and store it in an SVG file:
+
+[source, python]
+----
+df.plot(kind='bar', x='label', y='count')
+plt.tight_layout()
+plt.savefig("/tmp/matplotlib_legends.svg")
+plt.close()
+----
+
+This is what the chart looks like:
+
+image::{{<siteurl>}}/uploads/2018/09/matplotlib_legends.svg[]
+
+We've got legends for both axes, but we can pass in `legend=None` to the `plot()` function which should sort that out:
+
+[source, python]
+----
+df.plot(kind='bar', x='label', y='count', legend=None)
+plt.tight_layout()
+plt.savefig("/tmp/matplotlib_no_y.svg")
+plt.close()
+----
+
+This is what the chart looks like now:
+
+image::{{<siteurl>}}/uploads/2018/09/matplotlib_no_y.svg[]
+
+The y-axis legend has been removed, but the x-axis one is still there.
+After a bit of searching I found the https://matplotlib.org/api/_as_gen/matplotlib.axis.Axis.set_label_text.html[set_label_text^] function, which we can use like this:
+
+[source, python]
+----
+ax = df.plot(kind='bar', x='label', y='count', legend=None)
+ax.xaxis.set_label_text("")
+plt.tight_layout()
+plt.savefig("/tmp/matplotlib_no_x_no_y.svg")
+plt.close()
+----
+
+And now we finally have a chart with all legends removed:
+
+image::{{<siteurl>}}/uploads/2018/09/matplotlib_no_x_no_y.svg[]
+
+Success!
