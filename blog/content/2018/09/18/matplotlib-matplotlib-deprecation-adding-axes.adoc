@@ -1,7 +1,7 @@
 +++
 draft = false
 date="2018-09-18 07:56:00"
-title="matploblib - MatplotlibDeprecationWarning: Adding an axes using the same arguments as a previous axes currently reuses the earlier instance.  In a future version, a new instance will always be created and returned."
+title="matplotlib - MatplotlibDeprecationWarning: Adding an axes using the same arguments as a previous axes currently reuses the earlier instance.  In a future version, a new instance will always be created and returned."
 tag=['python', 'matplotlib']
 category=['Python']
 description="Learn how to avoid a MatplotlibDeprecationWarning message when editing axes."

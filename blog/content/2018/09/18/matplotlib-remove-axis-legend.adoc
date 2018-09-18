@@ -1,7 +1,7 @@
 +++
 draft = false
 date="2018-09-18 07:55:00"
-title="matploblib - Remove axis legend"
+title="matplotlib - Remove axis legend"
 tag=['python', 'matplotlib']
 category=['Python']
 description="Learn how to remove all axis legends from a matplotlib chart."
