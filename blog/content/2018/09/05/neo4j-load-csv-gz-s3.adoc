@@ -14,8 +14,9 @@ I uploaded the file to an S3 bucket and then tried to read it back like this:
 
 [source, cypher]
 ----
-load csv with headers from "https://guides.neo4j.com/listings/data/nyc/listings.csv.gz" AS row
-return row
+LOAD CSV with headers from "https://guides.neo4j.com/listings/data/nyc/listings.csv.gz"
+AS row
+RETURN row
 LIMIT 1
 ----
 
@@ -38,7 +39,7 @@ I was expecting to get back a map of key/value pairs, but instead I got this:
 ----
 
 After a bit of reading, I realised that the problem is to do with the meta data associated with the file.
-On initial upload it had `Content-Type` set to `application-x-gzip`.
+On initial upload it had `Content-Type` set to `application/x-gzip`.
 
 image::{{<siteurl>}}/uploads/2018/09/default_metadata.png[]
 
