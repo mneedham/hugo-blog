@@ -1,0 +1,71 @@
++++
+draft = false
+date="2018-09-24 07:55:00"
+title="matplotlib - Create a histogram/bar chart for ratings/full numbers"
+tag=['python', 'matplotlib']
+category=['Python']
+description="Learn how to create a matplotlib histogram for star ratings."
++++
+
+In my continued work with matplotlib I wanted to plot a histogram (or bar chart) for a bunch of star ratings to see how they were distributed.
+
+Before we do anything let's import matplotlib as well as pandas:
+
+[source, python]
+----
+import random
+import pandas as pd
+
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+
+plt.style.use('fivethirtyeight')
+----
+
+Next we'll create an array of randomly chosen star ratings between 1 and 5:
+
+[source, python]
+----
+stars = pd.Series([random.randint(1, 5) for _ in range(0, 100)])
+----
+
+We want to plot a histogram showing the proportion for each rating.
+The following code will plot a chart and store it in an SVG file:
+
+[source, python]
+----
+_, ax1 = plt.subplots()
+ax1.hist(stars, 5)
+plt.tight_layout()
+plt.savefig("/tmp/hist.svg")
+plt.close()
+----
+
+This is what the chart looks like:
+
+image::{{<siteurl>}}/uploads/2018/09/hist.svg[]
+
+This is ok, but the labels on the x axis are a bit weird - the value for each rating doesn't align with the corresponding bar.
+I came across https://stackoverflow.com/questions/18393887/how-to-create-a-bar-chart-histogram-with-bar-per-discrete-value[this StackOverflow post^], which shows how to solve this problem by using a bar chart instead.
+I ended up with this code:
+
+[source, python]
+----
+_, ax2 = plt.subplots()
+
+stars_histogram = stars.value_counts().sort_index()
+stars_histogram /= float(stars_histogram.sum())
+stars_histogram *= 100
+
+stars_histogram.plot(kind="bar", width=1.0)
+plt.tight_layout()
+plt.savefig("/tmp/bar.svg")
+plt.close()
+----
+
+This is what the chart looks like now:
+
+image::{{<siteurl>}}/uploads/2018/09/bar.svg[]
+
+Much better!
