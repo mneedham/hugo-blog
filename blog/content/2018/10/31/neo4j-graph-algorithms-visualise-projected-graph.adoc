@@ -1,0 +1,97 @@
++++
+draft = false
+date="2018-10-31 05:25:00"
+title="Neo4j Graph Algorithms: Visualising Projected Graphs"
+tag=['neo4j', "apoc", "graph-algorithms"]
+category=['Neo4j']
+description="Learn how to visualise projected graphs using the APOC library."
++++
+
+A few weeks ago I wrote a blog post showing how to https://medium.com/neo4j/finding-the-best-tennis-players-of-all-time-using-weighted-pagerank-6950ed5fc98e[work out the best tennis player of all time using the Weighted PageRank algorithm^], and in the process created a projected credibility graph which I want to explore in more detail in this post.
+
+As I pointed out in that post, we need to project the graphs on which we run graph algorithms because sometimes the graph model doesn't fit well with what the algorithm expects.
+
+In this case, the PageRank algorithm works on top of a 'credibility graph' where nodes receive credibility from their incoming relationships.
+The amount of credibility a relationship gives is determined by the weight property on that relationship.
+
+In our case we derived our credibility graph using the following query:
+
+[source, cypher]
+----
+MATCH (p1)<-[:WINNER]-(match)-[:LOSER]->(p2)
+RETURN id(p2) AS source, id(p1) AS target, count(*) as weight
+----
+
+We then used the example of Roger Federer playing Rafael Nadal to see how this worked in practice.
+If we feed their names into the query we'd the following results, starting with matches that Federer won:
+
+[source, cypher]
+----
+MATCH (p1:Player {name: "Roger Federer"})<-[:WINNER]-(match)-[:LOSER]->(p2:Player {name: "Rafael Nadal"})
+RETURN id(p2) AS source, id(p1) AS target, count(*) as weight
+----
+
+If we run that we'll get this output:
+
+[source, text]
+----
+╒════════╤════════╤════════╕
+│"source"│"target"│"weight"│
+╞════════╪════════╪════════╡
+│7       │124     │15      │
+└────────┴────────┴────────┘
+----
+
+And now for matches that Nadal won:
+
+[source, cypher]
+----
+MATCH (p1:Player {name: "Rafael Nadal"})<-[:WINNER]-(match)-[:LOSER]->(p2:Player {name: "Roger Federer"})
+RETURN id(p2) AS source, id(p1) AS target, count(*) as weight
+----
+
+And if we run that we'll get this output:
+
+[source, text]
+----
+╒════════╤════════╤════════╕
+│"source"│"target"│"weight"│
+╞════════╪════════╪════════╡
+│124     │7       │23      │
+└────────┴────────┴────────┘
+----
+
+It can be easier to understand how this works by visualising the projected graph.
+We can use a procedure from the APOC library to help us do this.
+
+The following query shows how to do this:
+
+[source, cypher]
+----
+MATCH (p1)<-[:WINNER]-(match)-[:LOSER]->(p2)
+WITH p2, p1, count(*) AS count
+CALL apoc.create.vRelationship(p2,"BEATEN_BY",{count:count},p1) yield rel
+RETURN p2, p1, rel
+----
+
+The first two lines of the query are the same as before, but on the 3rd line we create a virtual relationship between the two player nodes.
+That returns a big graph, so let's cheat a bit and just show the projected graph for some famous players:
+
+[source, cypher]
+----
+:params players => ["Roger Federer", "Andy Murray", "Novak Djokovic", "Rafael Nadal", "Alexander Zverev", "Pete Sampras", "Andre Agassi", "John McEnroe", "Yevgeny Kafelnikov"]
+----
+
+
+[source, cypher]
+----
+MATCH (p1)<-[:WINNER]-(match)-[:LOSER]->(p2)
+WHERE p1.name in $players AND p2.name IN $players
+WITH p2, p1, count(*) AS count
+CALL apoc.create.vRelationship(p2,"BEATEN_BY",{count:count},p1) yield rel
+RETURN p2, p1, rel
+----
+
+And if we run that query we'll get back this graph:
+
+image::{{<siteurl>}}/uploads/2018/10/tennis-projected-now.svg[]
