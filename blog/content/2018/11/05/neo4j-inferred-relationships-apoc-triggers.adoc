@@ -1,0 +1,130 @@
++++
+draft = false
+date="2018-11-05 06:15:00"
+title="Neo4j: Storing inferred relationships with APOC triggers"
+tag=['neo4j', "apoc", "graph-algorithms"]
+category=['Neo4j']
+description="Learn how to store inferred relationships with APOC triggers."
++++
+
+One of my favourite things about modelling data in graphs is how easy it makes it to infer relationships between pieces of data based on other relationships.
+In this post we're going to learn how to compute and store those inferred relationships using the https://neo4j-contrib.github.io/neo4j-apoc-procedures/#_triggers[triggers^] feature from the APOC library.
+
+== Meetup Graph
+
+Before we get to that, let's first understand what we mean when we say inferred relationship.
+We'll create a small graph containing `Person`, `Meetup`, and `Topic` nodes with the following query:
+
+[source, cypher]
+----
+MERGE (mark:Person {name: "Mark"})
+
+MERGE (neo4jMeetup:Meetup {name: "Neo4j London Meetup"})
+MERGE (bigDataMeetup:Meetup {name: "Big Data Meetup"})
+MERGE (dataScienceMeetup:Meetup {name: "Data Science Meetup"})
+
+MERGE (dataScience:Topic {name: "Data Science"})
+MERGE (databases:Topic {name: "Databases"})
+
+MERGE (neo4jMeetup)-[:HAS_TOPIC]->(dataScience)
+MERGE (neo4jMeetup)-[:HAS_TOPIC]->(databases)
+MERGE (bigDataMeetup)-[:HAS_TOPIC]->(dataScience)
+MERGE (bigDataMeetup)-[:HAS_TOPIC]->(databases)
+MERGE (dataScienceMeetup)-[:HAS_TOPIC]->(dataScience)
+MERGE (dataScienceMeetup)-[:HAS_TOPIC]->(databases)
+
+MERGE (mark)-[:MEMBER_OF]->(neo4jMeetup)
+MERGE (mark)-[:MEMBER_OF]->(bigDataMeetup)
+----
+
+This is what the graph looks like in the Neo4j browser:
+
+image::{{<siteurl>}}/uploads/2018/11/meetup-explicit.svg[]
+
+== Finding implicit interests
+
+At the moment there are no relationships between `Person` and `Topic` nodes, so we don't know which topics a person is interested in.
+There is, however, an indirect relationship between these nodes via `Group` nodes.
+
+image::{{<siteurl>}}/uploads/2018/11/inferred-rels.png[width="300px"]
+
+Let's say that a person is interested in a topic if they're a member of at least 3 groups tagged with that topic.
+In other words, we want to create an `INTERESTED_IN` relationship between a `Person` and `Topic` if a person is a member of at least 3 groups tagged with that topic.
+We could do this with the following Cypher query:
+
+[source, cypher]
+----
+MATCH (start:Person {name: "Mark"})-[:MEMBER_OF]->()-[:HAS_TOPIC]->(topic)
+WHERE not((start)-[:INTERESTED_IN]->(topic))
+WITH start, topic, count(*) AS count
+WHERE count >= 3
+MERGE (start)-[interestedIn:INTERESTED_IN]->(topic)
+SET interestedIn.tentative = true
+----
+
+If we run this query at the moment it won't create any `INTERESTED_IN` relationships, because none of the topics that Mark has an implicit interest in have a count of 3.
+We can fix that by creating a relationship from Mark to the Data Science meetup with the following query:
+
+[source,cypher]
+----
+MATCH (p:Person {name: "Mark"})
+MATCH (meetup:Meetup {name: "Data Science Meetup"})
+MERGE (p)-[:MEMBER_OF]->(meetup)
+----
+
+If we run this query and then repeat the previous one we'll get this output:
+
+[source, cypher]
+----
+Created 2 relationships, completed after 2 ms.
+----
+
+Cool!
+We now know that Mark has an interest in `Data Science` and `Databases`
+
+image::{{<siteurl>}}/uploads/2018/11/interestedin.svg[]
+
+We put a `tentative` property with a value `true` to indicate that this is an inferred relationship.
+We could then ask the user to confirm that this is a topic they're interested in, or indeed deny any interest at all!
+
+== Triggers
+
+This works well, but it's a painful workflow at the moment.
+Each time we add a new membership we need to run the inferred relationship query as well.
+Can we automate that?
+
+Yes we can, using triggers from the APOC library, which are described like this:
+
+____
+In a trigger you register Cypher statements that are called when data in Neo4j is changed, you can run them before or after commit.
+____
+
+We want to setup a trigger that executes a piece of Cypher whenever a relationship is created.
+We can do this with the following code:
+
+[source,cypher]
+----
+CALL apoc.trigger.add("interests",
+  "UNWIND [rel in $createdRelationships WHERE type(rel) = 'MEMBER_OF'] AS rel
+   WITH startNode(rel) AS start, endNode(rel) AS end
+   MATCH (start)-[:MEMBER_OF]->()-[:HAS_TOPIC]->(topic)
+   WHERE not((start)-[:INTERESTED_IN]->(topic))
+   WITH start, topic, count(*) AS count
+   WHERE count >= 3
+   MERGE (start)-[interestedIn:INTERESTED_IN]->(topic)
+   SET interestedIn.tentative = true
+   ",
+  {phase:'before'})
+----
+
+This code is based on the assumption that we usually only create one `MEMBER_OF` relationship per `Person` in a transaction.
+Our trigger receives a list of all the relationships created in a transaction, filters the list to only include the `MEMBER_OF` ones, and then runs a piece of Cypher that creates an `INTERESTED_IN` relationship from a user to topics that they may have an interest in.
+
+If we want to change the threshold at which we create the relationships we'd only need to change this line of code:
+
+[source,cypher]
+----
+WHERE count >= 3
+----
+
+And that's it!
