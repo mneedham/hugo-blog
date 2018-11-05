@@ -1,6 +1,6 @@
 +++
 draft = false
-date="2018-10-31 05:25:00"
+date="2018-10-31 18:12:00"
 title="Neo4j Graph Algorithms: Visualising Projected Graphs"
 tag=['neo4j', "apoc", "graph-algorithms"]
 category=['Neo4j']
@@ -9,12 +9,12 @@ description="Learn how to visualise projected graphs using the APOC library."
 
 A few weeks ago I wrote a blog post showing how to https://medium.com/neo4j/finding-the-best-tennis-players-of-all-time-using-weighted-pagerank-6950ed5fc98e[work out the best tennis player of all time using the Weighted PageRank algorithm^], and in the process created a projected credibility graph which I want to explore in more detail in this post.
 
-As I pointed out in that post, we need to project the graphs on which we run graph algorithms because sometimes the graph model doesn't fit well with what the algorithm expects.
+As I pointed out in that post, sometimes the graph model doesn't fit well with what the algorithm expects, so we need to project the graph on which we run graph algorithms.
 
 In this case, the PageRank algorithm works on top of a 'credibility graph' where nodes receive credibility from their incoming relationships.
 The amount of credibility a relationship gives is determined by the weight property on that relationship.
 
-In our case we derived our credibility graph using the following query:
+For our tennis graph we started with a graph of matches, winners, and losers, and then derived a credibility graph using the following query:
 
 [source, cypher]
 ----
@@ -75,13 +75,16 @@ RETURN p2, p1, rel
 ----
 
 The first two lines of the query are the same as before, but on the 3rd line we create a virtual relationship between the two player nodes.
-That returns a big graph, so let's cheat a bit and just show the projected graph for some famous players:
+That returns a big graph, so let's cheat a bit and just show the projected graph for some famous players.
+
+First let's create a parameter containing an array of players:
 
 [source, cypher]
 ----
 :params players => ["Roger Federer", "Andy Murray", "Novak Djokovic", "Rafael Nadal", "Alexander Zverev", "Pete Sampras", "Andre Agassi", "John McEnroe", "Yevgeny Kafelnikov"]
 ----
 
+And now let's visualise the matches between those players:
 
 [source, cypher]
 ----
