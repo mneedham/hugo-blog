@@ -1,0 +1,51 @@
++++
+draft = false
+date="2018-12-09 10:25:00"
+title="PySpark: Creating DataFrame with one column - TypeError: Can not infer schema for type: <type 'int'>"
+tag=['python', "pyspark"]
+category=['Python']
+description="Learn how to create a PySpark DataFrame with one column."
++++
+
+I've been playing with PySpark recently, and wanted to create a DataFrame containing only one column.
+I tried to do this by writing the following code:
+
+[source, python]
+----
+spark.createDataFrame([(1)], ["count"])
+----
+
+If we run that code we'll get the following error message:
+
+[source, bash]
+----
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/home/markhneedham/projects/graph-algorithms/spark-2.4.0-bin-hadoop2.7/python/pyspark/sql/session.py", line 748, in createDataFrame
+    rdd, schema = self._createFromLocal(map(prepare, data), schema)
+  File "/home/markhneedham/projects/graph-algorithms/spark-2.4.0-bin-hadoop2.7/python/pyspark/sql/session.py", line 416, in _createFromLocal
+    struct = self._inferSchemaFromList(data, names=schema)
+  File "/home/markhneedham/projects/graph-algorithms/spark-2.4.0-bin-hadoop2.7/python/pyspark/sql/session.py", line 348, in _inferSchemaFromList
+    schema = reduce(_merge_type, (_infer_schema(row, names) for row in data))
+  File "/home/markhneedham/projects/graph-algorithms/spark-2.4.0-bin-hadoop2.7/python/pyspark/sql/session.py", line 348, in <genexpr>
+    schema = reduce(_merge_type, (_infer_schema(row, names) for row in data))
+  File "/home/markhneedham/projects/graph-algorithms/spark-2.4.0-bin-hadoop2.7/python/pyspark/sql/types.py", line 1062, in _infer_schema
+    raise TypeError("Can not infer schema for type: %s" % type(row))
+TypeError: Can not infer schema for type: <type 'int'>
+----
+
+The problem we have is that `createDataFrame` http://sqlblog.com/blogs/jamie_thomson/archive/2016/12/12/creating-a-spark-dataframe-containing-only-one-column.aspx[expects a tuple of values^], and we've given it an integer.
+Luckily we can fix this reasonably easily by passing in a single item tuple:
+
+[source, python]
+----
+spark.createDataFrame([(1,)], ["count"])
+----
+
+If we run that code we'll get the DataFrame that we expected:
+
+[options="header"]
+|=======
+|count
+|1
+|=======
