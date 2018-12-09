@@ -42,7 +42,7 @@ Luckily we can fix this reasonably easily by passing in a single item tuple:
 spark.createDataFrame([(1,)], ["count"])
 ----
 
-If we run that code we'll get the DataFrame that we expected:
+If we run that code we'll get the expected DataFrame:
 
 [options="header"]
 |=======
