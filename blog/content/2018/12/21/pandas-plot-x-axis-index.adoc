@@ -1,0 +1,82 @@
++++
+draft = false
+date="2018-12-21 16:57:00"
+title="Pandas: Create matplotlib plot with x-axis label not index"
+tag=['python', "pandas", "matplotlib"]
+category=['Python']
+description="Learn how to set the x-axis label of a matplotlib plot"
++++
+
+[source, python]
+----
+import pandas as pd
+import matplotlib.pyplot as plt
+----
+
+[source,python]
+----
+df = pd.DataFrame({
+    "name": ["Mark", "Arya", "Praveena"],
+    "age": [34, 1, 31]
+})
+df
+----
+
+This is what our DataFrame looks like:
+
+[source, text]
+----
+       name  age
+0      Mark   34
+1      Arya   31
+2  Praveena    1
+----
+
+[source, python]
+----
+df.plot.bar()
+plt.tight_layout()
+plt.show()
+----
+
+If we run that code we'll see this chart:
+
+image::{{<siteurl>}}/uploads/2018/12/start.svg[]
+
+The chart itself looks fine, but the labels of the values on the x-axis are a bit weird.
+They're 1, 2, and 3, whereas we want them to use the values in the `name` column of our DataFrame.
+
+I was a bit confused at first, but eventually realised that they were the index values of our rows.
+We can see that by executing the following code:
+
+[source, python]
+----
+>>> df.index.values
+array([0, 1, 2])
+----
+
+There are a couple of ways that we can fix our chart.
+The first is to use the `name` column as our index, an approach I learnt from https://www.dataquest.io/blog/adding-axis-labels-to-plots-with-pandas-and-matplotlib/[Josh Devlin's blog post].
+We can reset the index by running the following code:
+
+[source, python]
+----
+df.set_index("name",drop=True,inplace=True)
+df.plot.bar()
+plt.tight_layout()
+plt.show()
+----
+
+If we run that code we'll see this chart:
+
+image::{{<siteurl>}}/uploads/2018/12/next.svg[]
+
+That's much better!
+We can also achieve the same thing by specify the `x` parameter when we call the `bar` function:
+
+[source, python]
+----
+df.plot.bar(x="name")
+plt.tight_layout()
+plt.show()
+----
