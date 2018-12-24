@@ -4,14 +4,19 @@ date="2018-12-21 16:57:00"
 title="Pandas: Create matplotlib plot with x-axis label not index"
 tag=['python', "pandas", "matplotlib"]
 category=['Python']
-description="Learn how to set the x-axis label of a matplotlib plot"
+description="Learn how to set the x-axis label of a matplotxlib plot"
 +++
+
+I've been using matplotlib a bit recently, and wanted to share a lesson I learnt about choosing the label of the x-axis.
+Let's first import the libraries we'll use in this post:
 
 [source, python]
 ----
 import pandas as pd
 import matplotlib.pyplot as plt
 ----
+
+And now we'll create a DataFrame of values that we want to chart:
 
 [source,python]
 ----
@@ -62,6 +67,21 @@ We can reset the index by running the following code:
 [source, python]
 ----
 df.set_index("name",drop=True,inplace=True)
+----
+
+Let's check the index values:
+
+[source, python]
+----
+>>> df.index.values
+array(['Mark', 'Arya', 'Praveena'], dtype=object)
+----
+
+Ah, much better!
+Now we can plot our chart again:
+
+[source, pythong]
+----
 df.plot.bar()
 plt.tight_layout()
 plt.show()
@@ -72,10 +92,15 @@ If we run that code we'll see this chart:
 image::{{<siteurl>}}/uploads/2018/12/next.svg[]
 
 That's much better!
-We can also achieve the same thing by specify the `x` parameter when we call the `bar` function:
+
+We can also achieve the same outcome by specifying the `x` parameter when we call the `bar` function:
 
 [source, python]
 ----
+df = pd.DataFrame({
+    "name": ["Mark", "Arya", "Praveena"],
+    "age": [34, 1, 31]
+})
 df.plot.bar(x="name")
 plt.tight_layout()
 plt.show()
