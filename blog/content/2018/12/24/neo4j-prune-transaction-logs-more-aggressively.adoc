@@ -1,7 +1,7 @@
 +++
 draft = false
 date="2018-12-24 21:09:00"
-title="Neo4j: Pruning more aggressively"
+title="Neo4j: Pruning transaction logs more aggressively"
 tag=['neo4j']
 category=['Neo4j']
 description="Learn how to prune Neo4j transaction log files more aggressively."
@@ -28,7 +28,7 @@ We can now run the following command to see the state of the database:
 
 We'll see this table:
 
-image::{{<siteurl>}}/uploads/2018/12/blog/static/uploads/2018/12/Selection_091.png[]
+image::{{<siteurl>}}/uploads/2018/12/Selection_091.png[]
 
 Most of the space is taken up by `Logical Log`, which is the aggregate size of Neo4j's transaction logs.
 These are the files in our `data/databases/graph.db` field that have the `neostore.transaction.db` prefix:
@@ -57,7 +57,7 @@ RETURN name, description, value
 
 If we run that procedure we'll see this output:
 
-image::{{<siteurl>}}/uploads/2018/12/blog/static/uploads/2018/12/Selection_090.png[]
+image::{{<siteurl>}}/uploads/2018/12/Selection_090.png[]
 
 In summary:
 
@@ -104,6 +104,6 @@ If we run our first query again a few times while tailing `logs/debug.log` we'll
 
 We can see that logs are now being pruned much more aggressively, and if we run `:sysinfo` again we'll see that the size of logical logs is now much less:
 
-image::{{<siteurl>}}/uploads/2018/12/blog/static/uploads/2018/12/Selection_092.png[]
+image::{{<siteurl>}}/uploads/2018/12/Selection_092.png[]
 
 That's much better!
