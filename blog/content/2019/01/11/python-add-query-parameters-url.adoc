@@ -1,0 +1,57 @@
++++
+draft = false
+date="2019-01-11 09:42:00"
+title="Python: Add query parameters to a URL"
+tag=['python']
+category=['Python']
+description="Learn how to add query parameters to a URL in Python."
++++
+
+I was recently trying to automate adding a query parameter to a bunch of URLS and came across a neat approach a long way https://stackoverflow.com/questions/2506379/add-params-to-given-url-in-python[StackOverflow answer^], that uses the  http://docs.python-requests.org/en/master/api/#requests.PreparedRequest[PreparedRequest^] class from the http://docs.python-requests.org/en/master/[requests library^].
+
+Let's first get the class imported:
+
+[source,cypher]
+----
+from requests.models import PreparedRequest
+req = PreparedRequest()
+----
+
+And now let's use use this class to add a query parameter to a URL.
+We can do this with the following code:
+
+[source, cypher]
+----
+url = "http://www.neo4j.com"
+params = {'ref':"mark-blog"}
+req.prepare_url(url, params)
+----
+
+And then we need to access the `url` attribute to see our new URL:
+
+[source, cypher]
+----
+>>> req.url
+'http://www.neo4j.com/?ref=mark-blog'
+----
+
+Neat!
+We can also use this approach to add parameters to URLs that already have existing ones.
+For example, we could update this YouTube URL:
+
+[source, cypher]
+----
+url = "https://www.youtube.com/watch?v=Y-Wqna-hC2Y&list=RDhlznpxNGFGQ&index=2"
+params = {'ref':"mark-blog"}
+req.prepare_url(url, params)
+----
+
+And let's see what the updated URL looks like:
+
+[source, cypher]
+----
+>>> req.url
+'https://www.youtube.com/watch?v=Y-Wqna-hC2Y&list=RDhlznpxNGFGQ&index=2&ref=mark-blog'
+----
+
+I'm sure I'll be using this code snippet in future!

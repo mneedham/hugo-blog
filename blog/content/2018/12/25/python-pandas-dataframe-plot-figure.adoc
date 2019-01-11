@@ -1,6 +1,6 @@
 +++
 draft = false
-date="2018-12-24 21:09:00"
+date="2018-12-25 21:09:00"
 title="Python: Pandas - DataFrame plotting ignoring figure"
 tag=['python', "matplotlib"]
 category=['Python']
