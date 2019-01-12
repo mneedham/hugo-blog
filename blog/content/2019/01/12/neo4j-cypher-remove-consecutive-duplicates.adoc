@@ -1,0 +1,69 @@
++++
+draft = false
+date="2019-01-12 04:32:00"
+title="Neo4j: Cypher - Remove consecutive duplicates from a list"
+tag=['neo4j', 'cypher']
+category=['Neo4j']
+description="Learn how to remove consecutive duplicate elements/duplicate neighbours from a list."
++++
+
+I was playing with a dataset this week and wanted to share how I removes duplicate consecutive elements from a list using the Cypher query language.
+
+For simplicity's sake, imagine that we have this list:
+
+[source, cypher]
+----
+neo4j> return [1,2,3,3,4,4,4,5,3] AS values;
++-----------------------------+
+| values                      |
++-----------------------------+
+| [1, 2, 3, 3, 4, 4, 4, 5, 3] |
++-----------------------------+
+----
+
+We want to remove the duplicate 3's and 4's, such that our end result should be:
+
+[source, cypher]
+----
+[1,2,3,4,5,3]
+----
+
+https://github.com/neo4j-contrib/neo4j-apoc-procedures[APOC]'s `apoc.coll.toSet` doesn't quite do the trick because it removes duplicates regardless of where they appear in the collection:
+
+[source, cypher]
+----
+neo4j> return apoc.coll.toSet([1,2,3,3,4,4,4,5,3]) AS values;
++-----------------+
+| values          |
++-----------------+
+| [1, 2, 3, 4, 5] |
++-----------------+
+----
+
+Luckily it's quite easy to translate https://stackoverflow.com/a/46977206[Ulf Aslak's Python one liner] to do what we want.
+This is the Python version:
+
+[source,python]
+----
+values = [1,2,3,3,4,4,4,5,3]
+
+>>> [v for i, v in enumerate(values) if i == 0 or v != values[i-1]]
+[1, 2, 3, 4, 5, 3]
+----
+
+We'll use the https://neo4j.com/docs/cypher-manual/current/functions/list/#functions-range[`range`^] function to iterate over our list and list comprehensions to do the rest.
+The following code does the trick:
+
+[source, cypher]
+----
+neo4j> WITH [1,2,3,3,4,4,4,5,3] AS values
+       RETURN [i in range(0, size(values)-1)
+               WHERE i=0 OR values[i] <> values[i-1] | values[i] ] AS values;
++--------------------+
+| values             |
++--------------------+
+| [1, 2, 3, 4, 5, 3] |
++--------------------+
+----
+
+You can use this on collections containing nodes, strings, or anything else - I've just used numbers in the example to keep the example simple.
