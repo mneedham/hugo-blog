@@ -1,0 +1,59 @@
++++
+draft = false
+date="2019-01-12 19:05:00"
+title="Neo4j: APOC - Caused by: java.io.RuntimeException: Can't read url or key file (No such file or directory)"
+tag=['neo4j', 'apoc']
+category=['Neo4j']
+description="Learn how to import files from the import folder when using the APOC library."
++++
+
+I've been using Neo4j's https://neo4j-contrib.github.io/neo4j-apoc-procedures/[APOC^] library to load some local JSON files this week, and ran into an interesting problem.
+
+The `LOAD CSV` tool assumes that any files you load locally are in the `import` directory, so I've got into the habit of putting my data there.
+Let's check what I'm trying to import by opening the import directory:
+
+image::{{<siteurl>}}/uploads/2019/01/import-directory.png[]
+
+What's in there?
+
+image::{{<siteurl>}}/uploads/2019/01/import-directory-contents.png[]
+
+Just the one JSON file needs processing.
+If we want to import local files we need to add the following property to our Neo4j configuration file:
+
+[source, text]
+----
+apoc.import.file.enabled=true
+----
+
+If you're using the Neo4j Desktop, you can add this property via the 'Settings' tab:
+
+image::{{<siteurl>}}/uploads/2019/01/Selection_142.png[]
+
+Once we've done that we'll need to restart the database so our new settings will be picked up:
+
+image::{{<siteurl>}}/uploads/2019/01/restart-after-config.png[]
+
+Now let's try to process our JSON file:
+
+[source, cypher]
+----
+neo4j> CALL apoc.load.json("file:///dummy.json");
+Failed to invoke procedure `apoc.load.json`: Caused by: java.lang.RuntimeException: Can't read url or key file:/dummy.json as json: /dummy.json (No such file or directory)
+----
+
+Hmm, that didn't work as we expected - it seems to be trying to read the file from the root of the machine rather than from the `import` directory.
+It turns out I hadn't RTFM:
+
+image::{{<siteurl>}}/uploads/2019/01/local-files.png[]
+
+Let's update our Neo4j configuration file to add the following property:
+
+[source, text]
+----
+apoc.import.file.use_neo4j_config=true
+----
+
+If we re-run our query we'll see that it now finds and processes the file:
+
+image::{{<siteurl>}}/uploads/2019/01/load-json.png[]

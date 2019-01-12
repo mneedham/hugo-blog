@@ -1,0 +1,19 @@
++++
+draft = true
+date="2019-01-12 19:35:00"
+title="Neo4j: Cypher - Remove consecutive duplicates from a list"
+tag=['neo4j', 'cypher']
+category=['Neo4j']
+description="Learn how to remove consecutive duplicate elements/duplicate neighbours from a list."
++++
+
+
+I want to graph my Google Timeline to try and see what I get up to with my days.
+
+== How do we get the data?
+
+You can easily download your timeline for a single day by selecting the 'Export this day to KML' option from the https://www.google.com/maps/timeline?pb=!1m2!1m1!1s2019-01-12[user interface^]:
+
+image::{{<siteurl>}}/uploads/2019/01/Timeline-Google Chrome_141.png[]
+
+Unfortunately there doesn't seem to be an easy way to download all the days though, but luckily Alexandre Attia has https://medium.com/alex-attia-blog/how-to-take-back-control-and-use-your-google-maps-data-683fb5d4043e[figured out how to do it^].
