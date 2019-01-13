@@ -1,0 +1,78 @@
++++
+draft = false
+date="2019-01-13 06:42:00"
+title="Neo4j: Cypher - Date ranges"
+tag=['neo4j', 'cypher']
+category=['Neo4j']
+description="Learn how to remove consecutive duplicate elements/duplicate neighbours from a list."
++++
+
+As part of a dataset I've been working with this week, I wanted to generate a collection of a range of dates using the Cypher query language.
+
+I've previously used the https://neo4j.com/docs/cypher-manual/current/syntax/temporal/#cypher-temporal-durations[`duration`^] function, which lets you add (or subtract) from a specific date, so I thought I'd start from there.
+If we want to find the day after 1st January 2019, we could write the following query:
+
+[source,cypher]
+----
+neo4j> WITH date("2019-01-01") AS startDate
+       RETURN startDate + duration({days: 1}) AS date;
++------------+
+| date       |
++------------+
+| 2019-01-02 |
++------------+
+----
+
+We can extend this code sample to find the next 5 dates from 1st January 2019 by using the `range` function:
+
+[source,cypher]
+----
+neo4j> WITH date("2019-01-01") AS startDate
+       RETURN [day in range(0, 5) | startDate + duration({days: day})]
+       AS dates;
++--------------------------------------------------------------------------+
+| dates                                                                    |
++--------------------------------------------------------------------------+
+| [2019-01-01, 2019-01-02, 2019-01-03, 2019-01-04, 2019-01-05, 2019-01-06] |
++--------------------------------------------------------------------------+
+----
+
+That works fine if we know how many days we want to find the range for, but what if we only know the start and end dates for which we want to extract a range?
+We can use the `duration.inDays` function to compute a duration between two dates:
+
+[source, cypher]
+----
+neo4j> RETURN duration.inDays(date("2019-01-01"), date("2019-01-06")) AS difference;
++------------+
+| difference |
++------------+
+| P0M5DT0S   |
++------------+
+----
+
+We can then get a count of the number of days from the `days`attribute:
+
+[source,cypher]
+----
+neo4j> RETURN duration.inDays(date("2019-01-01"), date("2019-01-06")).days AS days;
++------+
+| days |
++------+
+| 5    |
++------+
+----
+
+We can now update our query where we hard coded the number of days to use this computed value instead:
+
+[source,cypher]
+----
+neo4j> WITH date("2019-01-01") AS startDate, date("2019-01-06") AS endDate
+       WITH startDate, duration.inDays(startDate, endDate).days AS days
+       RETURN [day in range(0, days) | startDate + duration({days: day})]
+       AS dates;
++--------------------------------------------------------------------------+
+| dates                                                                    |
++--------------------------------------------------------------------------+
+| [2019-01-01, 2019-01-02, 2019-01-03, 2019-01-04, 2019-01-05, 2019-01-06] |
++--------------------------------------------------------------------------+
+----

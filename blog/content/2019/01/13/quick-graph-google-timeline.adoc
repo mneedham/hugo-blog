@@ -1,7 +1,7 @@
 +++
 draft = true
 date="2019-01-12 19:35:00"
-title="Neo4j: Cypher - Remove consecutive duplicates from a list"
+title="Quick Graph: Google Timeline"
 tag=['neo4j', 'cypher']
 category=['Neo4j']
 description="Learn how to remove consecutive duplicate elements/duplicate neighbours from a list."
@@ -17,3 +17,31 @@ You can easily download your timeline for a single day by selecting the 'Export 
 image::{{<siteurl>}}/uploads/2019/01/Timeline-Google Chrome_141.png[]
 
 Unfortunately there doesn't seem to be an easy way to download all the days though, but luckily Alexandre Attia has https://medium.com/alex-attia-blog/how-to-take-back-control-and-use-your-google-maps-data-683fb5d4043e[figured out how to do it^].
+
+== Exploring the data
+
+Let's have a look what this data looks like.
+We'll first move the KML files into the `import` directory, and then add the following properties to our Neo4j configuration file:
+
+[source, text]
+----
+apoc.import.file.enabled=true
+apoc.import.file.use_neo4j_config=true
+----
+
+Once we've done that we'll use the `apoc.load.xmlSimple` to parse these files.
+The following query does this:
+
+
+== Importing the data
+
+Now we're ready to import the data.
+
+
+
+[source, text]
+----
+(place)<-[:AT_PLACE]-(visit)-[:ON_DAY]->(day)
+----
+
+We'll adapt our query to create a g
