@@ -7,7 +7,7 @@ category=['Neo4j']
 description="Learn how to remove a list of properties all in one go."
 +++
 
-Irfan and I were playing with a dataset earlier today, and having run a bunch of https://neo4j.com/docs/graph-algorithms/current/[graph algorithms^], we had a lot of properties that we wanted to clear out.
+https://twitter.com/irfannuri[Irfan^] and I were playing with a dataset earlier today, and having run a bunch of https://neo4j.com/docs/graph-algorithms/current/[graph algorithms^], we had a lot of properties that we wanted to clear out.
 
 The following Cypher query puts Neo4j into the state that we were dealing with.
 
