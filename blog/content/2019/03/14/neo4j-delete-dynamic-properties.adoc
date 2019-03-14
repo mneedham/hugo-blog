@@ -1,0 +1,187 @@
++++
+draft = false
+date="2019-03-14 06:42:00"
+title="Neo4j: Delete/Remove dynamic properties"
+tag=['neo4j', 'cypher', 'apoc']
+category=['Neo4j']
+description="Learn how to remove a list of properties all in one go."
++++
+
+Irfan and I were playing with a dataset earlier today, and having run a bunch of https://neo4j.com/docs/graph-algorithms/current/[graph algorithms^], we had a lot of properties that we wanted to clear out.
+
+The following Cypher query puts Neo4j into the state that we were dealing with.
+
+[source,cypher]
+----
+CREATE (:Node {name: "Mark", pagerank: 2.302, louvain: 1, lpa: 4 })
+CREATE (:Node {name: "Michael", degree: 23, triangles: 12, betweeness: 48.70 })
+CREATE (:Node {name: "Ryan", eigenvector: 2.302, scc: 1, unionFind: 4 })
+----
+
+We wanted to delete all the properties except for 'name', but how do we do that?
+
+We could do it one at a time.
+For example:
+
+[source,cypher]
+----
+MATCH (n:Node)
+REMOVE n.pagerank
+----
+
+And then repeat that for all the other properties.
+That is a bit of a painful process though - it'd be good if we can automate it.
+
+First we need to get a list of the properties for each node, excluding the `name` property.
+The following query does this:
+
+[source, cypher]
+----
+neo4j> MATCH (n:Node)
+       WITH [k in keys(n) where not k in ["name"]] as keys
+       RETURN keys;
++---------------------------------------+
+| keys                                  |
++---------------------------------------+
+| ["lpa", "pagerank", "louvain"]        |
+| ["betweeness", "degree", "triangles"] |
+| ["unionFind", "eigenvector", "scc"]   |
++---------------------------------------+
+----
+
+Now let's try and remove those properties.
+This was our first attempt:
+
+[source,cypher]
+----
+neo4j> MATCH (n:Node)
+       WITH n, [k in keys(n) where not k in ["name"]] as keys
+       UNWIND keys AS key
+       REMOVE n[key];
+Invalid input '[': expected an identifier character, whitespace, node labels, 'u/U', '{', 'o/O', a property map, a relationship pattern, '.' or '(' (line 4, column 9 (offset: 103))
+"REMOVE n[key];"
+----
+
+Hmm, that doesn't work so well.
+We figured that https://neo4j-contrib.github.io/neo4j-apoc-procedures/[APOC^] would come to our rescue, we just didn't know which procedure we needed, so we searched all of them for the term 'remove':
+
+[source,cypher]
+----
+CALL dbms.procedures() YIELD name, signature, description
+WHERE name starts with "apoc" and description contains "remove"
+return name, signature, description
+----
+
+Here's the output of running that query:
+
+image::{{<siteurl>}}/uploads/2019/03/remove_procedures.png[]
+
+`apoc.create.removeProperties` looks like it will do the job.
+Let's give that a try:
+
+[source,cypher]
+----
+neo4j> MATCH (n:Node)
+       WITH n, [k in keys(n) where not k in ["name"]] as keys
+       CALL apoc.create.removeProperties(n, keys) YIELD node
+       RETURN count(*);
++----------+
+| count(*) |
++----------+
+| 3        |
++----------+
+----
+
+Let's check what keys we have on those nodes now:
+
+[source,cypher]
+----
+neo4j> MATCH (n:Node)
+       RETURN keys(n) AS keys;
++----------+
+| keys     |
++----------+
+| ["name"] |
+| ["name"] |
+| ["name"] |
++----------+
+----
+
+Cool, that worked well!
+
+I was curious whether we could avoid having to call the `keys` function on each node, and instead just pass a list of all keys except for `name`.
+We can compute the list of all property keys in the database excluding `name` by executing the following query:
+
+[source, cypher]
+----
+neo4j> CALL db.propertyKeys() YIELD propertyKey WHERE propertyKey <> 'name'
+       RETURN collect(propertyKey);
++-----------------------------------------------------------------------------------------+
+| collect(propertyKey)                                                                                                                                      |
++-----------------------------------------------------------------------------------------+
+| ["degree", "pagerank", "louvain", "lpa", "triangles", "betweeness", "scc", "unionFind"] |
++-----------------------------------------------------------------------------------------+
+----
+
+If we want to pass in that list to the `apoc.create.removeProperties` procedure, we can do so like this:
+
+[source,cypher]
+----
+CALL db.propertyKeys() YIELD propertyKey WHERE propertyKey <> 'name'
+WITH collect(propertyKey) AS properties
+MATCH (n:Node)
+WITH collect(n) AS nodes, properties
+CALL apoc.create.removeProperties(nodes, properties)
+YIELD node
+RETURN count(*)
+----
+
+== Bigger data
+
+This approach works well if we want to delete properties from a small number of nodes, but what if we want to do this in bulk?
+`apoc.periodic.iterate` is our friend.
+Let's first create 1,000,000 nodes with properties that we want to remove:
+
+[source, cypher]
+----
+CALL apoc.periodic.iterate(
+  "UNWIND range(0, 1000000) AS id RETURN id",
+  "CREATE (:Node {name: 'name-' + id, pagerank: 2.302, louvain: 1, lpa: 4 })", {})
+----
+
+And now we'll adapt our previous query to get rid of all properties except for `name`:
+
+[source,cypher]
+----
+neo4j> CALL db.propertyKeys() YIELD propertyKey WHERE propertyKey <> 'name'
+       WITH collect(propertyKey) AS properties
+       CALL apoc.periodic.iterate(
+        "MATCH (n:Node) RETURN n",
+        "WITH collect(n) AS nodes
+         CALL apoc.create.removeProperties(nodes, $properties)
+         YIELD node
+         RETURN count(*)",
+        {params: {properties: properties}})
+       YIELD batches
+       RETURN batches;
++---------+
+| batches |
++---------+
+| 101     |
++---------+
+----
+
+And finally, let's check that all the properties are gone:
+
+[source, cypher]
+----
+neo4j> MATCH (n:Node)
+       RETURN keys(n), count(*);
++---------------------+
+| keys(n)  | count(*) |
++---------------------+
+| ["name"] | 1000001  |
++---------------------+
+----
+
+Sweet, that worked perfectly!
