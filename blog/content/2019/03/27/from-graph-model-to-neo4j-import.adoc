@@ -1,0 +1,236 @@
++++
+draft = false
+date="2019-03-27 06:42:00"
+title="Neo4j: From Graph Model to Neo4j Import"
+tag=['neo4j', 'neo4j-import']
+category=['Neo4j']
+description="Learn how to import data into Neo4j using the Neo4j Import Tool."
++++
+
+
+In this post we're going to learn how to import the https://aminer.org/citation[DBLP citation network^] into Neo4j using the https://neo4j.com/docs/operations-manual/current/tools/import/[Neo4j Import Tool^].
+
+In case you haven't come across this dataset before, Tomaz Bratanic has https://tbgraph.wordpress.com/2018/09/09/article-recommendation-system-on-a-citation-network-using-personalized-pagerank-and-neo4j/[a great blog post^] explaining it.
+
+The tl;dr is that we have articles, authors, and venues. Authors can write articles, articles can reference other articles, and articles are presented at a venue. Below is the graph model for this dataset:
+
+image::{{<siteurl>}}/uploads/2019/03/citation-model.svg[]
+
+Tomaz then goes on to show how to load the data into Neo4j using Cypher and the APOC library.
+Unfortunately this process is quite slow as there's a lot of data so, since I'm not as patient as Tomaz, I wanted to try and find a faster way to get the data into the graph.
+
+At a high level, the diagram below shows what happens when we import data using Cypher:
+
+image::{{<siteurl>}}/uploads/2019/03/transaction.png[]
+
+When we use the Neo4j import tool we're able to skip that middle bit:
+
+image::{{<siteurl>}}/uploads/2019/03/no-transaction.png[]
+
+We skip the whole transactional machinery, so it's much faster.
+We do pay a price for that extra speed:
+
+. We can only use this tool to create a brand new database
+. If there's an error while it runs we need to start again from the beginning
+. We need to get our data into the format that the tool expects
+
+If we're happy with that trade off then Neo4j Import is the way to go.
+
+The raw data is in JSON files, so our process will be as follows:
+
+image::{{<siteurl>}}/uploads/2019/03/workflow.png[]
+
+We don't have to use a Python script to transform the raw data, but that's the scripting language I'm most familiar with so I tend to use that.
+
+Before we look at the script, let's explore the JSON files that we need to transform.
+Below is a sample of one of these files:
+
+++++
+<script src="https://gist.github.com/mneedham/fea6c05086637730874c25ec298fc5aa.js"></script>
+++++
+
+Each row contains one JSON document and, as we can see, these documents contain the following keys:
+
+* `abstract` - the abstract of the article
+* `authors` - the authors who wrote the article
+* `n_citation` - we won't use this key
+* `references` - the other articles that an article cites
+* `title` - the title of the article
+*  `venue` - the venue where the article was published
+* `year` - the year the article was published
+* `id` - the id of the article
+
+For each of these JSON documents we're going to create the following graph structure:
+
+[source,cypher]
+----
+(:Article)-[:VENUE]->(:Venue)
+(:Article)-[:AUTHOR]->(:Author)
+(:Article)-[:CITED]->(:Article)
+----
+
+* where `()` indicates a node i.e. `(:Article)` means that we have a node with the label `Article`
+* and `[]` indicates a relationship i.e. `[:VENUE]` means that we have a relationship with the type `VENUE`
+
+The properties from our JSON document will be assigned as follows:
+
+* `id`, `title`, `abstract`, `year` - `Article` node
+* `authors` - one `Author` node per value in the array, with the value assigned to the `name` property
+* `references` - one `Article` node per value in the array, with the value assigned to the `id` property
+* `venue` - one `Venue` node per value in the array, with the value assigned to the `name` property
+
+So we know what data we're going to extract from our JSON file, but what should the CSV files that we create look like?
+
+The Neo4j Import Tool expects separate CSV files containing the nodes and relationships that we want to create.
+For each of those files we can either include a header line at the top of the file, or we can store those header lines in a separate line.
+We're going to take the latter approach in this blog post.
+
+The fields in those headers have a very specific format, it's almost a mini DSL.
+Let's take the example of the `Author` and `Venue` nodes and the corresponding relationship.
+We'll have three CSV files.
+
+The node headers will look like this:
+
+articles_header.csv
+[source, text]
+----
+id:ID(Article),title:string,abstract:string,year:int
+----
+
+venues_header.csv
+[source, text]
+----
+name:ID(Venue),name:string
+----
+
+For node files one of the fields needs to act as an identifier.
+We define this by including `:ID` in that field.
+In our example we're also specifying an optional node group in parentheses e.g. `:ID(Article)`.
+The node group is used to indicate that the identifier only needs to be unique within that group, rather than across all nodes.
+
+And the relationships header will look like this:
+
+article_VENUE_venue_header.csv
+[source, text]
+----
+:START_ID(Article),:END_ID(Venue)
+----
+
+Again our header fields need to contain some custom values:
+
+* `:START_ID` indicates that this field contains the identifier for the source node
+* `:END_ID` indicates that this field contains the identifier for the target node
+
+As with the nodes, we can specify a node group in parentheses e.g. `:START_ID(Article)`.
+
+So now we know what files we need to create, let's have a look at the script that generates these files:
+
+++++
+<script src="https://gist.github.com/mneedham/51bdaaa1d4ec5b8ec9676462817a4b87.js"></script>
+++++
+
+There's nothing too clever going here - we're iterating over the JSON files and writing into CSV files.
+For the relationships we write those directly to the CSV files as soon as we see them.
+For the nodes we're collecting those in in-memory data structures to remove duplicates, and then we write those to the CSV files at the end.
+
+Let's have a look at a subset of the data in those CSV files:
+
+++++
+<script src="https://gist.github.com/mneedham/1ace09bd1ef4b48418665ce928025154.js"></script>
+++++
+
+This script takes a few minutes to run on my machine.
+There are certainly some ways we could improve the script, but this is good enough as a first pass.
+
+Now it's time to import the data into Neo4j.
+If we're using the Neo4j Desktop we can access the Neo4j Import Tool via the 'Terminal' tab within a database.
+
+image::{{<siteurl>}}/uploads/2019/03/terminal.png[]
+
+We can then paste in the script below:
+
+++++
+<script src="https://gist.github.com/mneedham/466cb70f3703ec48840d46e043b25406.js"></script>
+++++
+
+Let's go through the arguments we're passing to the Neo4j Import Tool.
+The line below imports our author nodes:
+
+```
+--nodes:Author=${DATA_DIR}/authors_header.csv,${DATA_DIR}/authors.csv
+```
+
+The syntax of this part of the command is `--nodes:[:Label]=<"file1,file2,...">`.
+
+It treats the files that we provide as if they're one big file, and the first line of the first file needs to contain the header line.
+So in this line we're saying that we want to create one node for each entry in the `authors.csv` file, and each of those nodes should have the label `Author`.
+
+The line below creates relationships between our `Author` and `Venue` nodes:
+
+```
+--relationships:VENUE=${DATA_DIR}/article_VENUE_venue_header.csv,${DATA_DIR}/article_VENUE_venue.csv
+```
+
+The syntax of this part of the command is `--relationships[:RELATIONSHIP_TYPE]=<"file1,file2,...">`
+
+Again, it treats the files we provide as if they're one big file, so the first line of the first file must contain the header line.
+In this line we're saying that we want to create a relationship with the type `VENUE` for each entry in the `article_VENUE_venue.csv` file.
+
+Now if we run the script, we'll see the following output:
+
+```
+Neo4j version: 3.5.3
+Importing the contents of these files into /home/markhneedham/.config/Neo4j Desktop/Application/neo4jDatabases/database-32ed444f-69cd-422c-81aa-0c634210ad50/installation-3.5.3/data/databases/graph.db:
+
+Nodes:
+  :Author
+  /home/markhneedham/projects/dblp/data/authors_header.csv
+  /home/markhneedham/projects/dblp/data/authors.csv
+
+  :Article
+  /home/markhneedham/projects/dblp/data/articles_header.csv
+  /home/markhneedham/projects/dblp/data/articles.csv
+
+  :Venue
+  /home/markhneedham/projects/dblp/data/venues_header.csv
+  /home/markhneedham/projects/dblp/data/venues.csv
+Relationships:
+  :REFERENCES
+  /home/markhneedham/projects/dblp/data/article_REFERENCES_article_header.csv
+  /home/markhneedham/projects/dblp/data/article_REFERENCES_article.csv
+
+  :AUTHOR
+  /home/markhneedham/projects/dblp/data/article_AUTHOR_author_header.csv
+  /home/markhneedham/projects/dblp/data/article_AUTHOR_author.csv
+
+  :VENUE
+  /home/markhneedham/projects/dblp/data/article_VENUE_venue_header.csv
+  /home/markhneedham/projects/dblp/data/article_VENUE_venue.csv
+
+Available resources:
+  Total machine memory: 31.27 GB
+  Free machine memory: 1.93 GB
+  Max heap memory : 910.50 MB
+  Processors: 8
+  Configured max memory: 27.34 GB
+  High-IO: false
+
+WARNING: heap size 910.50 MB may be too small to complete this import. Suggested heap size is 1.00 GBImport starting 2019-03-27 09:43:54.934+0000
+  Estimated number of nodes: 7.84 M
+  Estimated number of node properties: 24.08 M
+  Estimated number of relationships: 36.99 M
+  Estimated number of relationship properties: 0.00
+  Estimated disk space usage: 4.78 GB
+  Estimated required memory usage: 1.09 GB
+
+IMPORT DONE in 2m 52s 306ms.
+Imported:
+  4850632 nodes
+  37215467 relationships
+  15328803 properties
+Peak memory usage: 1.08 GB
+```
+
+And now let's start the database and have a look at the graph we've imported:
+
+image::{{<siteurl>}}/uploads/2019/03/graph-citation.svg[]
