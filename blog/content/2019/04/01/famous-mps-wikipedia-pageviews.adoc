@@ -1,0 +1,88 @@
++++
+draft = false
+date="2019-04-01 05:03:00"
+title="Finding famous MPs based on their Wikipedia Page Views"
+tag=['python', 'wikipedia', "brexit"]
+category=['Python']
+description="Learn how to import data into Neo4j using the Neo4j Import Tool."
++++
+
+As part of the https://towardsdatascience.com/graphing-brexit-bbe4314cf70[Graphing^] https://medium.com/neo4j/graphing-brexit-clustering-edition-3b966694e723[Brexit^] series of blog posts, I wanted to work out who were the most important Members of the UK parliament, and after a bit of Googling I realised that views of their Wikipedia pages would do the trick.
+
+I initially found my way to https://tools.wmflabs.org/pageviews/?project=en.wikipedia.org&platform=all-access&agent=spider&start=2018-01&end=2019-02&pages=Theresa_May[tools.wmflabs.org^], which is great for exploring the popularity of an individual MP, but not so good if you want to extract the data for 600 of them.
+
+I then came to learn that Wikimedia have https://wikimedia.org/api/rest_v1/[a REST API^] and, https://blog.wikimedia.org/2015/12/14/pageview-data-easily-accessible/[hidden at the bottom of a blog post^] from 2015, a Python library called myviews.
+Yay!
+
+It's really easy to use as well.
+Installation is via PyPi:
+
+[source, bash]
+----
+pip install mwviews
+----
+
+And then if we want to find the page views from the last week for our current Prime Minister, Theresa May, we can write the following code:
+
+[source, python]
+----
+from mwviews.api import PageviewsClient
+
+p = PageviewsClient("mark-needham")
+views = p.article_views("en.wikipedia", ["Theresa May"],  start="20190324", end="20190331")
+----
+
+And now let's iterate over `views` to find the number of pageviews per day:
+
+[source, python]
+----
+for day in views:
+    print(day, views[day])
+
+2019-03-24 00:00:00 {'Theresa_May': 23461}
+2019-03-25 00:00:00 {'Theresa_May': 22272}
+2019-03-26 00:00:00 {'Theresa_May': 18661}
+2019-03-27 00:00:00 {'Theresa_May': 42541}
+2019-03-28 00:00:00 {'Theresa_May': 34310}
+2019-03-29 00:00:00 {'Theresa_May': 34514}
+2019-03-30 00:00:00 {'Theresa_May': 20604}
+2019-03-31 00:00:00 {'Theresa_May': 18137}
+----
+
+We can extend our example to compute pageviews for multiple people by adding their names to the array, and we'll also extend the date range back to the EU referendum of 2016:
+
+[source, python]
+----
+people = [
+    "Boris Johnson", "Theresa May", "Jacob Rees-Mogg", "Jeremy Corbyn"
+]
+
+views = p.article_views("en.wikipedia", people,  start="20160624", end="20190331")
+----
+
+That's a lot of days so, rather than printing out each day on its own, let's sum up the pageviews:
+
+[source, python]
+----
+votes = {person: 0 for person in people }
+
+for key in views.keys():
+  for person_key in views[key].keys():
+    person = person_key.replace("_", " ")
+    if views[key][person_key]:
+        votes[person] += views[key][person_key]
+----
+
+And who's the most famous of them all?
+
+[source,python]
+----
+max_width = max([len(key) for key in votes.keys()])
+for person in votes:
+    print(f"{person:<{max_width}} {votes[person]:,}")
+
+Boris Johnson   5,727,213
+Theresa May     12,844,215
+Jacob Rees-Mogg 3,631,652
+Jeremy Corbyn   5,965,669
+----
