@@ -1,0 +1,161 @@
++++
+draft = false
+date="2019-04-07 05:03:00"
+title="Python: Getting GitHub download count from the GraphQL API using requests"
+tag=['python', 'github']
+category=['Python']
+description="Learn how to write a Python script to get the number of downloads of a GitHub Project from the GraphQL API."
++++
+
+I was recently trying to use some code I shared just over a year ago to https://markhneedham.com/blog/2018/03/23/github-release-download-count/[compute GitHub Project download numbers from the GraphQL API^], and wanted to automate this in a Python script.
+
+It was more fiddly than I expected, so I thought I'd share the code for the benefit of future me more than anything else!
+
+== Pre requisites
+
+We're going to use the popular requests library to query the API, so we need to import that.
+We'll also be parsing JSON and reading environment variables, so we'll load libraries to help with those tasks as well.
+
+[source,python]
+----
+import requests
+import json
+import os
+----
+
+== Creating the script
+
+We can use the query from the original post, so let's create a string containing that:
+
+[source,python]
+----
+query = """
+query($owner:String!, $name: String!) {
+  repository(owner: $owner, name: $name) {
+    nameWithOwner
+    releases(first: 50, orderBy: {field:CREATED_AT, direction:DESC}) {
+      totalCount
+      nodes {
+        releaseAssets(first: 1) {
+          nodes {
+            name
+            downloadCount
+            createdAt
+          }
+        }
+      }
+    }
+  }
+}
+"""
+----
+
+That query takes in some variables.
+We'll put those in a map:
+
+[source, python]
+----
+variables = {"owner": "neo4j-contrib", "name": "neo4j-apoc-procedures"}
+----
+
+We're nearly ready to post a request to the GraphQL API, but first we need to create a personal access token.
+The GitHub docs https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line[explain how to do this^].
+
+Let's create a file containing the token.
+It looks like this:
+
+_devenv_
+[source, bash]
+----
+export GITHUB_TOKEN="<github-token-here>"
+----
+
+We can now run the following commands so that the token is available as an environment variable:
+
+[source,bash]
+----
+source devenv
+----
+
+Now we're ready to construct our POST request:
+
+[source, python]
+----
+token = os.getenv("GITHUB_TOKEN")
+headers = {"Authorization": f"bearer {token}"}
+request = {"query": query, "variables": variables}
+
+response = requests.post("https://api.github.com/graphql",
+                         json=request,
+                         headers=headers)
+----
+
+The response we get back is extremely nested!
+We want to print the number of downloads per project, as well as the total download count.
+The following code does this:
+
+[source,python]
+----
+result = response.json()["data"]["repository"]["releases"]["nodes"]
+
+total_downloads = 0
+for item in result:
+    release = item["releaseAssets"]["nodes"][0]
+    print(
+        f"{release['name']:<35} {release['createdAt']} {release['downloadCount']}"
+    )
+    total_downloads += release["downloadCount"]
+
+print(f"Total Downloads: {total_downloads}")
+----
+
+And if we run that we'll see this output:
+
+[source,bash]
+----
+apoc-3.4.0.5-all.jar                2019-02-15T20:45:21Z 17622
+apoc-3.5.0.2-all.jar                2019-02-15T21:28:31Z 7454
+apoc-3.5.0.1-all.jar                2018-11-27T14:16:12Z 28113
+apoc-3.4.0.4-all.jar                2018-11-16T17:37:27Z 5502
+apoc-3.5.0.0-all.jar                2018-10-11T00:17:08Z 414
+apoc-3.4.0.3-all.jar                2018-09-20T13:38:29Z 13498
+apoc-3.4.0.2-all.jar                2018-08-08T23:51:40Z 10680
+apoc-3.3.0.4-all.jar                2018-08-08T23:49:52Z 30670
+apoc-3.3.0.3-all.jar                2018-05-16T16:17:20Z 7509
+apoc-3.4.0.1-all.jar                2018-05-16T16:13:52Z 29150
+apoc-3.1.3.9-all.jar                2018-02-23T19:52:54Z 478
+apoc-3.3.0.2-all.jar                2018-02-23T19:26:26Z 16508
+apoc-3.2.3.6-all.jar                2018-02-23T19:26:37Z 2596
+apoc-3.2.3.5-all.jar                2017-10-23T15:53:42Z 5806
+apoc-3.3.0.1-all.jar                2017-10-23T15:54:12Z 29825
+apoc-3.2.0.5-beta-all.jar           2017-10-03T18:39:15Z 407
+apoc-3.2.0.4-all.jar                2017-08-07T14:29:09Z 6776
+apoc-3.1.3.8-all.jar                2017-07-22T09:31:43Z 1275
+apoc-3.1.3.7-all.jar                2017-05-15T07:06:33Z 2250
+apoc-3.2.0.3-all.jar                2017-05-15T07:28:20Z 6963
+apoc-3.2.0.2-all.jar                2017-04-03T08:22:26Z 543
+apoc-3.1.3.6-all.jar                2017-04-03T08:19:17Z 1609
+apoc-3.0.8.6-all.jar                2017-04-03T02:15:46Z 1014
+apoc-3.2.0.1.jar                    2017-03-10T01:21:52Z 89
+apoc-3.1.2.5.jar                    2017-03-10T06:13:03Z 537
+apoc-3.1.0.4.jar                    2017-03-10T06:12:03Z 594
+apoc-3.0.8.5.jar                    2017-03-10T01:34:02Z 36
+apoc-3.0.8.4-all.jar                2017-01-06T02:15:33Z 862
+apoc-3.1.0.3-all.jar                2016-12-14T02:19:30Z 2990
+apoc-3.1.0.2-all.jar                2016-11-06T15:09:44Z 201
+apoc-3.0.4.2-all.jar                2016-10-29T08:36:49Z 4286
+apoc-3.1.0.1-all.jar                2016-10-06T08:54:34Z 199
+apoc-3.0.4.1-all.jar                2016-08-22T16:10:57Z 1267
+apoc-1.1.0.jar                      2016-07-11T05:22:14Z 630
+apoc-1.0.0.jar                      2016-05-07T22:53:24Z 535
+apoc-1.0.0-RC1.jar                  2016-04-15T23:26:37Z 53
+Total Downloads: 238941
+----
+
+APOC all the things!
+
+The full script is available below if you want to do the same for your project:
+
+++++
+<script src="https://gist.github.com/mneedham/f73d1d5494586d58d3b8988f54abf1d3.js"></script>
+++++
