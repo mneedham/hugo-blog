@@ -1,0 +1,189 @@
++++
+draft = false
+date="2019-04-14 12:52:00"
+title="Neo4j: Delete all nodes"
+tag=['neo4j', 'cypher', 'apoc']
+category=['Neo4j']
+description="Learn how to delete all the nodes in a Neo4j Database"
++++
+
+When experimenting with a new database, at some stage we'll probably want to delete all our data and start again.
+I was trying to do this with Neo4j over the weekend and it didn't work as I expected, so I thought I'd write the lessons I learned.
+
+We'll be using Neo4j via the https://neo4j.com/developer/neo4j-desktop/[Neo4j Desktop^] with the default settings.
+This means that we have a maximum heap size of 1GB.
+
+_This blog post assumes that you've got the https://neo4j.com/developer/neo4j-apoc/[Neo4j APOC^] library installed._
+_We can find https://neo4j-contrib.github.io/neo4j-apoc-procedures/#_installation_with_neo4j_desktop[instructions for installing that library in the docs^]._
+
+== Cypher Shell
+
+In this post we'll be executing Cypher queries using the https://neo4j.com/docs/operations-manual/current/tools/cypher-shell/[Cypher Shell^].
+We can launch that from the Neo4j Desktop like this:
+
+image::{{<siteurl>}}/uploads/2019/04/cypher-shell.png[]
+
+== Creating data
+
+Once we've done that we're ready to create 1 million nodes using APOC's https://neo4j-contrib.github.io/neo4j-apoc-procedures/#commit-batching[periodic iterate^] procedure.
+
+[source,cypher]
+----
+neo4j> CALL apoc.periodic.iterate(
+         'UNWIND range(1, 1000000) as id RETURN id',
+         'CREATE (:Node {id: id})',
+         {}
+       )
+       YIELD timeTaken, operations
+       RETURN timeTaken, operations;
++-------------------------------------------------------------------------+
+| timeTaken | operations                                                  |
++-------------------------------------------------------------------------+
+| 8         | {total: 1000000, committed: 1000000, failed: 0, errors: {}} |
++-------------------------------------------------------------------------+
+
+1 row available after 8249 ms, consumed after another 0 ms
+----
+
+Let's check how many nodes our database contains:
+
+[source, cypher]
+----
+neo4j> MATCH () RETURN count(*);
++----------+
+| count(*) |
++----------+
+| 1000000  |
++----------+
+
+1 row available after 0 ms, consumed after another 0 ms
+----
+
+Great, 1 million nodes, all ready to be deleted!
+
+== Deleting nodes
+
+My first attempt to delete all this nodes was the following query, which finds all the nodes and then attempts to delete them:
+
+[souce, cypher]
+----
+neo4j> MATCH (n)
+       DETACH DELETE n;
+There is not enough memory to perform the current task. Please try increasing 'dbms.memory.heap.max_size' in the neo4j configuration (normally in 'conf/neo4j.conf' or, if you you are using Neo4j Desktop, found through the user interface) or if you are running an embedded installation increase the heap by using '-Xmx' command line flag, and then restart the database.
+----
+
+Hmmm, an OutOfMemory exception.
+I had some ideas as to why that might be happening, but it's best to get a heap dump to know for sure.
+
+We can add the following lines to the Neo4j settings or configuration file to create a heap dump when an OutOfMemory exception is thrown:
+
+[source, text]
+----
+dbms.jvm.additional=-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/neo4jdump.hprof
+----
+
+If you're using the Neo4j Desktop, you can find this file from the 'Settings' tab:
+
+image::{{<siteurl>}}/uploads/2019/04/settings.png[]
+
+We can visualise the contents of this file using a tool like https://www.yourkit.com/[YourKit^] or https://visualvm.github.io/[VisualVM^].
+I have VisualVM installed on my machine, so we'll use that.
+Below is a print screen showing the heap dump:
+
+image::{{<siteurl>}}/uploads/2019/04/hdump.png[]
+
+Many of the classes taking up space on the heap are used to create the commands that get stored in the https://neo4j.com/docs/operations-manual/current/configuration/transaction-logs/[transaction log^] whenever we execute a write query.
+
+== Batching deletes
+
+We need to delete our nodes in batches so that we don't end up with so much in memory state.
+My go to procedure is `apoc.periodic.iterate`, so let's give that a try:
+
+[source,cypher]
+----
+CALL apoc.periodic.iterate(
+  'MATCH (n) RETURN n',
+  'DELETE n',
+  {batchSize: 10000}
+)
+YIELD timeTaken, operations
+RETURN timeTaken, operations
+----
+
+I found that sometimes this works, but sometimes we end up with the whole heap being filled, and a lot of garbage collection pauses:
+
+image::{{<siteurl>}}/uploads/2019/04/gc.png[]
+
+We can also see all the GC pauses by searching the debug log, which we can access via the 'Terminal' tab:
+
+[source, bash]
+----
+$ grep VmPauseMonitorComponent logs/debug.log | tail -n 10
+2019-04-14 16:14:22.377+0000 WARN [o.n.k.i.c.VmPauseMonitorComponent] Detected VM stop-the-world pause: {pauseTime=9143, gcTime=4619, gcCount=7}
+2019-04-14 16:14:28.845+0000 WARN [o.n.k.i.c.VmPauseMonitorComponent] Detected VM stop-the-world pause: {pauseTime=6367, gcTime=6451, gcCount=10}
+2019-04-14 16:14:35.730+0000 WARN [o.n.k.i.c.VmPauseMonitorComponent] Detected VM stop-the-world pause: {pauseTime=2131, gcTime=6875, gcCount=12}
+2019-04-14 16:14:44.455+0000 WARN [o.n.k.i.c.VmPauseMonitorComponent] Detected VM stop-the-world pause: {pauseTime=9080, gcTime=4523, gcCount=5}
+2019-04-14 16:14:46.721+0000 WARN [o.n.k.i.c.VmPauseMonitorComponent] Detected VM stop-the-world pause: {pauseTime=6364, gcTime=6449, gcCount=18}
+2019-04-14 16:15:09.106+0000 WARN [o.n.k.i.c.VmPauseMonitorComponent] Detected VM stop-the-world pause: {pauseTime=19938, gcTime=22355, gcCount=28}
+2019-04-14 16:15:13.288+0000 WARN [o.n.k.i.c.VmPauseMonitorComponent] Detected VM stop-the-world pause: {pauseTime=6428, gcTime=4176, gcCount=7}
+2019-04-14 16:15:17.807+0000 WARN [o.n.k.i.c.VmPauseMonitorComponent] Detected VM stop-the-world pause: {pauseTime=4418, gcTime=4515, gcCount=5}
+2019-04-14 16:16:00.108+0000 WARN [o.n.k.i.c.VmPauseMonitorComponent] Detected VM stop-the-world pause: {pauseTime=19724, gcTime=42279, gcCount=40}
+2019-04-14 16:16:00.209+0000 WARN [o.n.k.i.c.VmPauseMonitorComponent] Detected VM stop-the-world pause: {pauseTime=22476, gcTime=10, gcCount=1}
+----
+
+If we take a heap dump using VisualVM, we'll see something like this:
+
+image::{{<siteurl>}}/uploads/2019/04/heap-periodic.png[]
+
+This time it's not commands that are taking up the space, but rather objects holding all the nodes that we want to delete.
+
+To avoid loading all those nodes into memory, we can use the `apoc.periodic.commit` procedure instead.
+With this procedure we provide one query that must contain a `LIMIT` clause.
+We also need to include a `RETURN` clause at the end of our query, and as long as a result is returned, it will keep on iterating.
+
+[source,cypher]
+----
+neo4j> CALL apoc.periodic.commit(
+         'MATCH (n) WITH n LIMIT $limit DELETE n RETURN count(*)',
+         {limit: 10000}
+       )
+       YIELD updates, executions, runtime, batches
+       RETURN updates, executions, runtime, batches;
++------------------------------------------+
+| updates | executions | runtime | batches |
++------------------------------------------+
+| 1000000 | 100        | 7       | 101     |
++------------------------------------------+
+
+1 row available after 7540 ms, consumed after another 0 ms
+----
+
+Good times! All the nodes are deleted and we can get on with our day. 
+
+////
+
+[source,cypher]
+----
+CREATE INDEX ON :Node(id)
+----
+
+[source,cypher]
+----
+CALL apoc.periodic.iterate(
+  'WITH ["FOO", "BAR", "BAX"] AS prefixes
+   UNWIND prefixes AS prefix
+   UNWIND range(0, 100000) AS id
+   RETURN prefix, id',
+  'MERGE (node1:Node {id: id + prefix})
+   MERGE (node2:Node {id: (id+1) + prefix})
+   WITH node1, node2, prefix, id
+   CALL apoc.create.relationship(node1, prefix + "_" + toInteger(rand() * 10.0), {}, node2)
+   YIELD rel
+   RETURN count(*)', {})
+YIELD operations
+RETURN operations
+----
+
+What if we want to delete all the relationships with the `BAX` prefix?
+
+////
