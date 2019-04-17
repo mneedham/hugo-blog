@@ -1,0 +1,233 @@
++++
+draft = false
+date="2019-04-17 09:00:00"
+title="pyspark: Py4JJavaError: An error occurred while calling o138.loadClass.: java.lang.ClassNotFoundException: org.graphframes.GraphFramePythonAPI"
+tag=['docker', 'pyspark', 'spark']
+category=['Spark']
+description="Learn how to work around the java.lang.ClassNotFoundException: org.graphframes.GraphFramePythonAPI error when using pyspark and GraphFrames."
++++
+
+I've been building a Docker Container that has support for Jupyter, Spark, GraphFrames, and Neo4j, and ran into a problem that had me pulling my (metaphorical) hair out!
+
+The https://hub.docker.com/r/jupyter/pyspark-notebook/ gets us most of the way there, but it doesn't have GraphFrames or Neo4j support.
+Adding Neo4j is as simple as pulling in the Python Driver from Conda Forge, which leaves us with GraphFrames.
+
+When I'm using GraphFrames with pyspark locally I would pull it in via the `--packages` config parameter, like this:
+
+[source, bash]
+----
+./bin/pyspark  --packages graphframes:graphframes:0.7.0-spark2.4-s_2.11
+----
+
+I thought the same approach would work in the Docker container, so I created a Dockerfile that extends `jupyter/pyspark-notebook`, and added this code into the `SPARK_OPTS` environment variable:
+
+[source, docker]
+----
+ARG BASE_CONTAINER=jupyter/pyspark-notebook
+FROM $BASE_CONTAINER
+
+LABEL maintainer="Mark Needham"
+
+USER root
+USER $NB_UID
+
+ENV SPARK_OPTS --driver-java-options=-Xms1024M --driver-java-options=-Xmx4096M --driver-java-options=-Dlog4j.logLevel=info --packages graphframes:graphframes:0.7.0-spark2.4-s_2.11
+
+RUN conda install --quiet --yes 'conda-forge::neo4j-python-driver'  && \
+    pip install graphframes && \
+    fix-permissions $CONDA_DIR && \
+    fix-permissions /home/$NB_USER
+----
+
+I built the Docker image:
+
+[source,bash]
+----
+docker build .
+
+Successfully built fbcc49e923a6
+----
+
+And then ran it locally:
+
+[source, bash]
+----
+docker run -p 8888:8888 fbcc49e923a6
+
+[I 08:12:44.168 NotebookApp] The Jupyter Notebook is running at:
+[I 08:12:44.168 NotebookApp] http://(1f7d61b2f1de or 127.0.0.1):8888/?token=2f1c9e01326676af1a768b5e573eb9c58049c385a7714e53
+[I 08:12:44.168 NotebookApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
+[C 08:12:44.171 NotebookApp]
+
+    To access the notebook, open this file in a browser:
+        file:///home/jovyan/.local/share/jupyter/runtime/nbserver-6-open.html
+    Or copy and paste one of these URLs:
+        http://(1f7d61b2f1de or 127.0.0.1):8888/?token=2f1c9e01326676af1a768b5e573eb9c58049c385a7714e53
+----
+
+I navigated to http://localhost:8888/?token=2f1c9e01326676af1a768b5e573eb9c58049c385a7714e53, which is where the Jupyter notebook is hosted.
+I uploaded a couple of CSV files, created a Jupyter notebook, and ran the following code:
+
+
+[source, python, linenums]
+----
+from pyspark.sql.types import *
+from graphframes import *
+import pandas as pd
+
+from pyspark.context import SparkContext
+from pyspark.sql.session import SparkSession
+
+sc = SparkContext.getOrCreate('local')
+spark = SparkSession(sc)
+
+def create_transport_graph():
+    node_fields = [
+        StructField("id", StringType(), True),
+        StructField("latitude", FloatType(), True),
+        StructField("longitude", FloatType(), True),
+        StructField("population", IntegerType(), True)
+    ]
+    nodes = spark.read.csv("data/transport-nodes.csv", header=True,
+                           schema = StructType(node_fields))
+
+    rels = spark.read.csv("data/transport-relationships.csv", header=True)
+    reversed_rels = (rels.withColumn("newSrc", rels.dst)
+                     .withColumn("newDst", rels.src)
+                     .drop("dst", "src")
+                     .withColumnRenamed("newSrc", "src")
+                     .withColumnRenamed("newDst", "dst")
+                     .select("src", "dst", "relationship", "cost"))
+    relationships = rels.union(reversed_rels)
+
+    return GraphFrame(nodes, relationships)
+
+g = create_transport_graph()
+----
+
+Unfortunately it throws the following exception when it tries to read the `data/transport-nodes.csv` file on line 18:
+
+[source, text]
+----
+Py4JJavaError: An error occurred while calling o138.loadClass.
+: java.lang.ClassNotFoundException: org.graphframes.GraphFramePythonAPI
+    at java.net.URLClassLoader.findClass(URLClassLoader.java:381)
+    at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+    at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+    at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+    at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+    at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+    at java.lang.reflect.Method.invoke(Method.java:497)
+    at py4j.reflection.MethodInvoker.invoke(MethodInvoker.java:237)
+    at py4j.reflection.ReflectionEngine.invoke(ReflectionEngine.java:357)
+    at py4j.Gateway.invoke(Gateway.java:280)
+    at py4j.commands.AbstractCommand.invokeMethod(AbstractCommand.java:128)
+    at py4j.commands.CallCommand.execute(CallCommand.java:79)
+    at py4j.GatewayConnection.run(GatewayConnection.java:211)
+    at java.lang.Thread.run(Thread.java:745)
+----
+
+I Googled the error message, and came across https://github.com/graphframes/graphframes/issues/104[this issue^], which has a lot of suggestions for how to fix it.
+I tried them all!
+
+I passed `--packages` to `PYSPARK_SUBMIT_ARGS` as well as `SPARK_OPTS`:
+
+[source, docker]
+----
+ARG BASE_CONTAINER=jupyter/pyspark-notebook
+FROM $BASE_CONTAINER
+
+LABEL maintainer="Mark Needham"
+
+USER root
+USER $NB_UID
+
+ENV SPARK_OPTS --driver-java-options=-Xms1024M --driver-java-options=-Xmx4096M --driver-java-options=-Dlog4j.logLevel=info --packages graphframes:graphframes:0.7.0-spark2.4-s_2.11
+ENV PYSPARK_SUBMIT_ARGS --master local[*] pyspark-shell --packages graphframes:graphframes:0.7.0-spark2.4-s_2.11
+
+RUN conda install --quiet --yes 'conda-forge::neo4j-python-driver'  && \
+    pip install graphframes && \
+    fix-permissions $CONDA_DIR && \
+    fix-permissions /home/$NB_USER
+----
+
+I downloaded the GraphFrames JAR, and referenced it directly using the `--jars` argument:
+
+[source, docker]
+----
+ARG BASE_CONTAINER=jupyter/pyspark-notebook
+FROM $BASE_CONTAINER
+
+LABEL maintainer="Mark Needham"
+
+USER root
+USER $NB_UID
+
+ENV SPARK_OPTS --driver-java-options=-Xms1024M --driver-java-options=-Xmx4096M --driver-java-options=-Dlog4j.logLevel=info --jars /home/jovyan/graphframes-0.7.0-spark2.4-s_2.11.jar
+ENV PYSPARK_SUBMIT_ARGS --master local[*] pyspark-shell --jars /home/jovyan/graphframes-0.7.0-spark2.4-s_2.11.jar
+
+RUN conda install --quiet --yes 'conda-forge::neo4j-python-driver'  && \
+    pip install graphframes && \
+    fix-permissions $CONDA_DIR && \
+    fix-permissions /home/$NB_USER
+
+COPY graphframes-0.7.0-spark2.4-s_2.11.jar /home/$NB_USER/graphframes-0.7.0-spark2.4-s_2.11.jar
+----
+
+I used the `--py-files` argument as well:
+
+[source, docker]
+----
+ARG BASE_CONTAINER=jupyter/pyspark-notebook
+FROM $BASE_CONTAINER
+
+LABEL maintainer="Mark Needham"
+
+USER root
+USER $NB_UID
+
+ENV SPARK_OPTS --driver-java-options=-Xms1024M --driver-java-options=-Xmx4096M --driver-java-options=-Dlog4j.logLevel=info --jars /home/jovyan/graphframes-0.7.0-spark2.4-s_2.11.jar --py-files /home/jovyan/graphframes-0.7.0-spark2.4-s_2.11.jar
+ENV PYSPARK_SUBMIT_ARGS --master local[*] pyspark-shell --jars /home/jovyan/graphframes-0.7.0-spark2.4-s_2.11.jar --py-files /home/jovyan/graphframes-0.7.0-spark2.4-s_2.11.jar
+
+RUN conda install --quiet --yes 'conda-forge::neo4j-python-driver'  && \
+    pip install graphframes && \
+    fix-permissions $CONDA_DIR && \
+    fix-permissions /home/$NB_USER
+
+COPY graphframes-0.7.0-spark2.4-s_2.11.jar /home/$NB_USER/graphframes-0.7.0-spark2.4-s_2.11.jar
+----
+
+But nothing worked and I still had the same error message :(
+
+I was pretty stuck at this point, and returned to Google, where I found a https://stackoverflow.com/questions/39261370/unable-to-run-a-basic-graphframes-example[a StackOverflow thread^] that had I hadn't spotted before.
+https://stackoverflow.com/users/7174028/gilles-essoki[Gilles Essoki^] suggested  copying the GraphFrames JAR directly into the `/usr/local/spark/jars` directory, so I updated my Dockerfile to do this:
+
+[source, docker]
+----
+ARG BASE_CONTAINER=jupyter/pyspark-notebook
+FROM $BASE_CONTAINER
+
+LABEL maintainer="Mark Needham"
+
+USER root
+USER $NB_UID
+
+ENV SPARK_OPTS --driver-java-options=-Xms1024M --driver-java-options=-Xmx4096M --driver-java-options=-Dlog4j.logLevel=info
+
+RUN conda install --quiet --yes 'conda-forge::neo4j-python-driver'  && \
+    pip install graphframes && \
+    fix-permissions $CONDA_DIR && \
+    fix-permissions /home/$NB_USER
+
+COPY graphframes-0.7.0-spark2.4-s_2.11.jar /usr/local/spark/jars
+----
+
+I built it again, and this time my CSV files are happily processed!
+So thankyou Gilles!
+
+If you want to use this Docker container I've put it on GitHub at https://github.com/mneedham/pyspark-graphframes-neo4j-notebook[mneedham/pyspark-graphframes-neo4j-notebook^], or you can pull it directly from Docker using the following command:
+
+[source, cypher]
+----
+docker pull markhneedham/pyspark-graphframes-neo4j-notebook
+----

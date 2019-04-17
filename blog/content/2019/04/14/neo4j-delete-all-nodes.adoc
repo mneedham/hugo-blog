@@ -65,7 +65,7 @@ Great, 1 million nodes, all ready to be deleted!
 
 My first attempt to delete all this nodes was the following query, which finds all the nodes and then attempts to delete them:
 
-[souce, cypher]
+[source, cypher]
 ----
 neo4j> MATCH (n)
        DETACH DELETE n;
@@ -158,7 +158,7 @@ neo4j> CALL apoc.periodic.commit(
 1 row available after 7540 ms, consumed after another 0 ms
 ----
 
-Good times! All the nodes are deleted and we can get on with our day. 
+Good times! All the nodes are deleted and we can get on with our day.
 
 ////
 
