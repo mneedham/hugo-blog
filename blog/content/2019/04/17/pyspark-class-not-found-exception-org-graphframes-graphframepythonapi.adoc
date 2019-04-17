@@ -4,12 +4,12 @@ date="2019-04-17 09:00:00"
 title="pyspark: Py4JJavaError: An error occurred while calling o138.loadClass.: java.lang.ClassNotFoundException: org.graphframes.GraphFramePythonAPI"
 tag=['docker', 'pyspark', 'spark']
 category=['Spark']
-description="Learn how to work around the java.lang.ClassNotFoundException: org.graphframes.GraphFramePythonAPI error when using pyspark and GraphFrames."
+description="Learn how to work around the ClassNotFoundException  GraphFramePythonAPI error when using pyspark and GraphFrames."
 +++
 
 I've been building a Docker Container that has support for Jupyter, Spark, GraphFrames, and Neo4j, and ran into a problem that had me pulling my (metaphorical) hair out!
 
-The https://hub.docker.com/r/jupyter/pyspark-notebook/ gets us most of the way there, but it doesn't have GraphFrames or Neo4j support.
+The https://hub.docker.com/r/jupyter/pyspark-notebook/[pyspark-notebook^] container gets us most of the way there, but it doesn't have GraphFrames or Neo4j support.
 Adding Neo4j is as simple as pulling in the Python Driver from Conda Forge, which leaves us with GraphFrames.
 
 When I'm using GraphFrames with pyspark locally I would pull it in via the `--packages` config parameter, like this:
