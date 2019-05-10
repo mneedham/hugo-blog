@@ -1,0 +1,157 @@
++++
+draft = false
+date="2019-05-10 23:00:00"
+title="Jupyter: RuntimeError: This event loop is already running"
+tag=['python', 'jupyter']
+category=['Python']
+description="Learn how to use a library that runs in an event loop inside a Jupyter notebook."
++++
+
+I've been using the https://github.com/twintproject/twint/wiki/Module[twint^] library to explore the Neo4j twitter community, and ran into an initially confusing error when I moved the code I'd written into a Jupyter notebook.
+
+The first three cells of my notebook contain the following code:
+
+Cell 1:
+
+
+[source, python]
+----
+! pip install twint
+----
+
+
+Cell 2:
+
+[source, python]
+----
+import json
+import twint
+----
+
+
+Cell 3:
+
+[source,python]
+----
+users = ["vikatakavi11", "tee_mars3"]
+
+for username in users[:10]:
+    c = twint.Config()
+    c.Username = username
+    c.User_full = False
+    c.Store_object = True
+    c.Hide_output = True
+
+    twint.run.Followers(c)
+    followers = twint.output.follow_object
+
+    if not username in followers:
+        followers[username] = {"followers": []}
+
+    print(followers)
+
+    twint.output.follow_object = {}
+----
+
+If we execute those three cells we'll get the following error:
+
+[source,text]
+----
+---------------------------------------------------------------------------
+RuntimeError                              Traceback (most recent call last)
+<ipython-input-5-796d99d0022c> in <module>
+      6     c.Hide_output = True
+      7
+----> 8     twint.run.Followers(c)
+      9     followers = twint.output.follow_object
+     10
+
+~/projects/twitter-graph/a/src/twint/twint/run.py in Followers(config)
+    219     config.Favorites = False
+    220     config.TwitterSearch = False
+--> 221     run(config)
+    222     if config.Pandas_au:
+    223         storage.panda._autoget("followers")
+
+~/projects/twitter-graph/a/src/twint/twint/run.py in run(config, callback)
+    198 def run(config, callback=None):
+    199     logme.debug(__name__+':run')
+--> 200     get_event_loop().run_until_complete(Twint(config).main(callback))
+    201
+    202 def Favorites(config):
+
+/usr/lib/python3.6/asyncio/base_events.py in run_until_complete(self, future)
+    458         future.add_done_callback(_run_until_complete_cb)
+    459         try:
+--> 460             self.run_forever()
+    461         except:
+    462             if new_task and future.done() and not future.cancelled():
+
+/usr/lib/python3.6/asyncio/base_events.py in run_forever(self)
+    412         self._check_closed()
+    413         if self.is_running():
+--> 414             raise RuntimeError('This event loop is already running')
+    415         if events._get_running_loop() is not None:
+    416             raise RuntimeError(
+
+RuntimeError: This event loop is already running
+----
+
+I knew that the twint library was using an event loop, but I didn't realise that this would cause a problem with Jupyter until I read this https://github.com/jupyter/notebook/issues/3397#issuecomment-376803076[GitHub issue^], which explains that the Jupyter kernel is also running an event loop, and these loops can't be nested.
+
+This thread (https://github.com/jupyter/notebook/issues/3397#issuecomment-376803076) explains that we have two event loops running - one in Jupyter and one in the twint library.
+Luckily https://github.com/jupyter/notebook/issues/3397#issuecomment-419386811[Ewald de Wit^] created an awesome library called 'nest_asyncio' that we can use to workaround this error.
+
+I added the following cells:
+
+Cell 4:
+
+[source, python]
+----
+!pip install nest_asyncio
+----
+
+And now we can apply this library:
+
+[source,python]
+----
+import nest_asyncio
+nest_asyncio.apply()
+----
+
+And finally, we'll try to find the followers for our users again:
+
+
+[source, python]
+----
+for username in users[:10]:
+    c = twint.Config()
+    c.Username = username
+    c.User_full = False
+    c.Store_object = True
+    c.Hide_output = True
+
+    twint.run.Followers(c)
+    followers = twint.output.follow_object
+
+    if not username in followers:
+        followers[username] = {"followers": []}
+
+    print(followers)
+
+    twint.output.follow_object = {}
+----
+
+And this time it works!
+
+[source,text]
+----
+{'vikatakavi11': {'followers': ['ganimohamed7861', 'ganimohamed7861']}}
+{'tee_mars3': {'followers': ['christophe_cruz', 'leclercq_ub']}}
+----
+
+The full code for the notebook is in the gist below:
+
+++++
+<script src="https://gist.github.com/mneedham/5599bcc714ea97c1277da0afc786410a.js"></script>
+++++
