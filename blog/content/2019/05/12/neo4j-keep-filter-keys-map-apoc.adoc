@@ -1,0 +1,73 @@
++++
+draft = false
+date="2019-05-12 17:58:00"
+title="Neo4j: keep/filter keys in a map using APOC"
+tag=['neo4j', 'cypher', 'apoc']
+category=['Neo4j']
+description="Learn how to create a node based on a subset of keys in a map."
++++
+
+In this post we'll learn how to write a Cypher query to create a node in Neo4j containing some of the keys from a map.
+This post assumes that the https://neo4j.com/developer/neo4j-apoc/[APOC library^] is installed.
+
+We'll start by creating a map that contains data from my twitter profile:
+
+[source, cypher]
+----
+:param document => {
+  id: 14707949, name: "Mark Needham",
+  username: "markhneedham", bio: "Developer Relations @neo4j",
+  location: "London, United Kingdom", url: "http://www.markhneedham.com",
+  join_date: "8 May 2008", join_time: "5:58 PM",
+  tweets: 24710, following: 2479, followers: 5054, likes: 1014
+};
+----
+
+We want to create a `User` node based on this data, but we don't want to use all of the keys in the map.
+If we want to remove some keys we can use the `apoc.map.clean` function.
+The following function call removes the `join_date` and `join_time` keys:
+
+[source, cypher]
+----
+WITH ["join_date", "join_time"] AS keysToRemove
+RETURN apoc.map.clean($document, keysToRemove, []) AS result
+----
+
+image::{{<siteurl>}}/uploads/2019/05/keysToRemove.png[]
+
+But what if we want to keep keys rather than remove them?
+I ran `apoc.help('apoc.map')` to see if there were any functions to do this, and as far as I can tell there aren't:
+
+image::{{<siteurl>}}/uploads/2019/05/apochelp.png[]
+
+We can, however, combine two APOC functions to get the desired result.
+First up, `apoc.map.values` extracts the values for a list of keys:
+
+[source, cypher]
+----
+WITH ["name", "username", "bio", "following", "followers"] AS keysToKeep
+RETURN apoc.map.values($document, keysToKeep)
+----
+
+image::{{<siteurl>}}/uploads/2019/05/values.png[]
+
+And we can then use `apoc.map.fromLists` to reconstruct our map:
+
+[source,cypher]
+----
+WITH ["name", "username", "bio", "following", "followers"] AS keysToKeep
+RETURN apoc.map.fromLists(keysToKeep, apoc.map.values($document, keysToKeep)) AS result
+----
+
+image::{{<siteurl>}}/uploads/2019/05/keysToKeep.png[]
+
+This code forms part of the following query that creates a `User` node keyed on the `id` property, and then sets the other properties afterwards:
+
+[source, cypher]
+----
+WITH ["name", "username", "bio", "following", "followers"] AS keysToKeep
+MERGE (u:User {id: $document.id })
+SET u += apoc.map.fromLists($keysToKeep, apoc.map.values($document, $keysToKeep))
+----
+
+All done!
