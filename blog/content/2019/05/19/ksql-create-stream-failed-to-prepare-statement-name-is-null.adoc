@@ -1,0 +1,50 @@
++++
+draft = false
+date="2019-05-19 19:21:00"
+title="KSQL: Create Stream - Failed to prepare statement: name is null"
+tag=['ksql', 'kafka']
+category=['Kafka']
+description="Learn how to work around a weird KSQL error message."
++++
+
+I've been playing with https://www.confluent.io/product/ksql/[KSQL^] over the weekend and ran into a basic error message that took me a little while to solve.
+
+I was trying to create a stream  over a topic `dummy1`, which is the simplest possible thing you can do with KSQL.
+The events posted to `dummy1` are JSON messages containing only an `id` key.
+Below is an example of a message posted to the topic:
+
+[source, json]
+----
+{ "id": "ABCDEFGHI"}
+----
+
+I tried to create the stream `dummy1_original` over this topic with the following statement:
+
+[source, sql]
+----
+ksql> CREATE STREAM dummy1_original (id varchar) WITH (kafka_topic='dummy1', value_format="JSON");
+Failed to prepare statement: name is null
+----
+
+I didn't find any search results to explain this error message, but realised that I'd used double quotes on the `value_format`, which was different to all the examples I'd seen.
+I've clearly been doing too much Cypher where you can use single or double quotes to represent string values.
+
+Anyway...let's update our  create statement to use only single quotes:
+
+[source, sql]
+----
+ksql> CREATE STREAM dummy1_original (id varchar) WITH (kafka_topic='dummy1', value_format='JSON');
+
+ Message
+----------------
+ Stream created
+----------------
+----
+
+Success!
+We can now query the stream like this:
+
+[source, sql]
+----
+ksql> SELECT * FROM dummy1_original;
+----
