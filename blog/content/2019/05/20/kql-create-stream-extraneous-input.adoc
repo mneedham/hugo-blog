@@ -1,0 +1,74 @@
++++
+draft = false
+date="2019-05-19 19:21:00"
+title="KSQL: Create stream - extraneous input 'properties'"
+tag=['tag',]
+category=['cat']
+description="Learn how to create a KSQL stream from a source topic that contains a column with a reserved word."
++++
+
+Our events are defined as follows:
+
+[source, javascript]
+----
+{
+   "id":"ABCDEFGHI",
+   "properties": {
+      "name":"Mark",
+      "location":"London"
+   }
+}
+----
+
+
+[source, sql]
+----
+CREATE STREAM users_original(
+  id varchar,
+  properties STRUCT<
+    name varchar,
+    location varchar
+  >
+)
+WITH(KAFKA_TOPIC='users', value_format='json');
+----
+
+When we execute that query we'll get the following exception:
+
+[source, text]
+----
+line 3:3: extraneous input 'properties' expecting {'INTEGER', 'DATE', 'TIME', 'TIMESTAMP', 'INTERVAL', 'YEAR', 'MONTH', 'DAY', 'HOUR', 'MINUTE', 'SECOND', 'ZONE', 'PARTITION', 'STRUCT', 'EXPLAIN', 'ANALYZE', 'TYPE', 'SHOW', 'TABLES', 'COLUMNS', 'COLUMN', 'PARTITIONS', 'FUNCTIONS', 'FUNCTION', 'ARRAY', 'MAP', 'SET', 'RESET', 'SESSION', 'IF', IDENTIFIER, DIGIT_IDENTIFIER, QUOTED_IDENTIFIER, BACKQUOTED_IDENTIFIER}
+Statement: CREATE STREAM users_original(
+----
+
+I thought I might have a trailing comma or colon - two mistakes I've made before - but on this occassion the problem is that `properties` is a reserved word in KSQL.
+Luckily it's an https://docs.confluent.io/current/ksql/docs/developer-guide/syntax-reference.html[easy problem to fix^]:
+
+[quote, KSQL Syntax Reference]
+____
+If the name of a column in your source topic is one of the reserved words in KSQL you can use back quotes to define the column. The same applies to the field names in a STRUCT type. For instance, if in the above example we had another field called Properties, which is a reserved word in KSQL, you can use the following statement to declare your stream:
+____
+
+The fixed syntax is below:
+
+[source, sql]
+----
+CREATE STREAM users_original(
+  id varchar,
+  `properties` STRUCT<
+    name varchar,
+    location varchar
+  >
+)
+WITH(KAFKA_TOPIC='users', value_format='json');
+----
+
+And if we run that the stream will be created:
+
+[source, text]
+----
+Message
+----------------
+Stream created
+----------------
+----

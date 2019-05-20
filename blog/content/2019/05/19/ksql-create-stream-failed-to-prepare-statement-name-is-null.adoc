@@ -13,7 +13,7 @@ I was trying to create a stream  over a topic `dummy1`, which is the simplest po
 The events posted to `dummy1` are JSON messages containing only an `id` key.
 Below is an example of a message posted to the topic:
 
-[source, json]
+[source, javascript]
 ----
 { "id": "ABCDEFGHI"}
 ----
