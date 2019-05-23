@@ -1,0 +1,119 @@
++++
+draft = false
+date="2019-05-23 07:58:00"
+title="Deleting Kafka Topics on Docker"
+tag=['docker','kafka']
+category=['Kafka']
+description="Learning how to delete a Kafka Topic when running a Kafka Broker on Docker."
++++
+
+In this post we're going to learn how to delete a Kafka Topic when running a Kafka Broker on Docker.
+
+We'll spin up a local Kafka environment using the Docker Compose template from the https://markhneedham.com/blog/2019/05/16/kafka-basic-tutorial/[Kafka Basic Tutorial blog post^] that I wrote last week. Let's open a terminal window and run the following commands to set up our environment:
+
+[source, bash]
+----
+git clone git@github.com:mneedham/basic-kafka-tutorial.git && cd basic-kafka-tutorial
+docker-compose up
+----
+
+On another terminal window, run the following command to see the list of Docker containers that are running:
+
+[source, bash]
+----
+$ docker ps
+CONTAINER ID        IMAGE                              COMMAND                  CREATED             STATUS              PORTS                                        NAMES
+3851185ae46f        jupyter/scipy-notebook:latest      "tini -g -- start-no…"   7 days ago          Up 3 minutes        0.0.0.0:8888->8888/tcp                       jupyter-tutorial
+a118a60010ce        confluentinc/cp-enterprise-kafka   "/etc/confluent/dock…"   7 days ago          Up 3 minutes        0.0.0.0:9092->9092/tcp, 9093/tcp             broker-tutorial
+1606bfe6e93d        confluentinc/cp-zookeeper          "/etc/confluent/dock…"   7 days ago          Up 4 minutes        2888/tcp, 0.0.0.0:2181->2181/tcp, 3888/tcp   zookeeper-tutorial
+----
+
+We're going to connect to `broker-tutorial`, seen on the 2nd line of this output, which is the container for our Kafka broker.
+We'll use the https://docs.docker.com/engine/reference/commandline/exec/[`docker exec`^] command to connect to the broker, and use the `kafka-topics` command to create and delete a topic. 
+Jacek Laskowski gives a https://jaceklaskowski.gitbooks.io/apache-kafka/kafka-topic-deletion.html[detailed explanation of this command^] in https://jaceklaskowski.gitbooks.io/apache-kafka/[The Internals of Apache Kafka^] gitbook.
+
+Let's start by creating a dummy topic, which we can do with the following command:
+
+[source, bash]
+----
+$ docker exec broker-tutorial kafka-topics --create --zookeeper zookeeper:2181 --replication-factor 1 --partitions 1 --topic blog-dummy
+Created topic "blog-dummy".
+----
+
+
+So far, so good. 
+Note that we also to pass in the `--zookeeper` argument to tell the command where our Zookeeper Instance is running. 
+The `zookeeper:2181` value is derived from the `hostname:ZOOKEEPER_CLIENT_PORT` values from the following fragment of our https://github.com/mneedham/basic-kafka-tutorial/blob/master/docker-compose.yml[Docker Compose file^]:
+
+[source, yaml]
+----
+  zookeeper:
+    image: confluentinc/cp-zookeeper
+    hostname: zookeeper
+    container_name: zookeeper-tutorial
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+----      
+
+
+We can list all the topics available on this broker by running the following command:
+
+[source, bash]
+----
+$ docker exec broker-tutorial kafka-topics --list --zookeeper zookeeper:2181
+__confluent.support.metrics
+_confluent-metrics
+blog-dummy
+----
+
+There are a couple of Confluent metrics topics, but we can see our `blog-dummy` topic as well.
+Now let's delete it by running the following command:
+
+
+[source, bash]
+----
+$ docker exec broker-tutorial kafka-topics --delete --zookeeper zookeeper:2181 --topic blog-dummy
+Topic blog-dummy is marked for deletion.
+Note: This will have no impact if delete.topic.enable is not set to true.
+----
+
+We didn't actually set the `delete.topic.enable` parameter, so maybe our topic isn't actually going to be deleted.
+If we look back at the other terminal window, however, we'll see the following output:
+
+[source, bash]
+----
+broker-tutorial | [2019-05-23 06:29:23,307] INFO [Topic Deletion Manager 1], Handling deletion for topics blog-dummy (kafka.controller.TopicDeletionManager)
+broker-tutorial | [2019-05-23 06:29:23,308] INFO [Topic Deletion Manager 1], Deletion of topic blog-dummy (re)started (kafka.controller.TopicDeletionManager)
+broker-tutorial | [2019-05-23 06:29:23,308] INFO [Topic Deletion Manager 1], Topic deletion callback for blog-dummy (kafka.controller.TopicDeletionManager)
+broker-tutorial | [2019-05-23 06:29:23,348] INFO [Topic Deletion Manager 1], Deletion of topic blog-dummy successfully completed (kafka.controller.TopicDeletionManager)
+----
+
+
+So it seems like our topic was deleted. 
+And, in fact, scrolling back through the output from running `docker-compose up` we'll find the following line:
+
+
+[source, bash]
+----
+broker-tutorial | 	delegation.token.max.lifetime.ms = 604800000
+broker-tutorial | 	delete.records.purgatory.purge.interval.requests = 1
+broker-tutorial | 	delete.topic.enable = true
+broker-tutorial | 	fetch.purgatory.purge.interval.requests = 1000
+broker-tutorial | 	group.initial.rebalance.delay.ms = 0
+----
+
+So it seems like this property is set by default in the version that we're using. 
+We can list the topics one more time just to be sure:
+
+[source, bash]
+----
+$ docker exec broker-tutorial kafka-topics --list --zookeeper zookeeper:2181
+__confluent.support.metrics
+_confluent-metrics
+----
+
+The Confluent Metrics topics remain, but `blog-dummy` is nowhere to be seen.
+Success!
