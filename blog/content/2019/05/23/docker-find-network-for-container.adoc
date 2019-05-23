@@ -1,0 +1,45 @@
++++
+draft = true
+date="2019-05-23 07:58:00"
+title="Docker: Find the network for a container"
+tag=['docker']
+category=['Docker']
+description="Learn how to find the network that a Docker container is attached to."
++++
+
+
+https://stackoverflow.com/questions/43904562/docker-how-to-find-the-network-my-container-is-in
+
+One way we can do this is by querying `NetworkSettings.Network` like this:
+
+[source, bash]
+----
+$ docker inspect neo4j --format='{{range $k,$v := .NetworkSettings.Networks}} {{$k}} {{end}}'
+ twitter-graph_default
+----
+
+We can also do the following:
+
+[source, bash]
+----
+$ docker inspect neo4j --format='{{ .HostConfig.NetworkMode }}'
+ twitter-graph_default
+----
+
+We can then iterate over our containers and return their network:
+
+[source, bash]
+----
+for container in `docker container ls --format "{{.Names}}"`; do
+  network=`docker inspect $container --format="{{ .HostConfig.NetworkMode }}"`
+  image=`docker inspect $container --format="{{ .Config.Image }}"`
+  printf '%-20s %-35s %-15s\n' $container $image $network
+done
+
+wizardly_rosalind    confluentinc/cp-ksql-cli:5.2.1      twitter-graph_default
+neo4j                neo4j:3.4.10                        twitter-graph_default
+ksql-server          confluentinc/cp-ksql-server:5.2.1   twitter-graph_default
+broker               confluentinc/cp-enterprise-kafka    twitter-graph_default
+zookeeper            confluentinc/cp-zookeeper           twitter-graph_default
+jupyter              jupyter/scipy-notebook:latest       twitter-graph_default
+----
