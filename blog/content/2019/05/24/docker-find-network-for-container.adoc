@@ -1,0 +1,117 @@
++++
+draft = false
+date="2019-05-24 06:10:00"
+title="Docker: Find the network for a container"
+tag=['docker']
+category=['Docker']
+description="Learn how to find the network that a Docker container is attached to."
++++
+
+If we want two Docker containers to communicate with each other they need to belong to the same network.
+In this post we'll learn how to find out the network of existing containers so that we can attach new containers to that network.
+
+All the containers mentioned in this post can be launched locally from Docker compose, using the following command:
+
+[source, bash]
+----
+git clone git@github.com:mneedham/ksql-kafka-neo4j-streams.git && cd ksql-kafka-neo4j-streams
+docker-compose-up
+----
+
+Running this command will create four containers:
+
+[source, bash]
+----
+Starting zookeeper-blog ...
+Starting broker-blog    ...
+Starting ksql-server-blog ...
+Starting neo4j-blog       ...
+----
+
+What if we want to add another container and have it be able to communicate with these containers?
+We want to know which network these containers are attached to, and a good place to start is the `docker inspect` command, which returns detailed information about containers.
+We'll process the JSON document that the command returns using the https://stedolan.github.io/jq/[jq library^]:
+
+[source, bash]
+----
+docker inspect neo4j-blog | jq
+----
+
+If we run that command, we'll see the following output:
+
+image::{{<siteurl>}}/uploads/2019/05/docker_inspect.png[]
+
+On the last line of this output we can see `NetworkMode`, which is described as follows in the documentation:
+
+[quote, 'https://docs.docker.com/engine/api/v1.24/[Docker Documentation^]']
+____
+NetworkMode - Sets the networking mode for the container. Supported standard values are: bridge, host, none, and container:<name|id>. Any other value is taken as a custom network’s name to which this container should connect to.
+____
+
+We can write the following command to extract that value:
+
+[source, bash]
+----
+$ docker inspect neo4j-blog --format='{{ .HostConfig.NetworkMode }}'
+ksql-kafka-neo4j-streams_default
+----
+
+If we want to return the network for all running containers, we can just iterate over them and run the command for each one:
+
+[source, bash]
+----
+for container in `docker container ls --format "{{.Names}}"`; do
+  network=`docker inspect $container --format="{{ .HostConfig.NetworkMode }}"`
+  image=`docker inspect $container --format="{{ .Config.Image }}"`
+  printf '%-20s %-35s %-15s\n' $container $image $network
+done
+
+ksql-server-blog     confluentinc/cp-ksql-server:5.2.1   ksql-kafka-neo4j-streams_default
+neo4j-blog           neo4j:3.4.10                        ksql-kafka-neo4j-streams_default
+broker-blog          confluentinc/cp-enterprise-kafka    ksql-kafka-neo4j-streams_default
+zookeeper-blog       confluentinc/cp-zookeeper           ksql-kafka-neo4j-streams_default
+----
+
+If we want to extract more detailed information about the network, we can find that under https://stackoverflow.com/questions/43904562/docker-how-to-find-the-network-my-container-is-in[`NetworkSettings.Network`^].
+The following query returns this information for the `neo4j-blog` container:
+
+[source, bash]
+----
+$ docker inspect neo4j-blog --format='{{ json .NetworkSettings.Networks }}' | jq
+{
+  "ksql-kafka-neo4j-streams_default": {
+    "IPAMConfig": null,
+    "Links": null,
+    "Aliases": [
+      "c004bcd09652",
+      "neo4j"
+    ],
+    "NetworkID": "f3bc43280a8a2ae764280e08fa9604097079d7020fac44d7d2012d2b2d353723",
+    "EndpointID": "3ed6ac3c03e83e96fc56b57aedff2606f264237998194ff5215480744ce0b303",
+    "Gateway": "172.27.0.1",
+    "IPAddress": "172.27.0.5",
+    "IPPrefixLen": 16,
+    "IPv6Gateway": "",
+    "GlobalIPv6Address": "",
+    "GlobalIPv6PrefixLen": 0,
+    "MacAddress": "02:42:ac:1b:00:05",
+    "DriverOpts": null
+  }
+}
+----
+
+We can then write the following query to extract the name of the network:
+
+[source, bash]
+----
+$ docker inspect neo4j-blog --format='{{range $k,$v := .NetworkSettings.Networks}} {{$k}} {{end}}'
+ ksql-kafka-neo4j-streams_default
+----
+
+And if we want to pull out a couple of properties, we can do that as well:
+
+[source, bash]
+----
+$ docker inspect neo4j-blog --format='{{range $k,$v := .NetworkSettings.Networks}} {{$k}} {{$v.IPAddress}} {{$v.Aliases}} {{end}}'
+ ksql-kafka-neo4j-streams_default 172.27.0.5 [c004bcd09652 neo4j]
+----
