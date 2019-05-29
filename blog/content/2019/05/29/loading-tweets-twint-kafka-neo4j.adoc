@@ -7,9 +7,7 @@ category=['Kafka', 'Neo4j']
 description="Learn how to load tweets via the twint library into Kafka, and then use the Kafka Connect Sink to load them into Neo4j as well."
 +++
 
-In February Michael and Andrea released the https://www.confluent.io/blog/kafka-connect-neo4j-sink-plugin[Kafka Connect Neo4j Sink Plugin^], a tool that makes it easy to load streaming data from Kafka into Neo4j, and in this
-
-In this post we're going to load tweets via the https://github.com/twintproject/twint[twint library^] into Kafka, and once we've got them in there we'll use the  to get them into Neo4j.
+In this post we're going to load tweets via the https://github.com/twintproject/twint[twint library^] into Kafka, and once we've got them in there we'll use the https://www.confluent.io/blog/kafka-connect-neo4j-sink-plugin[Kafka Connect Neo4j Sink Plugin^] to get them into Neo4j.
 
 == What is twint?
 
@@ -240,6 +238,10 @@ Now we're ready to get the tweets from Kafka into Neo4j.
 == Storing tweets in Neo4j
 
 As mentioned at the beginning of this post, we're going to use the Kafka Connect Neo4j Sink Plugin to get the data from Kafka into Neo4j.
+The https://www.confluent.io/blog/kafka-connect-neo4j-sink-plugin[Kafka Connect Neo4j Sink Plugin^] was launched in February, and is a tool that makes it easy to load streaming data from Kafka into Neo4j.
+You control ingestion by defining Cypher statements per topic that you want to ingest.
+Those are then executed for batches of events coming in.
+
 We can create a new connector by running the following command:
 
 [source, bash]
