@@ -10,12 +10,14 @@ description="Learn how to process date parameters with the Python Click Library.
 I've been building a little CLI application using the https://click.palletsprojects.com/en/7.x/[Python Click Library^], and I wanted to pass in a Date as a parameter.
 There's more than one way to do this.
 
-Let's first install the Click library and import our required libraries:
+Let's first install the Click library:
 
 [source,bash]
 ----
 pip install click
 ----
+
+And now we'll import our required libraries:
 
 [source, python]
 ----
@@ -34,11 +36,11 @@ def cli():
 
 
 @click.command()
-@click.option('--date-start', type=click.DateTime(formats=["%Y-%m-%d"]), default=str(date.today()))
-@click.option('--date-end', type=click.DateTime(formats=["%Y-%m-%d"]), default=str(date.today()))
+@click.option('--date-start', type=click.DateTime(formats=["%Y-%m-%d"]),
+              default=str(date.today()))
+@click.option('--date-end', type=click.DateTime(formats=["%Y-%m-%d"]),
+              default=str(date.today()))
 def dummy(date_start, date_end):
-    date_start = date_start
-    date_end = date_end
     click.echo(f"Start: {date_start}, End: {date_end} ")
 
 
@@ -63,8 +65,10 @@ We can get rid of that by calling the `date` function on those `DateTime` object
 [source,python]
 ----
 @click.command()
-@click.option('--date-start', type=click.DateTime(formats=["%Y-%m-%d"]), default=str(date.today()))
-@click.option('--date-end', type=click.DateTime(formats=["%Y-%m-%d"]), default=str(date.today()))
+@click.option('--date-start', type=click.DateTime(formats=["%Y-%m-%d"]),
+              default=str(date.today()))
+@click.option('--date-end', type=click.DateTime(formats=["%Y-%m-%d"]),
+              default=str(date.today()))
 def dummy(date_start, date_end):
     date_start = date_start.date()
     date_end = date_end.date()
