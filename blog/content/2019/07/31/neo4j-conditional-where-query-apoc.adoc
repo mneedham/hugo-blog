@@ -1,0 +1,109 @@
++++
+draft = false
+date="2019-07-31 11:08:00"
+title="Neo4j: Conditional WHERE clause with APOC"
+tag=['neo4j', 'cypher', 'apoc']
+category=['Neo4j']
+description="Learn how to write conditional queries using the APOC library."
++++
+
+Sometimes we want to be able to vary our Cypher queries based on the value of a parameter.
+I came across such a situation today, and thought I'd share how I solved it using the APOC library.
+
+Let's first setup some sample data:
+
+[source, cypher]
+----
+UNWIND range(0, 5) AS id
+CREATE (:Person {name: "person-" + id})
+----
+
+Now, if we want to get all pairs of people, we could write the following query:
+
+[source,cypher]
+----
+MATCH (p1:Person), (p2:Person)
+WHERE id(p1) < id(p2)
+RETURN p1.name, p2.name
+----
+
+If we run that query we'll see the following output:
+
+.Results
+[opts="header",cols="1,1"]
+|===
+| p1.name | p2.name
+|"person-0"|"person-1"
+|"person-0"|"person-2"
+|"person-0"|"person-3"
+|"person-0"|"person-4"
+|"person-0"|"person-5"
+|"person-1"|"person-2"
+|"person-1"|"person-3"
+|"person-1"|"person-4"
+|"person-1"|"person-5"
+|"person-2"|"person-3"
+|"person-2"|"person-4"
+|"person-2"|"person-5"
+|"person-3"|"person-4"
+|"person-3"|"person-5"
+|"person-4"|"person-5"
+|===
+
+
+But we also want to search for a Person, based on a query parameter, and return the pairs from that Person to everybody else.
+Let's see how to do that.
+
+We'll first create a parameter to find a subset of people:
+
+[source, cypher]
+----
+:param personSubstring => "person-3"
+----
+
+And then the following query returns pairs from those people to everybody else:
+
+[source,cypher]
+----
+MATCH (p1:Person), (p2:Person)
+WHERE p1.name CONTAINS $personSubstring AND p2 <> p1
+RETURN p1.name, p2.name
+----
+
+If we run that query we'll see the following output:
+
+[opts="header",cols="1,1"]
+|===
+| p1.name | p2.name
+|"person-3"|"person-0"
+|"person-3"|"person-1"
+|"person-3"|"person-2"
+|"person-3"|"person-4"
+|"person-3"|"person-5"
+|===
+
+What if we want to combine those queries?
+If `personSubstring` contains a value we'll use that, and if not we'll return all pairs of people.
+
+We can use the https://neo4j.com/developer/neo4j-apoc/[APOC Library^]'s `apoc.when` procedure to solve this problem.
+This procedure has the following parameters:
+
+* `condition` - a statement that must return a boolean value
+* `ifQuery` - the query to execute if the condition is true
+* `elseQuery` - the query to execute if the condition is false
+* `params` - parameters to pass to the queries
+
+And we can call it like this:
+
+[source,cypher]
+----
+CALL apoc.when(
+  $personSubstring = '',
+  'MATCH (p1:Person), (p2:Person) WHERE id(p1) < id(p2) RETURN p1, p2',
+  'MATCH (p1:Person), (p2:Person) WHERE p1.name CONTAINS $personSubstring AND p2 <> p1 RETURN p1, p2',
+  {personSubstring: $personSubstring})
+YIELD value
+RETURN value.p1.name, value.p2.name
+----
+
+And now we can handle both use cases in one Cypher query.
