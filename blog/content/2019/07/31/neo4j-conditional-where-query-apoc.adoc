@@ -33,21 +33,21 @@ If we run that query we'll see the following output:
 [opts="header",cols="1,1"]
 |===
 | p1.name | p2.name
-|"person-0"|"person-1"
-|"person-0"|"person-2"
-|"person-0"|"person-3"
-|"person-0"|"person-4"
-|"person-0"|"person-5"
-|"person-1"|"person-2"
-|"person-1"|"person-3"
-|"person-1"|"person-4"
-|"person-1"|"person-5"
-|"person-2"|"person-3"
-|"person-2"|"person-4"
-|"person-2"|"person-5"
-|"person-3"|"person-4"
-|"person-3"|"person-5"
-|"person-4"|"person-5"
+|person-0|person-1
+|person-0|person-2
+|person-0|person-3
+|person-0|person-4
+|person-0|person-5
+|person-1|person-2
+|person-1|person-3
+|person-1|person-4
+|person-1|person-5
+|person-2|person-3
+|person-2|person-4
+|person-2|person-5
+|person-3|person-4
+|person-3|person-5
+|person-4|person-5
 |===
 
 
@@ -72,14 +72,15 @@ RETURN p1.name, p2.name
 
 If we run that query we'll see the following output:
 
+.Results
 [opts="header",cols="1,1"]
 |===
 | p1.name | p2.name
-|"person-3"|"person-0"
-|"person-3"|"person-1"
-|"person-3"|"person-2"
-|"person-3"|"person-4"
-|"person-3"|"person-5"
+|person-3|person-0
+|person-3|person-1
+|person-3|person-2
+|person-3|person-4
+|person-3|person-5
 |===
 
 What if we want to combine those queries?
