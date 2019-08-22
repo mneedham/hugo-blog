@@ -1,0 +1,119 @@
++++
+draft = false
+date="2019-08-22 11:08:00"
+title="Neo4j: Cypher - Nested Path Comprehensions"
+tag=['neo4j', 'cypher']
+category=['Neo4j']
+description="Learn how to write nested path comprehensions with the Cypher query language"
++++
+
+I've recently been building an application using the https://grandstack.io/[GRANDstack^], which uses nested https://neo4j.com/blog/cypher-graphql-neo4j-3-1-preview/[Cypher path comprehensions^] to translate GraphQL queries to Cypher ones.
+I'd not done this before, so I was quite curious how this feature worked.
+We'll explore it using the following dataset:
+
+
+[source,cypher]
+----
+MERGE (club:Club {name: "Man Utd"})
+MERGE (league:League {name: "Premier League"})
+MERGE (country:Country {name: "England"})
+MERGE (club)-[:IN_LEAGUE]->(league)
+MERGE (league)-[:IN_COUNTRY]->(country)
+
+MERGE (club2:Club {name: "Juventus"})
+MERGE (league2:League {name: "Serie A"})
+MERGE (club2)-[:IN_LEAGUE]->(league2)
+----
+
+If we want to return a path containing a club, the league they play in, and the country that the league belongs to, we could write the following query:
+
+[source,cypher]
+----
+MATCH (club:Club)
+RETURN club.name, [path = (club)-[:IN_LEAGUE]->(league)-[:IN_COUNTRY]->(country) | {path: path}] AS path
+----
+
+If we execute that query, we'll get the following result:
+
+.Results
+[opts="header",cols="1,2"]
+|===
+| club.name | path
+| Man Utd | [{path: (:Club {name: "Man Utd"})-[:IN_LEAGUE]->(:League {name: "Premier League"})-[:IN_COUNTRY]->(:Country {name: "England"})}]
+| Juventus | []
+|===
+
+We only get a path back for Man Utd because there isn't a path from Juventus that has both the `IN_LEAGUE` and `IN_COUNTRY` relationships.
+What about if we do one path comprehension to get the `IN_LEAGUE` part of the path, and a second one to get the `IN_COUNTRY` part of the path?
+
+[source,cypher]
+----
+MATCH (club:Club)
+RETURN club.name,
+       [path1 = (club)-[:IN_LEAGUE]->(league) |
+        [path2 = (league)-[:IN_COUNTRY]->(country) |
+         {path1: path1, path2: path2}]] AS path
+----
+
+If we execute that query, we'll get the following result:
+
+.Results
+[opts="header",cols="1,2"]
+|===
+| club.name | path
+| Man Utd | [[{path1: (:Club {name: "Man Utd"})-[:IN_LEAGUE]->(:League {name: "Premier League"}), path2: (:League {name: "Premier League"})-[:IN_COUNTRY]->(:Country {name: "England"})}]]
+| Juventus | [[]]
+|===
+
+Hmmm, we expected not to get a value for `path2` for Juventus, but we should have got a value for `path1`.
+How do we do that?
+We need to pull the returning the map earlier in the path comprehension so that we return `path1` regardless of whether `path2` exists.
+The following query does this:
+
+[source,cypher]
+----
+MATCH (club:Club)
+RETURN club.name,
+       [path1 = (club)-[:IN_LEAGUE]->(league) |
+        {path1: path1,
+         path2: [path2 = (league)-[:IN_COUNTRY]->(country) | path2]}]
+----
+
+If we execute that query, we'll get the following result:
+
+.Results
+[opts="header",cols="1,2"]
+|===
+| club.name | path
+| Man Utd | [{path1: (:Club {name: "Man Utd"})-[:IN_LEAGUE]->(:League {name: "Premier League"}), path2: [(:League {name: "Premier League"})-[:IN_COUNTRY]->(:Country {name: "England"})]}]
+| Juventus | [{path1: (:Club {name: "Juventus"})-[:IN_LEAGUE]->(:League {name: "Serie A"}), path2: []}]
+|===
+
+That's more like it!
+Man Utd have paths for `path1` and `path2`, whereas Juventus only have a path for `path2`.
+Now, we'd like to join those paths together, which we can do using the `apoc.path.combine` function from the https://neo4j.com/developer/neo4j-apoc/[APOC library^]:
+
+[source,cypher]
+----
+MATCH (club:Club)
+WITH club,
+       [path1 = (club)-[:IN_LEAGUE]->(league) |
+        {path1: path1,
+         path2: [path2 = (league)-[:IN_COUNTRY]->(country) | path2]}] AS path
+RETURN club.name,
+       [item in path | {path: apoc.path.combine(item.path1, item.path2[0])}]
+----
+
+Since we know there can only be one `IN_COUNTRY` relationship between `league` and `country` we select the first value in the `path2` array on the last line of the query.
+If we execute that query, we'll get the following result:
+
+.Results
+[opts="header",cols="1,2"]
+|===
+| club.name | path
+| Man Utd  |  [{path: (:Club {name: "Man Utd"})-[:IN_LEAGUE]->(:League {name: "Premier League"})-[:IN_COUNTRY]->(:Country {name: "England"})}]
+| Juventus | [{path: (:Club {name: "Juventus"})-[:IN_LEAGUE]->(:League {name: "Serie A"})}]
+|===
+
+This example shows how to write a nested path comprehension at just one level of nesting.
+GraphQL queries can have an indefinite number of levels, so if you want to see extreme usage of this feature of the Cypher query language you'll need to create a GRANDstack app and then inspect the Cypher queries that get generated.
