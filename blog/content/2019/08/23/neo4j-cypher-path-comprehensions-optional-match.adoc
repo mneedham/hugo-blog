@@ -1,0 +1,90 @@
+
++++
+draft = true
+date="2019-08-23 00:47:00"
+title="Neo4j: Cypher - Nested Path Comprehensions vs OPTIONAL MATCH"
+tag=['neo4j', 'cypher']
+category=['Neo4j']
+description="Learn how to write nested path comprehensions with the Cypher query language"
++++
+
+[source,cypher]
+----
+MERGE (club:Club {name: "Man Utd"})
+MERGE (league:League {name: "Premier League"})
+MERGE (country:Country {name: "England"})
+MERGE (club)-[:IN_LEAGUE]->(league)
+MERGE (league)-[:IN_COUNTRY]->(country)
+
+MERGE (club2:Club {name: "Juventus"})
+MERGE (league2:League {name: "Serie A"})
+MERGE (club2)-[:IN_LEAGUE]->(league2)
+----
+
+[source,cypher]
+----
+MATCH (club:Club)
+RETURN club.name, [path = (club)-[:IN_LEAGUE]->(league)-[:IN_COUNTRY]->(country) | {path: path}] AS path
+----
+
+Run that query:
+
+.Results
+[opts="header",cols="1,2"]
+|===
+| club.name | path
+| Man Utd | [{path: (:Club {name: "Man Utd"})-[:IN_LEAGUE]->(:League {name: "Premier League"})-[:IN_COUNTRY]->(:Country {name: "England"})}]
+| Juventus | []
+|===
+
+
+Equivalent:
+
+[source,cypher]
+----
+MATCH (club:Club)
+OPTIONAL MATCH path = (club)-[:IN_LEAGUE]->(league)-[:IN_COUNTRY]->(country)
+RETURN club.name, path
+----
+
+Run that query:
+
+.Results
+[opts="header",cols="1,2"]
+|===
+| club.name | path
+| Man Utd | (:Club {name: "Man Utd"})-[:IN_LEAGUE]->(:League {name: "Premier League"})-[:IN_COUNTRY]->(:Country {name: "England"})
+| Juventus | NULL
+|===
+
+[source,cypher]
+----
+MATCH (club:Club)
+OPTIONAL MATCH path1 = (club)-[:IN_LEAGUE]->(league)
+OPTIONAL MATCH path2 = (league)-[:IN_COUNTRY]->(country)
+RETURN club.name, path1, path2
+----
+
+.Results
+[opts="header",cols="1,2,2"]
+|===
+| club.name | path1 | path2
+| Man Utd | (:Club {name: "Man Utd"})-[:IN_LEAGUE]->(:League {name: "Premier League"}) | (:League {name: "Premier League"})-[:IN_COUNTRY]->(:Country {name: "England"})
+| Juventus | (:Club {name: "Juventus"})-[:IN_LEAGUE]->(:League {name: "Serie A"})   | NULL
+|===
+
+[source,cypher]
+----
+MATCH (club:Club)
+OPTIONAL MATCH path1 = (club)-[:IN_LEAGUE]->(league)
+OPTIONAL MATCH path2 = (league)-[:IN_COUNTRY]->(country)
+RETURN club.name, apoc.path.combine(path1, path2)
+----
+
+.Results
+[opts="header",cols="1,2"]
+|===
+| club.name | path
+| Man Utd |  (:Club {name: "Man Utd"})-[:IN_LEAGUE]->(:League {name: "Premier League"})-[:IN_COUNTRY]->(:Country {name: "England"})
+| Juventus | (:Club {name: "Juventus"})-[:IN_LEAGUE]->(:League {name: "Serie A"})
+|===

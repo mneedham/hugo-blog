@@ -2,7 +2,7 @@
 draft = false
 date="2019-08-22 11:08:00"
 title="Neo4j: Cypher - Nested Path Comprehensions"
-tag=['neo4j', 'cypher']
+tag=['neo4j', 'cypher', 'apoc']
 category=['Neo4j']
 description="Learn how to write nested path comprehensions with the Cypher query language"
 +++
@@ -24,6 +24,8 @@ MERGE (club2:Club {name: "Juventus"})
 MERGE (league2:League {name: "Serie A"})
 MERGE (club2)-[:IN_LEAGUE]->(league2)
 ----
+
+image::{{<siteurl>}}/uploads/2019/08/nested-projection.svg[]
 
 If we want to return a path containing a club, the league they play in, and the country that the league belongs to, we could write the following query:
 
