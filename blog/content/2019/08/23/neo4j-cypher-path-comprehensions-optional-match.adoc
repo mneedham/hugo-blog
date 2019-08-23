@@ -1,12 +1,16 @@
 
 +++
-draft = true
+draft = false
 date="2019-08-23 00:47:00"
 title="Neo4j: Cypher - Nested Path Comprehensions vs OPTIONAL MATCH"
-tag=['neo4j', 'cypher']
+tag=['neo4j', 'cypher', 'apoc']
 category=['Neo4j']
 description="Learn how to write nested path comprehensions with the Cypher query language"
 +++
+
+While writing my previous post about https://markhneedham.com/blog/2019/08/22/neo4j-cypher-nested-pattern-comprehensions/[Cypher nested path comprehensions^], I realised that for this particular problem, the https://neo4j.com/docs/cypher-manual/current/clauses/optional-match/[OPTIONAL MATCH^] clause is a better choice.
+
+To recap, we have the following graph:
 
 [source,cypher]
 ----
@@ -21,13 +25,16 @@ MERGE (league2:League {name: "Serie A"})
 MERGE (club2)-[:IN_LEAGUE]->(league2)
 ----
 
+[.graph-model]
+image::{{<siteurl>}}/uploads/2019/08/nested-projection.svg[]
+
+We started the post with the following query that returns `(club)-[:IN_LEAGUE]->(league)-[:IN_COUNTRY]->(country)` paths:
+
 [source,cypher]
 ----
 MATCH (club:Club)
 RETURN club.name, [path = (club)-[:IN_LEAGUE]->(league)-[:IN_COUNTRY]->(country) | {path: path}] AS path
 ----
-
-Run that query:
 
 .Results
 [opts="header",cols="1,2"]
@@ -37,8 +44,7 @@ Run that query:
 | Juventus | []
 |===
 
-
-Equivalent:
+The equivalent query using the `OPTIONAL MATCH` clause looks like this:
 
 [source,cypher]
 ----
@@ -47,7 +53,7 @@ OPTIONAL MATCH path = (club)-[:IN_LEAGUE]->(league)-[:IN_COUNTRY]->(country)
 RETURN club.name, path
 ----
 
-Run that query:
+If we run that query we get the following result:
 
 .Results
 [opts="header",cols="1,2"]
@@ -56,6 +62,30 @@ Run that query:
 | Man Utd | (:Club {name: "Man Utd"})-[:IN_LEAGUE]->(:League {name: "Premier League"})-[:IN_COUNTRY]->(:Country {name: "England"})
 | Juventus | NULL
 |===
+
+We concluded the post with the following query that returns as much of the `(club)-[:IN_LEAGUE]->(league)-[:IN_COUNTRY]->(country)` as exists:
+
+[source,cypher]
+----
+MATCH (club:Club)
+WITH club,
+       [path1 = (club)-[:IN_LEAGUE]->(league) |
+        {path1: path1,
+         path2: [path2 = (league)-[:IN_COUNTRY]->(country) | path2]}] AS path
+RETURN club.name,
+       [item in path | {path: apoc.path.combine(item.path1, item.path2[0])}]
+----
+
+.Results
+[opts="header",cols="1,2"]
+|===
+| club.name | path
+| Man Utd  |  [{path: (:Club {name: "Man Utd"})-[:IN_LEAGUE]->(:League {name: "Premier League"})-[:IN_COUNTRY]->(:Country {name: "England"})}]
+| Juventus | [{path: (:Club {name: "Juventus"})-[:IN_LEAGUE]->(:League {name: "Serie A"})}]
+|===
+
+
+The equivalent query using the `OPTIONAL MATCH` clause looks like this:
 
 [source,cypher]
 ----
@@ -73,6 +103,8 @@ RETURN club.name, path1, path2
 | Juventus | (:Club {name: "Juventus"})-[:IN_LEAGUE]->(:League {name: "Serie A"})   | NULL
 |===
 
+As in the other post, we can then use https://neo4j.com/developer/neo4j-apoc/[APOC^]'s `apoc.path.combine` function on these paths:
+
 [source,cypher]
 ----
 MATCH (club:Club)
@@ -86,5 +118,42 @@ RETURN club.name, apoc.path.combine(path1, path2)
 |===
 | club.name | path
 | Man Utd |  (:Club {name: "Man Utd"})-[:IN_LEAGUE]->(:League {name: "Premier League"})-[:IN_COUNTRY]->(:Country {name: "England"})
+| Juventus | (:Club {name: "Juventus"})-[:IN_LEAGUE]->(:League {name: "Serie A"})
+|===
+
+That works well when we only have two paths to combine, but what if we have more than that?
+Let's run the following query to create an `IN_CONFEDERATION` relationship from England:
+
+[source,cypher]
+----
+MATCH (country:Country {name:"England"})
+MERGE (confederation:Confederation {name: "UEFA"})
+MERGE (country)-[:IN_CONFEDERATION]->(confederation)
+----
+
+[.graph-model]
+image::{{<siteurl>}}/uploads/2019/08/optional-match.svg[]
+
+Now we can write the following query to optionally find each of our three relationships, `IN_LEAGUE`, `IN_COUNTRY`, and `IN_CONFEDERATION`:
+
+[source,cypher]
+----
+MATCH (club:Club)
+OPTIONAL MATCH path1 = (club)-[:IN_LEAGUE]->(league)
+OPTIONAL MATCH path2 = (league)-[:IN_COUNTRY]->(country)
+OPTIONAL MATCH path3 = (country)-[:IN_CONFEDERATION]->(confederation)
+WITH club, [path1, path2, path3] AS paths
+RETURN club.name,
+       reduce(acc=null, path in paths | apoc.path.combine(acc, path)) AS path
+----
+
+Note that we're using the `reduce` function to iterate over our paths and join them together.
+If we run this query we'll see the following result:
+
+.Results
+[opts="header",cols="1,2"]
+|===
+| club.name | path
+| Man Utd |  (:Club {name: "Man Utd"})-[:IN_LEAGUE]->(:League {name: "Premier League"})-[:IN_COUNTRY]->(:Country {name: "England"})-[:IN_CONFEDERATION]->(:Confederation {name: "UEFA"})
 | Juventus | (:Club {name: "Juventus"})-[:IN_LEAGUE]->(:League {name: "Serie A"})
 |===

@@ -25,6 +25,7 @@ MERGE (league2:League {name: "Serie A"})
 MERGE (club2)-[:IN_LEAGUE]->(league2)
 ----
 
+[.graph-model]
 image::{{<siteurl>}}/uploads/2019/08/nested-projection.svg[]
 
 If we want to return a path containing a club, the league they play in, and the country that the league belongs to, we could write the following query:
@@ -119,3 +120,11 @@ If we execute that query, we'll get the following result:
 
 This example shows how to write a nested path comprehension at just one level of nesting.
 GraphQL queries can have an indefinite number of levels, so if you want to see extreme usage of this feature of the Cypher query language you'll need to create a GRANDstack app and then inspect the Cypher queries that get generated.
+
+++++
+<style>
+.graph-model img {
+  margin-top: 10px;
+}
+</style>
+++++
