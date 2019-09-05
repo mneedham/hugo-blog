@@ -1,0 +1,85 @@
++++
+draft = false
+date="2019-09-05 00:47:00"
+title="Neo4j: apoc.load.csv - Neo.ClientError.Statement.SyntaxError: Type mismatch: expected Float, Integer, Number or String but was Any "
+tag=['neo4j', 'cypher', 'apoc']
+category=['Neo4j']
+description="Learn how to coerce the type of values loaded using APOC's apoc.load.csv procedure."
++++
+
+The https://neo4j.com/docs/labs/apoc/3.5/[Neo4j APOC library^]'s https://neo4j.com/docs/labs/apoc/current/import/load-csv/[Load CSV procedure^] is very useful if you want more control over the import process than the `LOAD CSV` clause allows.
+I found myself using it last week to import a CSV file of embeddings, because I wanted to know the line number of the row in the CSV file while importing the data.
+
+I had a file that looked like this, which I put into the `import` directory:
+
+[source,text]
+----
+$ cat import/data.csv
+0.034 0.765 0.452
+0.312 0.413 0.789
+----
+
+And before I imported it, I added the following entries to my Neo4j Settings file so that I could read locally:
+
+[source,text]
+----
+apoc.import.file.enabled=true
+apoc.import.file.use_neo4j_config=true
+----
+
+The following query processes the file, with optional config that indicates that the file doesn't have a header and uses a space as a separator:
+
+
+[source,cypher]
+----
+CALL apoc.load.csv("file:///data.csv", {header: false, sep: " "})
+YIELD lineNo, map, list
+RETURN lineNo, list
+----
+
+If we run that query we'll get this result:
+
+.Results
+[opts="header",cols="1,2"]
+|===
+| lineNo | list
+|0       | ["0.034","0.765","0.452"]
+|1       | ["0.312","0.413","0.789"]
+|===
+
+But we want to have each item of the list be a float value rather than a string.
+I tried to coerce each of the values using the `toFloat` function:
+
+[source,cypher]
+----
+CALL apoc.load.csv("file:///data.csv", {header: false, sep: " "})
+YIELD lineNo, map, list
+RETURN lineNo, [item in list | toFloat(item)] AS list
+----
+
+Unfortunately this doesn't quite work, as the following error indicates:
+
+[source,text]
+----
+Neo.ClientError.Statement.SyntaxError: Type mismatch: expected Float, Integer, Number or String but was Any (line 3, column 40 (offset: 129))
+"RETURN lineNo, [item in list | toFloat(item)] AS list"
+                                        ^
+----
+
+Instead we need to use APOC's `apoc.convert.toFloat` function to do the type coercion.
+The following query does the trick:
+
+[source,cypher]
+----
+CALL apoc.load.csv("file:///data.csv", {header: false, sep: " "})
+YIELD lineNo, map, list
+RETURN lineNo, [item in list | apoc.convert.toFloat(item)] AS list
+----
+
+.Results
+[opts="header",cols="1,2"]
+|===
+| lineNo | list
+|0       | [0.034,0.765,0.452]
+|1       | [0.312,0.413,0.789]
+|===
