@@ -1,0 +1,306 @@
++++
+draft = false
+date="2019-09-18 00:47:00"
+title="Neo4j: Approximate string matching/similarity"
+tag=['neo4j', 'cypher', 'apoc']
+category=['Neo4j']
+description="Learn how to use the text matching algorithms in the APOC Library."
++++
+
+I've been playing with the https://towardsdatascience.com/graphing-brexit-clustering-edition-3b966694e723[Brexit Graph^] over the last few days, and wanted to map the MPs that I got from https://commonsvotes.digiminster.com/?page=1[CommonsVotes^] with data from the https://www.theyworkforyou.com/api[TheyWorkForYou API^].
+
+I already had voting records loaded into Neo4j, but to recap, this is how I did that:
+
+[source,cypher]
+----
+UNWIND [655,656,657,658,659,660,661,662,711, 669, 668, 667, 666, 664] AS division
+LOAD CSV FROM "https://github.com/mneedham/graphing-brexit/raw/master/data/commonsvotes/Division" + division + ".csv" AS row
+
+// Create motion nodes
+WITH division, collect(row) AS rows
+MERGE (motion:Motion {division: trim(split(rows[0][0], ":")[1]) })
+SET motion.name = rows[2][0], 
+    motion.date = date(datetime({epochmillis:
+      apoc.date.parse(trim(split(rows[1][0], ":")[1]), "ms", "dd/MM/yyyy")}))
+
+// Skip the first 6 rows as they have metadata we don't need
+WITH motion, rows
+UNWIND rows[7..] AS row
+
+// Create person, party, constituency, and corresponding rels
+MERGE (person:Person {name: row[0]})
+MERGE (constituency:Constituency {name: row[2]})
+MERGE (person)-[:REPRESENTS]->(constituency)
+WITH person, motion,  
+     CASE WHEN row[3] = "Aye" THEN "FOR" 
+          WHEN row[3] = "No" THEN "AGAINST" 
+          ELSE "DID_NOT_VOTE" END AS vote
+CALL apoc.merge.relationship(person, vote, {}, {}, motion)
+YIELD rel
+RETURN count(*);
+----
+
+
+I extracted MP details from the TheyWorkForYou API and stored them in a JSON file so that I could load them into Neo4j.
+
+== Exact Match
+
+We'll start by finding exact matches between MPs in both datasets.
+The following query does this:
+
+[source,cypher]
+----
+WITH "https://github.com/mneedham/graphing-brexit/raw/master/data/mps_formatted.json" AS uri
+CALL apoc.load.json(uri)
+YIELD value
+MATCH (other:Person) WHERE other.name = value.name
+SET other.id = value.person_id;
+----
+
+This sorts out the mapping for 612 MPs, which is the vast majority of them.
+We only have 40 MPs where we'll need to be a bit clever.
+
+== String Similarity
+
+Given that there's not an exact string match, another approach is to compare the string similarity of names. 
+But before we do that we'll reduce the number of string similarity computations we have to do by building a list of potential matches for each person based on having the same last name.
+The following query does this:
+
+[source,cypher]
+----
+WITH "https://github.com/mneedham/graphing-brexit/raw/master/data/mps_formatted.json" AS uri
+CALL apoc.load.json(uri)
+YIELD value
+WITH collect(value) AS values
+MATCH (other:Person) WHERE not(exists(other.id))
+WITH other, 
+     [value in values 
+      WHERE other.name ENDS WITH split(value.name, " ")[-1] | value.name] AS potentialValues
+RETURN other.name, potentialValues
+LIMIT 10
+----
+
+If we execute this query, we'll get the following results:
+
+.Results
+[opts="header",cols="1,2"]
+|===
+| other.name | potentialValues
+| "David Amess"       | ["Sir David Amess"]        
+| "Graham P Jones" |		["Marcus Jones", "Andrew Jones", "Susan Elan Jones", "Kevan Jones", "Graham Jones", "Darren Jones", "David Jones", "Gerald Jones", "Helen Jones", "Sarah Jones"]                        
+| "Steve Baker"       | ["Steven Baker"]                          
+| "Joseph Johnson"  | 	["Diana R. Johnson", "Boris Johnson", "Gareth Johnson", "Jo Johnson", "Dr Caroline Johnson"]                    
+| "Nick Boles"        | ["Nicholas Boles"]                        
+| "Nicholas Brown"    | ["Nick Brown", "Alan Brown", "Lyn Brown"] 
+| "Vince Cable"       | ["Vincent Cable"]                         
+| "William Cash"      | ["Bill Cash"]                             
+| "Th?r?se Coffey"    | ["Therese Coffey", "Ann Coffey"]          
+| "Nic Dakin"         | ["Nicholas Dakin"]                        
+|===
+
+For some MPs there's only one potential match, which makes our life easy, but for others we have a few to choose from.
+Now we can apply string similarity algorithms to work out which of these names is the best match.
+The APOC library supports several https://neo4j.com/docs/labs/apoc/3.5/misc/text-functions/#text-functions-text-similarity[text similarity functions^], including Sorensen Dice Similarity and Jaro Winkler Distance.
+I decided to use both of them, and pick the candidate that had the highest average score, because each of them excelled on different names.
+
+Let's give it a try for one of our MPs to see how it fares.
+The following query finds the most similar people to Joseph Johnson:
+
+[source,cypher]
+----
+WITH "https://github.com/mneedham/graphing-brexit/raw/master/data/mps_formatted.json" AS uri
+CALL apoc.load.json(uri)
+YIELD value
+WITH collect(value) AS values
+match (other:Person {name: "Joseph Johnson"}) WHERE not(exists(other.id))
+with other, [value in values WHERE other.name ends with split(value.name, " ")[-1] | value.name] AS potentialValues
+WHERE size(potentialValues) > 1
+WITH other, 
+       apoc.coll.sortMaps([value in potentialValues | {
+	value: value, 
+        sorensen: apoc.text.sorensenDiceSimilarity(other.name, value), 
+        jaro: apoc.text.jaroWinklerDistance(other.name, value),
+        average: apoc.coll.avg([apoc.text.sorensenDiceSimilarity(other.name, value), 
+                                apoc.text.jaroWinklerDistance(other.name, value)])
+        }], "average") AS similarities
+UNWIND similarities AS similarity
+RETURN similarity.value, similarity.sorensen, similarity.jaro
+----
+
+
+If we execute this query, we'll get the following results:
+
+.Results
+[opts="header",cols="1,1,1"]
+|===
+| similarity.value | similarity.sorensen | similarity.jaro
+| "Jo Johnson"          | 0.7777777777777778  | 0.8326530612244899
+| "Gareth Johnson"      | 0.5454545454545454  | 0.8095238095238096 
+| "Boris Johnson"       | 0.5714285714285714  | 0.7278388278388279 
+| "Diana R. Johnson"    | 0.5454545454545454  | 0.6071428571428571 
+| "Dr Caroline Johnson" | 0.48                | 0.5802005012531328                         
+|===
+
+Pretty good, it found the right person for this one.
+What about if we match Stewart McDonald, where there's actually another person with a different spelling of the same first name?
+
+[source, cypher]
+----
+WITH "https://github.com/mneedham/graphing-brexit/raw/master/data/mps_formatted.json" AS uri
+CALL apoc.load.json(uri)
+YIELD value
+WITH collect(value) AS values
+match (other:Person {name: "Stewart Malcolm McDonald"}) WHERE not(exists(other.id))
+with other, [value in values WHERE other.name ends with split(value.name, " ")[-1] | value.name] AS potentialValues
+WHERE size(potentialValues) > 1
+WITH other, 
+       apoc.coll.sortMaps([value in potentialValues | {
+        value: value, 
+        sorensen: apoc.text.sorensenDiceSimilarity(other.name, value), 
+        jaro: apoc.text.jaroWinklerDistance(other.name, value),
+        average: apoc.coll.avg([apoc.text.sorensenDiceSimilarity(other.name, value), 
+                 apoc.text.jaroWinklerDistance(other.name, value)])
+        }], "average") AS similarities
+UNWIND similarities AS similarity
+RETURN similarity.value, similarity.sorensen, similarity.jaro
+----
+
+If we execute this query, we'll get the following results:
+
+.Results
+[opts="header",cols="1,1,1"]
+|===
+| similarity.value | similarity.sorensen | similarity.jaro
+| "Stewart McDonald" | 0.8125              | 0.8914930555555556 
+| "Stuart McDonald"  | 0.6451612903225806  | 0.7868386243386243 
+| "Andy McDonald"    | 0.4827586206896552  | 0.540954415954416                       
+|===
+
+I tried this across all the MPs that didn't have an exact name match and it found the correct person every time, based on manual inspection.
+So for this data set it seems to be a decent approach.
+We'll finish the mapping by storing the `person_id` of the best matching person:
+
+[source,cypher]
+----
+WITH "https://github.com/mneedham/graphing-brexit/raw/master/data/mps_formatted.json" AS uri
+CALL apoc.load.json(uri)
+YIELD value
+WITH collect(value) AS values
+match (other:Person) WHERE not(exists(other.id))
+with other, [value in values WHERE other.name ends with split(value.name, " ")[-1] | value] AS potentialValues
+WITH other, 
+       apoc.coll.sortMaps([value in potentialValues | {
+	value: value, 
+        sorensen: apoc.text.sorensenDiceSimilarity(other.name, value.name), 
+        jaro: apoc.text.jaroWinklerDistance(other.name, value.name),
+        average: apoc.coll.avg([apoc.text.sorensenDiceSimilarity(other.name, value), 
+                                apoc.text.jaroWinklerDistance(other.name, value)])
+        }], "average") AS similarities
+SET other.id = similarities[0].value.person_id
+----
+
+Let's check if we have any MPs that haven't been mapped yet. 
+We can do this by executing the following query:
+
+[source, cypher]
+----
+MATCH (p:Person)
+WHERE not(exists(p.id))
+RETURN p.name
+----
+
+.Results
+[opts="header",cols="1"]
+|===
+| p.name
+| "Ian Paisley"
+| "Liz Saville Roberts"                   
+|===
+
+Let's filter the KnowYourMP data to figure out what's going on:
+
+[source,cypher]
+----
+call apoc.load.json("https://github.com/mneedham/graphing-brexit/raw/master/data/mps_formatted.json")
+YIELD value
+WHERE value.name contains "Saville" OR value.name contains "Paisley"
+RETURN value.name
+----
+
+.Results
+[opts="header",cols="1"]
+|===
+| value.name
+| "Liz Saville-Roberts"
+| "Ian Paisley Jnr"
+|===
+
+Both these people are in the dataset, but their different surnames meant that they got filtered out before we applied the text similarity algorithms.
+
+[source,cypher]
+----
+WITH "https://github.com/mneedham/graphing-brexit/raw/master/data/mps_formatted.json" AS uri
+CALL apoc.load.json(uri)
+YIELD value
+WITH collect(value) AS potentialValues
+match (other:Person) WHERE not(exists(other.id))
+WITH other, 
+       apoc.coll.sortMaps([value in potentialValues | {
+	value: value, 
+        sorensen: apoc.text.sorensenDiceSimilarity(other.name, value.name), 
+        jaro: apoc.text.jaroWinklerDistance(other.name, value.name),
+        average: apoc.coll.avg([apoc.text.sorensenDiceSimilarity(other.name, value.name), 
+                                apoc.text.jaroWinklerDistance(other.name, value.name)])
+        }], "average") AS similarities
+SET other.id = similarities[0].value.person_id
+----
+
+If we remove that filtering criteria we'll be able to match these people:
+
+[source, cypher]
+----
+WITH "https://github.com/mneedham/graphing-brexit/raw/master/data/mps_formatted.json" AS uri
+CALL apoc.load.json(uri)
+YIELD value
+WITH collect(value) AS potentialValues
+match (other:Person) WHERE not(exists(other.id))
+WITH other, 
+       apoc.coll.sortMaps([value in potentialValues | {
+	value: value, 
+        sorensen: apoc.text.sorensenDiceSimilarity(other.name, value.name), 
+        jaro: apoc.text.jaroWinklerDistance(other.name, value.name),
+        average: apoc.coll.avg([apoc.text.sorensenDiceSimilarity(other.name, value.name), 
+                                apoc.text.jaroWinklerDistance(other.name, value.name)])
+        }], "average") AS similarities
+RETURN other.name, similarities[0].value.name AS name, similarities[0].value.person_id AS personId
+----
+
+.Results
+[opts="header", cols="1,1,1"]
+|===
+| other.name |name | personId
+| "Ian Paisley"         | "Ian Paisley Jnr"          | "13852"                         
+| "Liz Saville Roberts" | "Liz Saville-Roberts"      | "25302"                         
+|===
+
+And then we can tweak the query to store the personId:
+
+[source, cypher]
+----
+WITH "https://github.com/mneedham/graphing-brexit/raw/master/data/mps_formatted.json" AS uri
+CALL apoc.load.json(uri)
+YIELD value
+WITH collect(value) AS potentialValues
+match (other:Person) WHERE not(exists(other.id))
+WITH other, 
+       apoc.coll.sortMaps([value in potentialValues | {
+	value: value, 
+        sorensen: apoc.text.sorensenDiceSimilarity(other.name, value.name), 
+        jaro: apoc.text.jaroWinklerDistance(other.name, value.name),
+        average: apoc.coll.avg([apoc.text.sorensenDiceSimilarity(other.name, value.name), 
+                                apoc.text.jaroWinklerDistance(other.name, value.name)])
+        }], "average") AS similarities
+SET other.id = similarities[0].value.person_id
+----
+
+And now all of our MPs are mapped!
