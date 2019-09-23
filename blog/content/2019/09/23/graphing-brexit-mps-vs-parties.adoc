@@ -289,7 +289,7 @@ CALL apoc.create.vRelationship(person, toString(score), {}, m) YIELD rel
 RETURN path2, rel, person, m, representing, constituency
 ----
 
-image::{{<siteurl>}}/uploads/2019/09/skinner-labour.svg[]
+image::{{<siteurl>}}/uploads/2019/09/skinner-labour-indicative.svg[]
 
 He voted in favour of Jeremy Corbyn's alternative deal, but also in favour of the No Deal motion.
 We can see why he voted in favour of the latter by looking at the constituency he represents.
