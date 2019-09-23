@@ -1,0 +1,299 @@
++++
+draft = false
+date="2019-09-23 00:47:00"
+title="Graphing Brexit: MPS vs Parties"
+tag=['neo4j', 'cypher', 'brexit']
+category=['Neo4j']
+description="In this post we look at how MPs voted in the Brexit indicative votes and find the party that they voted most in line with."
++++
+
+In the previous post of the Graphing Brexit series we computed https://markhneedham.com/blog/2019/09/20/graphing-brexit-charting-how-the-parties-voted/[the average vote by party^].
+In this post we're going to take those average party scores and compare them against the votes placed by individual MPs.
+The goal is to determine whether, Brexit wise, MPs are representing the right party!
+
+It won't be perfect since we know that https://towardsdatascience.com/graphing-brexit-clustering-edition-3b966694e723[not everyone in a party voted the same way^], but it should still give us some fun results. 
+
+Let's start with the https://www.theguardian.com/politics/2019/sep/03/what-have-tory-rebels-voted-for-and-will-an-election-now-happen[Conservative MPs who lost the party whip^] after voting to stop the government forcing a no-deal departure from the EU on 31st October.
+
+We can find those MPs by executing the following query:
+
+[source,cypher]
+----
+
+MATCH (person:Person)-[vote]->(m:Motion {date: date({year: 2019, month: 3, day: 27})})
+WHERE (person)-[:MEMBER_OF {end: date({year: 2019, month: 9, day: 3})}]->(:Party {name: "Conservative"})
+RETURN person
+----
+
+image::{{<siteurl>}}/uploads/2019/09/conservative-rebels.svg[]
+
+Now let's compare their vote on each of the indicative motions with the average vote of each party on those motions.
+To recap from our last post, we're going to represent an MP's vote on a motion using the following scoring system:
+
+* `0.0` means an MP voted against a motion
+* `0.5` means an MP didn't vote on a motion
+* `1.0` means an MP voted for a motion
+
+We'll then build an lists of all their votes, and compare it against a list of the average votes of each of the parties using the https://neo4j.com/docs/graph-algorithms/current/experimental-algorithms/cosine/[Cosine Similarity algorithm^] in the Graph Algorithms Library.
+
+[quote, Neo4j Graph Algorithms Documentation]
+_____
+Cosine similarity is the cosine of the angle between two n-dimensional vectors in an n-dimensional space. It is the dot product of the two vectors divided by the product of the two vectors' lengths (or magnitudes).
+_____
+
+The query below shows how we'd build those lists of votes for one person, and then shows the result of running the Cosine Similarity function on those lists:
+
+[source,cypher]
+----
+MATCH (person:Person)
+WHERE (person)-[:MEMBER_OF {end: date({year: 2019, month: 9, day: 3})}]->(:Party {name: "Conservative"})
+WITH person LIMIT 1
+MATCH (person)-[vote]->(m:Motion {date: date({year: 2019, month: 3, day: 27})})
+MATCH (party:Party)-[ave:AVERAGE_VOTE]->(m) WHERE party.name <> "Speaker"
+WITH person, party, 
+     collect(CASE WHEN type(vote) = "FOR" THEN 1 
+                  WHEN type(vote) = "DID_NOT_VOTE" THEN 0.5 
+                  ELSE 0 END) AS personVotes,
+     collect(ave.score) AS partyVotes
+RETURN person.name AS person, 
+       party.name AS party, personVotes, partyVotes,
+       algo.similarity.cosine(personVotes, partyVotes) AS score
+----
+
+If we run that query we'll see the following results:
+
+.Results
+[opts="header",cols="1,1,2,2,1"]
+|===
+| person | party | personVotes | partyVotes | score
+| "Guto Bebb" | "Conservative"            | [0, 0, 1, 1, 0, 1, 1, 0] | [0.5990415335463259, 0.20127795527156556, 0.2731629392971245, 0.1821086261980831, 0.062300319488817986, 0.10383386581469652, 0.10862619808306717, 0.5047923322683707] | 0.3760038974248517  
+| "Guto Bebb" | "Labour"                  | [0, 0, 1, 1, 0, 1, 1, 0] | [0.02582159624413147, 0.7042253521126761, 0.25352112676056326, 0.927230046948357, 0.9600938967136151, 0.6643192488262909, 0.8403755868544599, 0.03521126760563382]    | 0.7186196179929221  
+| "Guto Bebb" | "Green"                   | [0, 0, 1, 1, 0, 1, 1, 0] | [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0]                                                                                                                              | 0.7071067811865476  
+| "Guto Bebb" | "Plaid Cymru"             | [0, 0, 1, 1, 0, 1, 1, 0] | [0.0, 1.0, 0.5, 0.5, 0.5, 1.0, 1.0, 0.0]                                                                                                                              | 0.7745966692414834  
+| "Guto Bebb" | "DUP"                     | [0, 0, 1, 1, 0, 1, 1, 0] | [0.45, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0, 1.0]                                                                                                                             | 0.19160041630983682 
+| "Guto Bebb" | "Scottish National Party" | [0, 0, 1, 1, 0, 1, 1, 0] | [0.014285714285714292, 0.5, 0.014285714285714292, 0.5, 0.5, 0.9857142857142855, 0.9571428571428571, 0.028571428571428584]                                             | 0.7562796166478085  
+| "Guto Bebb" | "Independent"             | [0, 0, 1, 1, 0, 1, 1, 0] | [0.075, 0.225, 0.15, 0.3, 0.25, 0.7999999999999998, 0.7250000000000001, 0.075]                                                                                        | 0.8338456535684794  
+| "Guto Bebb" | "Labour/Co-operative"     | [0, 0, 1, 1, 0, 1, 1, 0] | [0.0, 0.7187499999999999, 0.265625, 1.0, 1.0, 0.796875, 0.90625, 0.0]                                                                                                 | 0.7381883979420002  
+| "Guto Bebb" | "Sinn Féin"               | [0, 0, 1, 1, 0, 1, 1, 0] | [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]                                                                                                                              | 0.7071067811865476  
+| "Guto Bebb" | "Liberal Democrat"        | [0, 0, 1, 1, 0, 1, 1, 0] | [0.0, 0.5, 0.4090909090909091, 0.5, 0.4090909090909091, 0.9545454545454545, 1.0, 0.0]                                                                                 | 0.8640682817262345                                                  
+|===
+
+We can see from the results here that Guto Bebb voted most similarly to the Liberal Democrats, and least similarly to the DUP and Conservatives.
+Let's run this query for all the rebel MPs:
+
+[source,cypher]
+----
+MATCH (person:Person)-[vote]->(m:Motion {date: date({year: 2019, month: 3, day: 27})})
+WHERE (person)-[:MEMBER_OF {end: date({year: 2019, month: 9, day: 3})}]->(:Party {name: "Conservative"})
+MATCH (party:Party)-[ave:AVERAGE_VOTE]->(m) WHERE party.name <> "Speaker"
+WITH person, party, 
+     collect(CASE WHEN type(vote) = "FOR" THEN 1 
+                  WHEN type(vote) = "DID_NOT_VOTE" THEN 0.5 
+                  ELSE 0 END) AS personVotes,
+     collect(ave.score) AS partyVotes
+WITH person, party,
+     algo.similarity.cosine(personVotes, partyVotes) AS similarity
+ORDER BY similarity DESC
+WITH person, collect({party: party.name, score: similarity}) AS parties
+RETURN person.name AS person, parties[0].party AS party, parties[0].score AS score
+----
+
+
+If we run that query we'll see the results below:
+
+.Results
+[opts="header",cols="1,1,1"]
+|===
+| person | party | score
+| "David Gauke"         | "Sinn Féin"           | 1.0                
+| "Caroline Nokes"      | "Sinn Féin"           | 1.0                
+| "Philip Hammond"      | "Sinn Féin"           | 1.0                
+| "Greg Clark"          | "Sinn Féin"           | 1.0                
+| "Justine Greening"    | "Liberal Democrat"    | 0.9585976908510777 
+| "Kenneth Clarke"      | "Labour/Co-operative" | 0.9573767170592801 
+| "Dominic Grieve"      | "Independent"         | 0.954606992329263  
+| "Sam Gyimah"          | "Liberal Democrat"    | 0.931030158349453  
+| "Richard Harrington"  | "Plaid Cymru"         | 0.8970852271450604 
+| "Stephen Hammond"     | "Plaid Cymru"         | 0.8767140075192094 
+| "Antoinette Sandbach" | "Plaid Cymru"         | 0.8767140075192094 
+| "Guto Bebb"           | "Liberal Democrat"    | 0.8640682817262345 
+| "Margot James"        | "Plaid Cymru"         | 0.8563488385776752 
+| "Steve Brine"         | "Plaid Cymru"         | 0.828078671210825  
+| "Alistair Burt"       | "Plaid Cymru"         | 0.828078671210825  
+| "Edward Vaizey"       | "Plaid Cymru"         | 0.828078671210825  
+| "Anne Milton"         | "Liberal Democrat"    | 0.8243496193719115 
+| "Richard Benyon"      | "Labour"              | 0.6174088452074383 
+| "Nicholas Soames"     | "Labour"              | 0.6174088452074383 
+| "Rory Stewart"        | "Labour"              | 0.6144467241017605 
+| "Oliver Letwin"       | "Sinn Féin"           | 0.6123724356957945                                                      
+|===
+
+The top 4 on the list were Cabinet members, which meant that they didn't vote on any of the motions, just like Sinn Féin representatives.
+
+Just below them we have Justine Greening, who used to be part of the cabinet until January 2018.
+She voted most similarly to the Liberal Democrats, and we can see how she voted on each issue by executing the following query:
+
+[source, cypher]
+----
+MATCH (person:Person {name: "Justine Greening"})-[vote]->(m:Motion {date: date({year: 2019, month: 3, day: 27})})
+MATCH path2 = (party:Party {name: "Liberal Democrat"})-[ave:AVERAGE_VOTE]->(m) 
+WITH person, 
+     CASE WHEN type(vote) = "FOR" THEN 1 WHEN type(vote) = "DID_NOT_VOTE" THEN 0.5 ELSE 0 END AS score, 
+     m, path2
+CALL apoc.create.vRelationship(person, toString(score), {}, m) YIELD rel
+RETURN path2, rel, person, m
+----
+
+image::{{<siteurl>}}/uploads/2019/09/greening-indicative.svg[]
+
+She differs to the average position of her Conservative colleagues in a couple of ways:
+
+* She's not in favour of No Deal (Joanna Cherry's motion L)
+* She'd like there to be a confirmatory public vote (Margaret Beckett's motion M)
+
+I wonder if she'll be the next person to join the Liberal Democrats? 
+One person who did recently do that is Phillip Lee.
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/27ngBYn6Y-E" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+++++
+
+Let's see how he voted in the indicative votes:
+
+[source,cypher]
+----
+MATCH (person:Person {name: "Phillip Lee"})-[vote]->(m:Motion {date: date({year: 2019, month: 3, day: 27})})
+MATCH (party:Party)-[ave:AVERAGE_VOTE]->(m) WHERE party.name <> "Speaker"
+RETURN party.name,
+       algo.similarity.cosine(
+        collect(CASE WHEN type(vote) = "FOR" THEN 1 WHEN type(vote) = "DID_NOT_VOTE" THEN 0.5 ELSE 0 END), 
+        collect(ave.score)) AS similarity
+ORDER BY similarity DESC
+----
+
+If we run that query we'll see the results below:
+
+.Results
+[opts="header",cols="1,1"]
+|===
+| party | score
+| "Green"                   | 1.0                
+| "Independent"             | 0.9105491868904616 
+| "Scottish National Party" | 0.8456834950587977 
+| "Liberal Democrat"        | 0.8340478501880517 
+| "Plaid Cymru"             | 0.7302967433402214 
+| "Labour/Co-operative"     | 0.5989010989010989 
+| "Labour"                  | 0.5694375104718962 
+| "Sinn Féin"               | 0.5                
+| "Conservative"            | 0.1691931217592533 
+| "DUP"                     | 0.0                                                                    
+|===
+
+He voted reasonably similarly to his Liberal Democrat colleagues, but voted identically to the Green party.
+Let's have a look at a graph of those votes:
+
+image::{{<siteurl>}}/uploads/2019/09/lee-green-indicative.svg[]
+
+One thing to keep in mind is that Caroline Lucas is the only person representing the Green Party, so he only voted identically to her rather than to a larger group of people. 
+
+We can see that, like Justine Greening, he's only in favour of a confirmatory public vote and is not in favour of no deal.
+He voted against all the other motions.
+
+Let's see a graph of his votes compared to those of the Liberal Democrats:
+
+image::{{<siteurl>}}/uploads/2019/09/lee-liberal-indicative.svg[]
+
+Brexit wise he looks like a good fit for the party. 
+He only really differs because he voted on every motion and many of his colleagues didn't vote on half of them.
+Of course to know if he's really a good fit for the party in general we'd need to compare his voting record across more issues than just the Brexit motions.
+
+We can tweak our query slightly to run it over all MPs and see which of them voted more similarly to another party than their own:
+
+[source, cypher]
+----
+MATCH (person:Person)-[vote]->(m:Motion {date: date({year: 2019, month: 3, day: 27})})
+MATCH (person)-[memberOf:MEMBER_OF]->(actualParty)
+WHERE memberOf.start <= m.date AND (not(exists(memberOf.end)) OR m.date <= memberOf.end)
+MATCH (party:Party)-[ave:AVERAGE_VOTE]->(m) WHERE party.name <> "Speaker"
+WITH person, actualParty, party, 
+     collect(CASE WHEN type(vote) = "FOR" THEN 1 
+                  WHEN type(vote) = "DID_NOT_VOTE" THEN 0.5 
+                  ELSE 0 END) AS personVotes,
+     collect(ave.score) AS partyVotes
+WITH person, actualParty, party,
+     algo.similarity.cosine(personVotes, partyVotes) AS similarity
+ORDER BY similarity DESC, party = actualParty DESC
+WITH person, actualParty, collect({party: party, score: similarity}) AS parties
+WHERE actualParty <> parties[0].party
+WITH person, actualParty, parties[0].party.name AS mostSimilarParty, 
+     parties[0].score AS score
+ORDER BY person.pageviews DESC
+RETURN person.name AS person, actualParty.name AS actualParty, mostSimilarParty, score
+LIMIT 20
+----
+
+If we run that query we'll see the results below:
+
+.Results
+[opts="header",cols="1,1,1,1"]
+|===
+| person | actualParty | mostSimilarParty | score
+| "Theresa May"      | "Conservative"        | "Sinn Féin"           | 1.0                
+| "Amber Rudd"       | "Conservative"        | "Sinn Féin"           | 1.0                
+| "John Bercow"      | "Speaker"             | "Sinn Féin"           | 1.0                
+| "Michael Gove"     | "Conservative"        | "Sinn Féin"           | 1.0                
+| "Andrea Leadsom"   | "Conservative"        | "Sinn Féin"           | 1.0                
+| "Sajid Javid"      | "Conservative"        | "Sinn Féin"           | 1.0                
+| "Philip Hammond"   | "Conservative"        | "Sinn Féin"           | 1.0                
+| "Anna Soubry"      | "Independent"         | "Green"               | 1.0                
+| "Jim McMahon"      | "Labour/Co-operative" | "Labour"              | 0.9591990396603212 
+| "Jeremy Hunt"      | "Conservative"        | "Sinn Féin"           | 1.0                
+| "Liam Fox"         | "Conservative"        | "Sinn Féin"           | 1.0                
+| "Helen Hayes"      | "Labour"              | "Labour/Co-operative" | 0.9799919151000505 
+| "Kenneth Clarke"   | "Conservative"        | "Labour/Co-operative" | 0.9573767170592801 
+| "Justine Greening" | "Conservative"        | "Liberal Democrat"    | 0.9585976908510777 
+| "Chuka Umunna"     | "Independent"         | "Green"               | 1.0                
+| "Dennis Skinner"   | "Labour"              | "Sinn Féin"           | 0.6123724356957945 
+| "Vince Cable"      | "Liberal Democrat"    | "Independent"         | 0.954606992329263  
+| "Angela Eagle"     | "Labour"              | "Labour/Co-operative" | 0.9835164835164835 
+| "Elizabeth Truss"  | "Conservative"        | "Sinn Féin"           | 1.0                
+| "Harriet Harman"   | "Labour"              | "Labour/Co-operative" | 0.9834336020084081 
+|===
+
+We can mostly ignore the first few names on here since they were all cabinet members who didn't vote on any of the motions.
+In a future iteration of the Brexit Graph we might want to store information about members of the government so that we could exclude them from this type of analysis.
+
+Labour/Co-operative and Labour tend to vote in similar ways to each other, so I don't think it's interesting to see a difference in the votes by Jim McMahon, Harriet Harman, or Angela Eagle.
+
+Justine Greening and Ken Clarke show up again - Justine voting in a similar way to Liberal Democrats and Ken Clarke in a similar way to Labour.
+
+Dennis Skinner is an interesting one.
+He's a long serving Labour MP, so it's surprising to see that he didn't vote in line with his party.
+We can write the following query to explore his votes:
+
+[source, cypher]
+----
+MATCH (person:Person {name: "Dennis Skinner"})-[rep:REPRESENTS]->(const)
+CALL apoc.create.vNode(["Constituency"], {
+    caption: const.name + " (Leave" + const.leave + ")"}) 
+YIELD node AS constituency
+CALL apoc.create.vRelationship(person, type(rep), {}, constituency) YIELD rel as representing
+MATCH (person)-[vote]->(m:Motion {date: date({year: 2019, month: 3, day: 27})})
+MATCH path2 = (party:Party {name: "Labour"})-[ave:AVERAGE_VOTE]->(m) 
+WITH person, representing, constituency,
+     CASE WHEN type(vote) = "FOR" THEN 1 
+          WHEN type(vote) = "DID_NOT_VOTE" THEN 0.5 
+          ELSE 0 END AS score, 
+     m, path2
+CALL apoc.create.vRelationship(person, toString(score), {}, m) YIELD rel
+RETURN path2, rel, person, m, representing, constituency
+----
+
+image::{{<siteurl>}}/uploads/2019/09/skinner-labour.svg[]
+
+He voted in favour of Jeremy Corbyn's alternative deal, but also in favour of the No Deal motion.
+We can see why he voted in favour of the latter by looking at the constituency he represents.
+Bolsover voted 70.4% in favour of leaving the EU, so he's in a tricky situation where he can't vote in favour of motions that would not respect the leave vote.
+
+This post has gone on a lot longer than I intended, but hopefully the exploration was interesting.
+If you have any ideas for further analysis that I should do, let me know in the comments.
