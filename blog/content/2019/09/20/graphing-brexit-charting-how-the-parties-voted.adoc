@@ -1,8 +1,8 @@
 +++
 draft = false
 date="2019-09-20 00:47:00"
-title="Graphing Brexit: Plotting how the parties votes"
-tag=['neo4j', 'cypher', 'apoc', 'brexit']
+title="Graphing Brexit: Plotting how the parties voted"
+tag=['neo4j', 'cypher', 'brexit']
 category=['Neo4j']
 description="In this post we create bar charts of the Brexit indicative votes using Python's matplotlib library."
 +++
