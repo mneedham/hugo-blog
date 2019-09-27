@@ -40,7 +40,8 @@ We'd assume that they mostly voted against this motion, but let's check by execu
 [source,cypher]
 ----
 MATCH (person:Person)-[vote]->(:Motion {division: "386"})
-WHERE (person)-[:MEMBER_OF {end: date({year: 2019, month: 9, day: 3})}]->(:Party {name: "Conservative"})
+WHERE (person)-[:MEMBER_OF {end: date({year: 2019, month: 9, day: 3})}]
+       ->(:Party {name: "Conservative"})
 WITH person, type(vote) AS vote
 ORDER BY person.pageviews DESC
 RETURN person.name AS person, vote
@@ -128,7 +129,8 @@ We can write the following query to find out what happened with them:
 ----
 MATCH (person:Person)-[:AGAINST]->(noDealMotion:Motion {division: "386"}),
       (person)-[memberOf:MEMBER_OF]->(:Party {name: "Conservative"})
-WHERE memberOf.start <= noDealMotion.date AND (not(exists(memberOf.end)) OR noDealMotion.date <= memberOf.end)      
+WHERE memberOf.start <= noDealMotion.date 
+AND (not(exists(memberOf.end)) OR noDealMotion.date <= memberOf.end)      
 MATCH (person)-[vote]->(:Motion {division: "439"})
 WITH person, type(vote) AS vote, memberOf
 WHERE memberOf.end <> date({year: 2019, month: 9, day: 3})
@@ -156,11 +158,14 @@ The following query find MPs who voted against no deal in the indicative votes, 
 ----
 MATCH (person:Person)-[:AGAINST]->(noDealMotion:Motion {division: "386"}),
       (person)-[memberOf:MEMBER_OF]->(:Party {name: "Conservative"})
-WHERE memberOf.start <= noDealMotion.date AND (not(exists(memberOf.end)) OR noDealMotion.date <= memberOf.end)      
+WHERE memberOf.start <= noDealMotion.date 
+AND (not(exists(memberOf.end)) OR noDealMotion.date <= memberOf.end)      
 MATCH (person)-[:AGAINST]->(:Motion {division: "439"}),
       (person)-[:REPRESENTS]->(constituency:Constituency)
 WHERE constituency.leave < 50      
-RETURN person.name AS person, constituency.name AS constituency, constituency.leave AS leavePercentage
+RETURN person.name AS person, 
+       constituency.name AS constituency, 
+       constituency.leave AS leavePercentage
 ORDER BY constituency.leave
 ----
 
