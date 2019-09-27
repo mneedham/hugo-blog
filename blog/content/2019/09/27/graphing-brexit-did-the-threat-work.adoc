@@ -1,0 +1,206 @@
++++
+draft = false
+date="2019-09-27 00:47:00"
+title="Graphing Brexit: Did the threat work?"
+tag=['neo4j', 'cypher', 'brexit']
+category=['Neo4j']
+description="In this post we look at how Conservative MPs feel about a no deal exit from the European Union."
++++
+
+Following on from the blog post where https://markhneedham.com/blog/2019/09/23/graphing-brexit-mps-vs-parties/[we compared how MPs and parties voted on Brexit indicative measures^], in this post we're going to explore how Conservative MPs have voted with respect to a no deal exit from the European Union.
+In particular we'd like to know whether the threat to have the party whip removed had an impact on how they voted in the recent motion to request an extension to work out a deal.
+
+We know that there were 21 people who voted against the government and had the Conservative party whip removed.
+Presumably the other Conservative MPs voted against the motion, but let's check by executing the following query:
+
+[source,cypher]
+----
+MATCH (m:Motion {division: "439"})<-[vote]-(person:Person),
+      (person)-[memberOf:MEMBER_OF]->(:Party {name: "Conservative"})
+WHERE memberOf.start <= m.date 
+AND (not(exists(memberOf.end)) OR m.date <= memberOf.end)
+RETURN type(vote), count(*)
+ORDER BY count(*) DESC
+----
+
+.Results
+[opts="header",cols="1,1"]
+|===
+| type(vote) | count(*)
+| "AGAINST"      | 286
+| "FOR"          | 21
+| "DID_NOT_VOTE" | 3
+|===
+
+As expected, most MPs voted against this motion, although there are also 3 MPs who didn't vote.
+
+Those 3 who didn't vote might be interesting to explore further, but for now let's go back to our 21 rebel MPs and see how they voted on Mr Baron's motion B (No deal) back in March.
+We'd assume that they mostly voted against this motion, but let's check by executing the following query:
+
+[source,cypher]
+----
+MATCH (person:Person)-[vote]->(:Motion {division: "386"})
+WHERE (person)-[:MEMBER_OF {end: date({year: 2019, month: 9, day: 3})}]->(:Party {name: "Conservative"})
+WITH person, type(vote) AS vote
+ORDER BY person.pageviews DESC
+RETURN person.name AS person, vote
+----
+
+.Results
+[opts="header",cols="1,1"]
+|===
+| person | vote
+| "Philip Hammond"      | "DID_NOT_VOTE" 
+| "Kenneth Clarke"      | "AGAINST"      
+| "Justine Greening"    | "AGAINST"      
+| "Rory Stewart"        | "AGAINST"      
+| "Nicholas Soames"     | "AGAINST"      
+| "Dominic Grieve"      | "AGAINST"      
+| "Oliver Letwin"       | "AGAINST"      
+| "Sam Gyimah"          | "AGAINST"      
+| "David Gauke"         | "DID_NOT_VOTE" 
+| "Greg Clark"          | "DID_NOT_VOTE" 
+| "Caroline Nokes"      | "DID_NOT_VOTE" 
+| "Margot James"        | "AGAINST"      
+| "Richard Benyon"      | "AGAINST"      
+| "Anne Milton"         | "AGAINST"      
+| "Guto Bebb"           | "AGAINST"      
+| "Alistair Burt"       | "AGAINST"      
+| "Antoinette Sandbach" | "AGAINST"      
+| "Stephen Hammond"     | "AGAINST"      
+| "Steve Brine"         | "AGAINST"      
+| "Richard Harrington"  | "AGAINST"      
+| "Edward Vaizey"       | "AGAINST"      
+|===
+
+Unsurprisingly most of these people voted against the motion, 17 in total, although the 4 cabinet members didn't vote.
+Were there any other Conservative MPs who also voted against Mr Baron's motion B (No deal)? 
+
+We can find out by executing the following query:
+
+[source,cypher]
+----
+MATCH (person:Person)-[vote]->(m:Motion {division: "386"}),
+      (person)-[memberOf:MEMBER_OF]->(:Party {name: "Conservative"})
+WHERE memberOf.start <= m.date 
+AND (not(exists(memberOf.end)) OR m.date <= memberOf.end)
+RETURN type(vote), count(*)
+ORDER BY count(*) DESC
+----
+
+
+.Results
+[opts="header",cols="1,1"]
+|===
+| type(vote) | count(*)
+|  "FOR"          | 156
+| "AGAINST"      | 94
+| "DID_NOT_VOTE" | 63
+|===
+
+There were 94 people who voted against this motion.
+We know who 17 of them are, but that still leaves us with 77 others.
+
+[source,cypher]
+----
+MATCH (person:Person)-[:AGAINST]->(noDealMotion:Motion {division: "386"}),
+      (person)-[memberOf:MEMBER_OF]->(:Party {name: "Conservative"})
+WHERE memberOf.start <= noDealMotion.date 
+AND (not(exists(memberOf.end)) OR noDealMotion.date <= memberOf.end)      
+MATCH (person)-[vote]->(:Motion {division: "439"})
+RETURN  type(vote) AS vote, collect(person.name) AS people, count(*) AS count
+----
+
+.Results
+[opts="header",cols="1,3,1"]
+|===
+| vote | people | count
+| "AGAINST"  | ["James Cartlidge", "John Glen", "David Morris", "John Howell", "Luke Hall", "Mark Pawsey", "Chris Skidmore", "Alister Jack", "Gary Streeter", "Luke Graham", "Mel Stride", "Kevin Hollinrake", "Jeremy Lefroy", "Jeremy Quin", "Bim Afolami", "Victoria Atkins", "Michael Fallon", "Robin Walker", "Damien Moore", "Oliver Heald", "Nick Herbert", "Nicky Morgan", "Alok Sharma", "Keith Simpson", "Stephen Kerr", "Paul Masterton", "Alberto Costa", "Nick Hurd", "Colin Clark", "Lucy Frazer", "Stephen Crabb", "Bill Grant", "Andrew Bowie", "Robert Buckland", "Richard Graham", "Damian Collins", "Roger Gale", "David Duguid", "Jesse Norman", "Guy Opperman", "Charles Walker", "Paul Beresford", "Greg Hands", "Hugo Swire", "Patrick McLoughlin", "Mark Prisk", "Vicky Ford", "Damian Green", "Joseph Johnson", "Victoria Prentis", "Mike Freer", "Oliver Dowden", "David Tredinnick", "Andrew Jones", "Helen Grant", "George Hollingbery", "Robert Halfon", "Cheryl Gillan", "Rebecca Pow", "Simon Hoare", "Gillian Keegan", "Alex Chalk", "Graham Brady", "Caroline Spelman", "Peter Bottomley", "Alan Duncan", "Sarah Newton", "Robert Neill", "Philip Dunne", "Peter Aldous", "Jo Churchill", "Mark Field", "Seema Kennedy", "Jonathan Djanogly", "Mary Robinson"] | 75       
+| "FOR"      | ["Stephen Hammond", "Justine Greening", "Steve Brine", "Rory Stewart", "Margot James", "Oliver Letwin", "Dominic Grieve", "Sam Gyimah", "Nick Boles", "Richard Benyon", "Alistair Burt", "Guto Bebb", "Kenneth Clarke", "Edward Vaizey", "Anne Milton", "Richard Harrington", "Nicholas Soames", "Antoinette Sandbach", "Phillip Lee"]                                                          | 19       
+|===
+
+We can see that there are 19 people who voted against both motions. 
+If we add our 4 ex-Cabinet members, that gives us a total of 23 former Conservative MPs who voted against the motion to ask for an extension.
+21 of those had the party whip removed on the 3rd September 2019, but that still gives us two that are not accounted for.
+We can write the following query to find out what happened with them:
+
+[source, cypher]
+----
+MATCH (person:Person)-[:AGAINST]->(noDealMotion:Motion {division: "386"}),
+      (person)-[memberOf:MEMBER_OF]->(:Party {name: "Conservative"})
+WHERE memberOf.start <= noDealMotion.date AND (not(exists(memberOf.end)) OR noDealMotion.date <= memberOf.end)      
+MATCH (person)-[vote]->(:Motion {division: "439"})
+WITH person, type(vote) AS vote, memberOf
+WHERE memberOf.end <> date({year: 2019, month: 9, day: 3})
+RETURN person.name AS person, vote, memberOf.end AS endDate
+----
+
+
+.Results
+[opts="header",cols="1,3,1"]
+|===
+| person | vote | endDate
+| "Nick Boles"  | "FOR" | 2019-04-01 
+| "Phillip Lee" | "FOR" | 2019-09-02        
+|===
+
+Phillip Lee famously walked across the floor of the Houses of Common to join the Liberal Democrats, and I'd forgotten that Nick Boles had resigned the party whip back in April.
+
+That still leave us with 75 people who changed their position from not supporting no deal in March 2019, but wanting to leave it as an option in September 2019.
+We'll give them the benefit of the doubt, and make the assumption that if they represent a constituency that had a majority vote to leave the EU their constituents may be happy with them taking this position.
+But if their constituency had a majority vote to remain in the EU we can't really make that argument.
+
+The following query find MPs who voted against no deal in the indicative votes, voted against asking for an extension (under threat of having the party whip removed), and represent constituencies that want to remain in the EU:
+
+[source, cypher]
+----
+MATCH (person:Person)-[:AGAINST]->(noDealMotion:Motion {division: "386"}),
+      (person)-[memberOf:MEMBER_OF]->(:Party {name: "Conservative"})
+WHERE memberOf.start <= noDealMotion.date AND (not(exists(memberOf.end)) OR noDealMotion.date <= memberOf.end)      
+MATCH (person)-[:AGAINST]->(:Motion {division: "439"}),
+      (person)-[:REPRESENTS]->(constituency:Constituency)
+WHERE constituency.leave < 50      
+RETURN person.name AS person, constituency.name AS constituency, constituency.leave AS leavePercentage
+ORDER BY constituency.leave
+----
+
+.Results
+[opts="header",cols="1,1,1"]
+|===
+| person | constituency | leavePercentage
+| "Paul Masterton" | "East Renfrewshire"                 | 25.7              
+| "Mark Field"     | "Cities of London and Westminster"  | 28.1              
+| "Greg Hands"     | "Chelsea and Fulham"                | 29.1              
+| "Mike Freer"     | "Finchley and Golders Green"        | 31.1              
+| "Stephen Kerr"   | "Stirling"                          | 32.3              
+| "Graham Brady"   | "Altrincham and Sale West"          | 38.6               
+| "Andrew Bowie"   | "West Aberdeenshire and Kincardine" | 39.2              
+| "Luke Graham"    | "Ochil and South Perthshire"        | 39.5              
+| "Bim Afolami"    | "Hitchin and Harpenden"             | 39.8              
+| "Mary Robinson"  | "Cheadle"                           | 42.7             
+| "Alex Chalk"     | "Cheltenham"                        | 42.9              
+| "John Howell"    | "Henley"                            | 43.1              
+| "Bill Grant"     | "Ayr, Carrick and Cumnock"          | 44.1              
+| "Colin Clark"    | "Gordon"                            | 44.3              
+| "Cheryl Gillan"  | "Chesham and Amersham"              | 45.0              
+| "Alister Jack"   | "Dumfries and Galloway"             | 45.1              
+| "Guy Opperman"   | "Hexham"                            | 45.3              
+| "Lucy Frazer"    | "South East Cambridgeshire"         | 45.3              
+| "Sarah Newton"   | "Truro and Falmouth"                | 45.9              
+| "Damien Moore"   | "Southport"                         | 46.3              
+| "Andrew Jones"   | "Harrogate and Knaresborough"       | 47.2              
+| "Paul Beresford" | "Mole Valley"                       | 47.3              
+| "Mark Prisk"     | "Hertford and Stortford"            | 49.2              
+| "Jeremy Quin"    | "Horsham"                           | 49.5              
+| "Nick Hurd"      | "Ruislip, Northwood and Pinner"     | 49.5              
+| "Nick Herbert"   | "Arundel and South Downs"           | 49.7              
+| "Robert Neill"   | "Bromley and Chislehurst"           | 49.8              
+| "John Glen"      | "Salisbury"                         | 49.9                  
+|===
+
+Several of these constituencies are in London or Scotland.
+They would therefore seem like seats that remain favouring parties, such as the Liberal Democrats or SNP would try to win in the next election.
+And indeed the Liberal Democrats have already moved MPs into https://inews.co.uk/news/politics/chuka-umunna-lib-dem-candidate-constituency-cities-of-london-and-westminster-general-election-2019-496539[Cities of London and Westminster^] and https://www.bbc.co.uk/news/uk-politics-49831648[Finchley and Golders Green^].
+
+It'll be fascinating to see what will happen with these seats if and when there is actually an election. 
+If you have any other ideas for how we can explore the data, let me know in the comments.
