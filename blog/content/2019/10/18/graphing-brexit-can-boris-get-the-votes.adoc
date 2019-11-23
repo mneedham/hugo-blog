@@ -1,0 +1,54 @@
++++
+draft = false
+date="2019-09-27 00:47:00"
+title="Graphing Brexit: Can Boris get the votes?"
+tag=['neo4j', 'cypher', 'brexit']
+category=['Neo4j']
+description="In this post we look at how Conservative MPs feel about a no deal exit from the European Union."
++++
+
+
+
+There are 650 elected MPs, but 7 Sinn Fein MPs don't vote, and nor do the speaker or the 3 deputy speakers.
+That takes us to a maximum of 639 votes, which means 320 votes are needed to win.
+
+[source,cypher]
+----
+MATCH (person:Person)
+WHERE (person)-[:MEMBER_OF {end: date({year: 2019, month: 9, day: 3})}]
+      ->(:Party {name: "Conservative"})
+MATCH (person)-[memberOf:MEMBER_OF]->(party) 
+WHERE memberOf.start >= date("2019-09-04") AND (not(exists(memberOf.end))) 
+AND party.name = "Independent"
+WITH person
+ORDER BY person.pageviews DESC
+WITH collect(person.name) AS rebelMpsThatDidNotJoinAnotherParty
+RETURN rebelMpsThatDidNotJoinAnotherParty, size(rebelMpsThatDidNotJoinAnotherParty) AS count
+----
+
+
+.Results
+[opts="header",cols="1,1"]
+|===
+| rebelMpsThatDidNotJoinAnotherParty | count
+| ["Philip Hammond", "Kenneth Clarke", "Justine Greening", "Rory Stewart", "Nicholas Soames", "Dominic Grieve", "Oliver Letwin", "David Gauke", "Greg Clark", "Caroline Nokes", "Margot James", "Richard Benyon", "Anne Milton", "Guto Bebb", "Alistair Burt", "Antoinette Sandbach", "Stephen Hammond", "Steve Brine", "Richard Harrington", "Edward Vaizey"]      | 20
+|===
+
+So there are still 20 MPs who haven't joined another party.
+Since they had the party whip removed based on their opposition to No Deal, I think we can assume that they'll vote for this deal that prevents No Deal.
+
+
+Labour MPs for a constituency where the majority of people voted to leave:
+
+[source, cypher]
+----
+MATCH (person:Person)-[memberOf:MEMBER_OF]->(party:Party)
+WHERE memberOf.start <= date()
+AND (not(exists(memberOf.end)))
+AND party.name contains "Labour"
+AND not(person:DeputySpeaker)
+MATCH (person)-[:REPRESENTS]-(constituency)
+WHERE constituency.leave > 50
+RETURN person.name, constituency.leave, constituency.name
+ORDER BY constituency.leave DESC
+----

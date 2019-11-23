@@ -21,7 +21,8 @@ We can find those MPs by executing the following query:
 ----
 
 MATCH (person:Person)-[vote]->(m:Motion {date: date({year: 2019, month: 3, day: 27})})
-WHERE (person)-[:MEMBER_OF {end: date({year: 2019, month: 9, day: 3})}]->(:Party {name: "Conservative"})
+WHERE (person)-[:MEMBER_OF {end: date({year: 2019, month: 9, day: 3})}]
+      ->(:Party {name: "Conservative"})
 RETURN person
 ----
 
@@ -46,7 +47,8 @@ The query below shows how we'd build those lists of votes for one person, and th
 [source,cypher]
 ----
 MATCH (person:Person)
-WHERE (person)-[:MEMBER_OF {end: date({year: 2019, month: 9, day: 3})}]->(:Party {name: "Conservative"})
+WHERE (person)-[:MEMBER_OF {end: date({year: 2019, month: 9, day: 3})}]
+      ->(:Party {name: "Conservative"})
 WITH person LIMIT 1
 MATCH (person)-[vote]->(m:Motion {date: date({year: 2019, month: 3, day: 27})})
 MATCH (party:Party)-[ave:AVERAGE_VOTE]->(m) WHERE party.name <> "Speaker"
@@ -84,7 +86,8 @@ Let's run this query for all the rebel MPs:
 [source,cypher]
 ----
 MATCH (person:Person)-[vote]->(m:Motion {date: date({year: 2019, month: 3, day: 27})})
-WHERE (person)-[:MEMBER_OF {end: date({year: 2019, month: 9, day: 3})}]->(:Party {name: "Conservative"})
+WHERE (person)-[:MEMBER_OF {end: date({year: 2019, month: 9, day: 3})}]
+      ->(:Party {name: "Conservative"})
 MATCH (party:Party)-[ave:AVERAGE_VOTE]->(m) WHERE party.name <> "Speaker"
 WITH person, party, 
      collect(CASE WHEN type(vote) = "FOR" THEN 1 
@@ -166,7 +169,9 @@ MATCH (person:Person {name: "Phillip Lee"})-[vote]->(m:Motion {date: date({year:
 MATCH (party:Party)-[ave:AVERAGE_VOTE]->(m) WHERE party.name <> "Speaker"
 RETURN party.name,
        algo.similarity.cosine(
-        collect(CASE WHEN type(vote) = "FOR" THEN 1 WHEN type(vote) = "DID_NOT_VOTE" THEN 0.5 ELSE 0 END), 
+        collect(CASE WHEN type(vote) = "FOR" THEN 1 
+                     WHEN type(vote) = "DID_NOT_VOTE" THEN 0.5 
+                     ELSE 0 END), 
         collect(ave.score)) AS similarity
 ORDER BY similarity DESC
 ----
