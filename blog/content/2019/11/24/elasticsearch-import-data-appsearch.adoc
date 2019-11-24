@@ -1,21 +1,21 @@
 +++
 draft = false
-date="2019-11-23 19:21:00"
-title="Elasticsearch: Importing data into AppSearch"
-tag=['elastic', 'elasticsearch', 'appsearch']
+date="2019-11-24 00:21:00"
+title="Elasticsearch: Importing data into App Search"
+tag=['elastic', 'elasticsearch', 'appsearch', 'python']
 category=['Elasticsearch']
-description="Learn how to import data into Elastic AppSearch"
+description="Learn how to import data into Elastic App Search"
 +++
 
-For a side project that I'm working on I wanted to create a small React application that can query data stored in https://www.elastic.co/[Elasticsearch^], and https://www.elastic.co/blog/how-to-build-application-search-with-react-and-elastic-app-search[most of the tutorials^] I found suggested using a tool called Elastic Appsearch.
+For a side project that I'm working on I wanted to create a small React application that can query data stored in https://www.elastic.co/[Elasticsearch^], and https://www.elastic.co/blog/how-to-build-application-search-with-react-and-elastic-app-search[most of the tutorials^] I found suggested using a tool called Elastic App Search.
 
-I'd not heard of AppSearch before, and it took me a while to figure out that it's the mid level product in between Elasticsearch Service and Elastic Site Search Service, as described on https://www.elastic.co/cloud[elastic.co/cloud]
+I'd not heard of App Search before, and it took me a while to figure out that it's the mid level product in between Elasticsearch Service and Elastic Site Search Service, as described on https://www.elastic.co/cloud[elastic.co/cloud]
 
 image::{{<siteurl>}}/uploads/2019/11/appsearch.png[]
 
 == Launching Elastic AppSearch locally
 
-Now that we've figured that out we're going to setup a local running AppSeach server and import some data into it.
+Now that we've figured that out we're going to setup a local running App Search server and import some data into it.
 I found a https://okode.com/demystified-elasticsearch-with-elastic-app-search/[Docker compose file^] on the Okode blog that I adapted to the following:
 
 _docker-compose.yml_
@@ -58,12 +58,12 @@ We can run the following command to launch AppSearch:
 docker-compose up
 ----
 
-Once that command has run AppSearch should be running at http://localhost:3002/.
+Once that command has run App Search should be running at http://localhost:3002/.
 If we navigate to that URL in our web browser, we'll see the following screen:
 
 image::{{<siteurl>}}/uploads/2019/11/create-engine.png[]
 
-We need to create an `engine`, which is AppSearch's name for an `index`.
+We need to create an `engine`, which is App Search's name for an `index`.
 Let's create one called `meals`, as in the Okode tutorial mentioned earlier.
 Once we've done that we'll see the following screen, which has instructions for importing data into our engine:
 
@@ -73,7 +73,7 @@ But we're not going to use any of these approaches!
 
 == Installing the Python elastic-app-search library
 
-Instead we'll use the https://pypi.org/project/elastic-app-search/[elastic-app-search^] library to import data into AppSearch.
+Instead we'll use the Python https://pypi.org/project/elastic-app-search/[elastic-app-search^] library to import data into AppSearch.
 We'll install the library using https://pipenv-fork.readthedocs.io/en/latest/index.html[Pipenv^] via the following Pipfile:
 
 _Pipfile_
