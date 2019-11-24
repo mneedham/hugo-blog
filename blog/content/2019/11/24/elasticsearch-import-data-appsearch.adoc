@@ -1,0 +1,217 @@
++++
+draft = false
+date="2019-11-23 19:21:00"
+title="Elasticsearch: Importing data into AppSearch"
+tag=['elastic', 'elasticsearch', 'appsearch']
+category=['Elasticsearch']
+description="Learn how to import data into Elastic AppSearch"
++++
+
+For a side project that I'm working on I wanted to create a small React application that can query data stored in https://www.elastic.co/[Elasticsearch^], and https://www.elastic.co/blog/how-to-build-application-search-with-react-and-elastic-app-search[most of the tutorials^] I found suggested using a tool called Elastic Appsearch.
+
+I'd not heard of AppSearch before, and it took me a while to figure out that it's the mid level product in between Elasticsearch Service and Elastic Site Search Service, as described on https://www.elastic.co/cloud[elastic.co/cloud]
+
+image::{{<siteurl>}}/uploads/2019/11/appsearch.png[]
+
+== Launching Elastic AppSearch locally
+
+Now that we've figured that out we're going to setup a local running AppSeach server and import some data into it.
+I found a https://okode.com/demystified-elasticsearch-with-elastic-app-search/[Docker compose file^] on the Okode blog that I adapted to the following:
+
+_docker-compose.yml_
+
+[source,yaml]
+----
+version: '3.7'
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.4.2
+    environment:
+    - "node.name=es-node"
+    - "discovery.type=single-node"
+    - "cluster.name=app-search-docker-cluster"
+    - "bootstrap.memory_lock=true"
+    - "ES_JAVA_OPTS=-Xms512m -Xmx2048m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+    - 9200:9200
+    - 9300:9300
+  appsearch:
+    image: docker.elastic.co/app-search/app-search:7.4.2
+    depends_on:
+    - elasticsearch
+    environment:
+    - "elasticsearch.host=http://elasticsearch:9200"
+    - "allow_es_settings_modification=true"
+    - "JAVA_OPTS=-Xmx2048m"
+    ports:
+    - 3002:3002
+----
+
+We can run the following command to launch AppSearch:
+
+[source,bash]
+----
+docker-compose up
+----
+
+Once that command has run AppSearch should be running at http://localhost:3002/.
+If we navigate to that URL in our web browser, we'll see the following screen:
+
+image::{{<siteurl>}}/uploads/2019/11/create-engine.png[]
+
+We need to create an `engine`, which is AppSearch's name for an `index`.
+Let's create one called `meals`, as in the Okode tutorial mentioned earlier.
+Once we've done that we'll see the following screen, which has instructions for importing data into our engine:
+
+image::{{<siteurl>}}/uploads/2019/11/import-data.png[]
+
+But we're not going to use any of these approaches!
+
+== Installing the Python elastic-app-search library
+
+Instead we'll use the https://pypi.org/project/elastic-app-search/[elastic-app-search^] library to import data into AppSearch.
+We'll install the library using https://pipenv-fork.readthedocs.io/en/latest/index.html[Pipenv^] via the following Pipfile:
+
+_Pipfile_
+
+[source,yaml]
+----
+  [[source]]
+  name = "pypi"
+  url = "https://pypi.org/simple"
+  verify_ssl = true
+
+  [dev-packages]
+
+  [packages]
+  elastic-app-search = "*"
+  requests = "*"
+  stringcase = "*"
+
+  [requires]
+  python_version = "3.7"
+----
+
+We can set everything up by running the following commands:
+
+[source,bash]
+----
+pipenv shell
+pipenv install
+----
+
+Once we've run those commands, we can check that the library is installed by executing the following command:
+
+[source,bash]
+----
+pipenv graph
+----
+
+If we run that we'll see the following output:
+
+[source,bash]
+----
+elastic-app-search==7.4.0
+  - PyJWT [required: Any, installed: 1.7.1]
+  - requests [required: Any, installed: 2.22.0]
+    - certifi [required: >=2017.4.17, installed: 2019.9.11]
+    - chardet [required: >=3.0.2,<3.1.0, installed: 3.0.4]
+    - idna [required: >=2.5,<2.9, installed: 2.8]
+    - urllib3 [required: >=1.21.1,<1.26,!=1.25.1,!=1.25.0, installed: 1.25.7]
+stringcase==1.2.0
+----
+
+== Importing data
+
+We can now write a Python script to import some of the documents from https://themealdb.com/[themealdb.com^]:
+
+[source,python]
+----
+from elastic_app_search import Client
+import requests as r
+
+engine_name = 'meals'
+api_key = "private-kwicp7mhwssdxv54as9buzen"
+
+client = Client(
+    api_key=api_key,
+    base_endpoint='localhost:3002/api/as/v1',
+    use_https=False
+)
+
+response = r.get("https://www.themealdb.com/api/json/v1/1/search.php?f=a").json()
+documents = []
+for entry in response["meals"]:
+    documents.append(entry)
+    if len(documents) % 50 == 0:
+        res = client.index_documents(engine_name, documents)
+        print(res)
+        documents = []
+
+res = client.index_documents(engine_name, documents)
+print(res)
+----
+
+We get the `api_key` via the `Credentials` menu item:
+
+image::{{<siteurl>}}/uploads/2019/11/credentials.png[]
+
+If we execute this script we'll see the following output:
+
+[source,text]
+----
+[{'id': None, 'errors': ['Fields can only contain lowercase letters, numbers, and underscores: idMeal.', 'Fields can only contain lowercase letters, numbers, and underscores: strMeal.', 'Fields can only contain lowercase letters, numbers, and underscores: strDrinkAlternate.', 'Fields can only contain lowercase letters, numbers, and underscores: strCategory.', 'Fields can only contain lowercase letters, numbers, and underscores: strArea.', 'Fields can only contain lowercase letters, numbers, and underscores: strInstructions.', 'Fields can only contain lowercase letters, numbers, and underscores: strMealThumb.',
+...
+]}]
+----
+
+We're not allowed to have fields that contain uppercase letters, so we'll need to fix that.
+We can use the https://pypi.org/project/stringcase/[stringcase^] library to fix this.
+The following script does this:
+
+[source,python]
+----
+from elastic_app_search import Client
+import requests as r
+import stringcase
+
+engine_name = 'meals'
+api_key = "private-kwicp7mhwssdxv54as9buzen"
+
+client = Client(
+    api_key=api_key,
+    base_endpoint='localhost:3002/api/as/v1',
+    use_https=False
+)
+
+response = r.get("https://www.themealdb.com/api/json/v1/1/search.php?f=a").json()
+documents = []
+for entry in response["meals"]:
+    new_entry = {stringcase.snakecase(key):entry[key] for key in entry}
+    new_entry["id"] = new_entry["id_meal"]
+    documents.append(new_entry)
+    if len(documents) % 50 == 0:
+        res = client.index_documents(engine_name, documents)
+        print(res)
+        documents = []
+
+res = client.index_documents(engine_name, documents)
+print(res)
+----
+
+If we execute that query, we'll see the following output:
+
+[source,text]
+----
+[{'id': '52768', 'errors': []}, {'id': '52893', 'errors': []}]
+----
+
+And now let's navigate to http://localhost:3002/as#/engines/meals/documents to have a look at what we've imported:
+
+image::{{<siteurl>}}/uploads/2019/11/data-imported.png[]
+
+Success!
