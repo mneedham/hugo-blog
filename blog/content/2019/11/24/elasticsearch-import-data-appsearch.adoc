@@ -13,7 +13,7 @@ I'd not heard of App Search before, and it took me a while to figure out that it
 
 image::{{<siteurl>}}/uploads/2019/11/appsearch.png[]
 
-== Launching Elastic AppSearch locally
+== Launching Elastic App Search locally
 
 Now that we've figured that out we're going to setup a local running App Search server and import some data into it.
 I found a https://okode.com/demystified-elasticsearch-with-elastic-app-search/[Docker compose file^] on the Okode blog that I adapted to the following:
