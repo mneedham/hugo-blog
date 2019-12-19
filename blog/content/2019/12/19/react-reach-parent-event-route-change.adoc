@@ -1,16 +1,176 @@
 +++
-draft = true
+draft = false
 date="2019-12-19 00:21:00"
 title="React React Router: Setting parent component state based on route change event"
 tag=['react', 'react']
 category=['React']
-description="Learn how to import data into Elastic App Search"
+description="Learn how to listen to route change events when using React Reach Router."
 +++
 
+I've been working on a https://reach.tech/router[React Reach Router^] based application that has several routes and wanted to show a search box in the header unless the user was on the search page.
+After a lot of trial and error I learnt that I could use a route change event listener to do this.
 
-[source,bash]
+The CodeSandbox below shows all the code to do this:
+
+++++
+<iframe
+     src="https://codesandbox.io/embed/github/mneedham/hugo-blog/tree/master/blog/content/2019/12/my-app?fontsize=14&hidenavigation=1&module=%2Fsrc%2FApp.js&theme=dark"
+     style="width:100%; height:500px; border:0; border-radius: 4px; overflow:hidden;"
+     title="my-app"
+     allow="geolocation; microphone; camera; midi; vr; accelerometer; gyroscope; payment; ambient-light-sensor; encrypted-media; usb"
+     sandbox="allow-modals allow-forms allow-popups allow-scripts allow-same-origin"></iframe>
+++++
+
+Let's walk through the code.
+We have a top level component called `App` that has the state `showSearchBox`, which defaults to `true`:
+
+[source,javascript]
 ----
-npx create-react-app my-app
-cd my-app
-yarn add @reach/router
+import React, {Component} from 'react';
+import {globalHistory, Link, Router} from "@reach/router";
+
+class App extends Component {
+  constructor(props) {
+    super(props)
+    this.state = {
+      showSearchBox: true
+    };
+  }
+}
+----
+
+In our render function we display an input box only if this value is set to `true`:
+
+[source,javascript]
+----
+class App extends Component {
+  render() {
+    return (
+      <div className="App">
+        <header className="App-header">
+          <p>
+            React Reach Router Demo
+          </p>
+          <div>
+            {this.state.showSearchBox && <input type={"text"} style={{margin: "10px"}}/>}
+          </div>
+        </header>
+        <nav style={{padding: "5px"}}>
+          <Link to="/">Home</Link> <Link to="dashboard">Dashboard</Link> <Link to="search">Search</Link>
+        </nav>
+        <div style={{paddingTop: "10px"}}>
+          <Router>
+            <Home path="/"/>
+            <Dashboard path="/dashboard"/>
+            <Search path="/search"/>
+          </Router>
+        </div>
+      </div>
+    );
+  }
+}
+----
+
+In this code sample we can also see that we have 3 paths:
+
+* `/`
+* `/dashboard` and
+* `/search`
+
+We want to set `showSearchBox` to `false` if we're on the `/search` route, but set to `true` on any of the other routes.
+
+I initially tried to control this state from the child components, without much success.
+The closest I got was a maximum update depth exceeded error, which wasn't great.
+
+By chance I came across a https://github.com/reach/router/issues/262[GitHub issue^] created by Marvin Heilemann, in which he asked whether there was a hook to capture route change events.
+And indeed there is.
+
+We can update our `App` component to listen to these events and update the `showSearchBox` state by adding the following functions:
+
+[source, javascript]
+----
+class App extends Component {
+  componentDidMount() {
+    this.toggleSearchBox(globalHistory.location)
+
+    this.historyUnsubscribe = globalHistory.listen(({action, location}) => {
+      if (action === 'PUSH') {
+        this.toggleSearchBox(location)
+      }
+    });
+  }
+
+  componentWillUnmount() {
+    this.historyUnsubscribe();
+  }
+
+  toggleSearchBox(location) {
+    if (location.pathname === "/search") {
+      this.setState({
+        showSearchBox: false
+      })
+    } else {
+      this.setState({
+        showSearchBox: true
+      })
+    }
+  }
+}
+----
+
+In `componentDidMount` we also make sure that we toggle the search box based on the URL that we start on as well, otherwise it would default to `true`.
+
+If we try the CodeSandbox provided at the top of the post we'll see the following if we click the `Dashboard` link in the header:
+
+image::{{<siteurl>}}/uploads/2019/12/dashboard.png[]
+
+As expected, the search box is still showing.
+But if we click the `Search` link, we'll see the following screen:
+
+image::{{<siteurl>}}/uploads/2019/12/search.png[]
+
+After I'd got this working I came across https://github.com/reach/router/issues/203[another GitHub issue^], where Martin Mende showed how to achieve the same thing https://reactjs.org/docs/hooks-intro.html[using state and effect hooks^].
+The following code does the same thing as the `App` component that we defined above:
+
+[source, javascript]
+----
+import React, {useEffect, useState} from 'react';
+import {globalHistory, Link, Router} from "@reach/router";
+
+function App() {
+  const initialState = true;
+  const [showSearchBox, setShowSearchBox] = useState(initialState);
+  useEffect(() => {
+    const removeListener = globalHistory.listen(params => {
+      const { location } = params;
+      const newState = location.pathname !== "/search";
+      setShowSearchBox(newState);
+    });
+    return () => {
+      removeListener();
+    };
+  }, []);
+
+  return (
+    <div className="App">
+      <header className="App-header">
+        <p>React Reach Router Demo</p>
+        <div>
+          {showSearchBox && <input type={"text"} style={{ margin: "10px" }} />}
+        </div>
+      </header>
+      <nav style={{ padding: "5px" }}>
+        <Link to="/">Home</Link> <Link to="dashboard">Dashboard</Link>{" "}
+        <Link to="search">Search</Link>
+      </nav>
+      <div style={{ paddingTop: "10px" }}>
+        <Router>
+          <Home path="/" />
+          <Dashboard path="/dashboard" />
+          <Search path="/search" />
+        </Router>
+      </div>
+    </div>
+  );
+}
 ----
