@@ -1,9 +1,6 @@
 import React, {Component} from 'react';
-
-import logo from './logo.svg';
 import './App.css';
-import {Link, Router} from "@reach/router";
-import {globalHistory} from '@reach/router';
+import {globalHistory, Link, Router} from "@reach/router";
 
 
 const Home = () => (
@@ -62,7 +59,6 @@ class App extends Component {
     return (
       <div className="App">
         <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo"/>
           <p>
             React Reach Router Demo
           </p>
