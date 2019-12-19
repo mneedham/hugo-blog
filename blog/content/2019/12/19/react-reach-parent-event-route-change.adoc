@@ -1,0 +1,16 @@
++++
+draft = true
+date="2019-12-19 00:21:00"
+title="React React Router: Setting parent component state based on route change event"
+tag=['react', 'react']
+category=['React']
+description="Learn how to import data into Elastic App Search"
++++
+
+
+[source,bash]
+----
+npx create-react-app my-app
+cd my-app
+yarn add @reach/router
+----
