@@ -1,7 +1,7 @@
 +++
 draft = false
 date="2018-07-16 05:25:00"
-title="QuickGraph: Analysing Python Dependency Graph with PageRank, Closeness Centrality, and Betweenness Centrality"
+title="QuickGraph #1: Analysing Python Dependency Graph with PageRank, Closeness Centrality, and Betweenness Centrality"
 tag=['quickgraph', 'neo4j', "graph-algorithms", "python"]
 category=['Python']
 description="Learn how to apply Neo4j Graph Algorithms to a graph of the Python ecosystem."

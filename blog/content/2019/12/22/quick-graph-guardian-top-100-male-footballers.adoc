@@ -182,7 +182,7 @@ RETURN size(judges) AS count, judges
 | 14    | [179, 145, 102, 239, 187, 204, 220, 215, 144, 51, 202, 42, 79, 218]
 |===
 
-Only 14 out of 239 (or 6% of) judges got the top 3 exactly right.
+Only 14 out of 239 (or 6% of the) judges got the top 3 exactly right.
 Football is clearly a game of different opinions!
 
 Next let's see which clubs have fared best.
