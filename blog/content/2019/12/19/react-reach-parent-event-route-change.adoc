@@ -2,7 +2,7 @@
 draft = false
 date="2019-12-19 00:21:00"
 title="React React Router: Setting parent component state based on route change event"
-tag=['react', 'react']
+tag=['react']
 category=['React']
 description="Learn how to listen to route change events when using React Reach Router."
 +++
@@ -14,11 +14,12 @@ The CodeSandbox below shows all the code to do this:
 
 ++++
 <iframe
-     src="https://codesandbox.io/embed/github/mneedham/hugo-blog/tree/master/blog/content/2019/12/my-app?fontsize=14&hidenavigation=1&module=%2Fsrc%2FApp.js&theme=dark"
+     src="https://codesandbox.io/embed/github/mneedham/hugo-blog/tree/master/blog/code/my-app?fontsize=14&hidenavigation=1&module=%2Fsrc%2FApp.js&theme=dark"
      style="width:100%; height:500px; border:0; border-radius: 4px; overflow:hidden;"
      title="my-app"
      allow="geolocation; microphone; camera; midi; vr; accelerometer; gyroscope; payment; ambient-light-sensor; encrypted-media; usb"
-     sandbox="allow-modals allow-forms allow-popups allow-scripts allow-same-origin"></iframe>
+     sandbox="allow-modals allow-forms allow-popups allow-scripts allow-same-origin"
+   ></iframe>
 ++++
 
 Let's walk through the code.
