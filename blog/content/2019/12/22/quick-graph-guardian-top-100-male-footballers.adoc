@@ -5,6 +5,7 @@ title="QuickGraph #2: Guardian Top 100 Male Footballers"
 tag=['quickgraph', 'neo4j']
 category=['QuickGraph']
 description="Learn how to build a graph of the Guardian's Top 100 Male Footballers"
+image="uploads/2019/12/top-100-header.png"
 +++
 
 Over the last week the Guardian have been counting down their https://www.theguardian.com/global/ng-interactive/2019/dec/17/the-100-best-male-footballers-in-the-world-2019[top 100 male footballers of 2019^], and on Friday they also published a https://docs.google.com/spreadsheets/d/1f4nc8vehOiZhEB2_3L2bvXTpag29VcEKJ0PJeo5Runc/edit#gid=3[Google sheet containing all the votes^], which seemed like a perfect candidate for a https://markhneedham.com/blog/tag/quickgraph/[QuickGraph^].
@@ -132,7 +133,7 @@ The Google sheet already contains the answers to the following questions:
 Let's see what else we can learn.
 The queries that follow use Neo4j's https://neo4j.com/developer/cypher-basics-i/[Cypher^] query language.
 
-=== How did many judges included the top 5 in their top 5?
+=== How many judges included the top 5 in their top 5?
 
 [source,cypher]
 ----
@@ -147,7 +148,7 @@ RETURN player.name AS player,
        player.score AS score;
 ----
 
-.How did many judges included the top 5 in their top 5?
+.How many judges included the top 5 in their top 5?
 [opts="header", cols="1,3,1"]
 |===
 | player | votes | score
