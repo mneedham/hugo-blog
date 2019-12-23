@@ -1,0 +1,263 @@
++++
+draft = false
+date="2019-12-23 00:21:00"
+title="QuickGraph #3: Itsu Allergens"
+tag=['quickgraph', 'neo4j']
+category=['QuickGraph']
+description="Learn how to build a graph of Itsu allergens."
+image="uploads/2019/12/itsu_logo.svg"
++++
+
+As someone who's allergic to lots of different things, the introduction of allergen charts in restaurants over the last few years has been very helpful.
+These charts are often hidden away in PDF files, but the Asian inspired Itsu restaurant have all this information available on their online menus.
+This therefore seemed like a great opportunity for another https://markhneedham.com/blog/tag/quickgraph/[QuickGraph^].
+
+image::{{<siteurl>}}/uploads/2019/12/itsu_logo.svg[]
+
+== Scraping the Itsu website
+
+I wrote a couple of Python scripts to download each of the menu items and then extract the product name, description, and allergens.
+Instructions for https://github.com/mneedham/itsu-neo4j#downloading-and-scraping-product-data[how to download and scrape this data^] are described in the https://github.com/mneedham/itsu-neo4j[itsu-neo4j^] repository.
+
+The scraped data for each of the products is in the https://github.com/mneedham/itsu-neo4j/blob/master/import/items.json[import/items.json^] file.
+
+== Exploring the data
+
+Let's have a quick look at the first few lines of this file using command line tools:
+
+[source,bash]
+----
+$ head -n3 import/items.json | jq '.'
+
+{
+  "title": "aluminium refill flask",
+  "allergens": [],
+  "description": "for only £1.99, our aluminium refill flask is eco-friendly and can be used again and again. Proudly supporting Blue Marine Foundation.",
+  "url": "https://www.itsu.com/menu/sides-snacks/aluminium-refill-flask/"
+}
+{
+  "title": "itsu still water",
+  "allergens": [],
+  "description": "",
+  "url": "https://www.itsu.com/menu/sides-snacks/itsu-still-water/"
+}
+{
+  "title": "salmon sashimi",
+  "allergens": [
+    "fish",
+    "soya",
+    "mustard",
+    "gluten"
+  ],
+  "description": "omega 3 rich sashimi grade salmon sashimi on magnesium packed wakame & pickled ginger",
+  "url": "https://www.itsu.com/menu/sushi/salmon-sashimi-2/"
+}
+----
+
+We can also use Neo4j's `LOAD CSV` tool to explore the data.
+The following query returns the 1st product:
+
+[source,cypher]
+----
+CALL apoc.load.json("https://github.com/mneedham/itsu-neo4j/raw/master/import/items.json")
+YIELD value
+RETURN value
+LIMIT 1
+----
+
+If we run that query we'll see the following output:
+
+.Exploring the data
+[opts="header"]
+|===
+| value
+| {description: "for only £1.99, our aluminium refill flask is eco-friendly and can be used again and again. Proudly supporting Blue Marine Foundation.", title: "aluminium refill flask", url: "https://www.itsu.com/menu/sides-snacks/aluminium-refill-flask/", allergens: []}
+|===
+
+This isn't a particularly interesting product as it doesn't have any allergens!
+Next we're going to learn how we can use `LOAD CSV` to import the products into Neo4j.
+
+== Importing the data
+
+We're going to import the data into the following graph model:
+
+image::{{<siteurl>}}/uploads/2019/12/itsu-graph-model.svg[]
+
+The following `LOAD CSV` statement imports the products and their allergens:
+
+
+[source,cypher]
+----
+CALL apoc.load.json("https://github.com/mneedham/itsu-neo4j/raw/master/import/items.json")
+YIELD value
+
+MERGE (product:Product {url: value.url})
+SET product.name = value.title, product.description = value.description
+
+WITH product, value
+UNWIND value.allergens AS a
+MERGE (allergen:Allergen {name: a})
+MERGE (product)-[:CONTAINS_ALLERGEN]->(allergen);
+----
+
+We can see a sample of the imported graph in the Neo4j Browser visualisation below:
+
+image::{{<siteurl>}}/uploads/2019/12/itsu-sample.svg[]
+
+== Querying the graph
+
+Now let's explore the data using Neo4j's https://neo4j.com/developer/cypher-basics-i/[Cypher^] query language.
+
+=== How many allergens are there?
+
+[source,cypher]
+----
+MATCH (allergen:Allergen)
+RETURN count(*), collect(allergen.name) AS allergens;
+----
+
+.How many allergens are there?
+[opts="header",cols="1,3"]
+|===
+| count(*) | allergens
+| 14       | ["fish", "soya", "mustard", "gluten", "celery", "sesame", "sulphur dioxide", "dairy", "egg", "crustaceans", "wheat", "mullusc", "nuts", "peanuts"]
+|===
+
+=== Which allergen is most prevalent?
+
+[source,cypher]
+----
+MATCH (:Product)
+WITH count(*) AS productCount
+MATCH (allergen)<-[:CONTAINS_ALLERGEN]-()
+WITH allergen, count(*) AS count, productCount
+RETURN allergen.name AS allergen, count,
+       apoc.math.round(count*1.0/productCount,2) AS percentageOfProducts
+ORDER BY count DESC
+LIMIT 5;
+----
+
+.Which allergen is most prevalent?
+[opts="header"]
+|===
+| allergen | count | percentageOfProducts
+| "soya"    | 78    | 0.75
+| "gluten"  | 55    | 0.53
+| "sesame"  | 54    | 0.52
+| "mustard" | 42    | 0.4
+| "celery"  | 24    | 0.23
+
+|===
+
+Itsu is clearly not a good place to go if you're allergic to soya, gluten, or sesame.
+
+=== Which allergens appear together most frequently?
+
+[source,cypher]
+----
+MATCH (allergen1:Allergen)<-[:CONTAINS_ALLERGEN]-()-[:CONTAINS_ALLERGEN]->(allergen2)
+WHERE allergen1.name < allergen2.name
+RETURN allergen1.name AS allergen1, allergen2.name AS allergen2 , count(*) AS count
+ORDER BY count DESC
+LIMIT 5
+----
+
+.Which allergens appear together most frequently?
+[opts="header"]
+|===
+| allergen1 | allergen2 | count
+| "gluten"       | "soya"         | 55
+| "sesame"       | "soya"         | 53
+| "gluten"       | "sesame"       | 47
+| "mustard"      | "soya"         | 40
+| "mustard"      | "sesame"       | 36
+|===
+
+It looks like Itsu recipes often use soya alongside gluten and sesame.
+
+And now let's finally see what I can eat the next time that I go to Itsu.
+
+=== How many things can I eat in Itsu?
+
+[source,cypher]
+----
+MATCH (:Product) WITH count(*) AS productCount
+WITH ["crustaceans", "nuts", "peanuts", "egg", "dairy", "fish"] AS allergens, productCount
+MATCH (product:Product)
+WHERE all(allergen in allergens WHERE not((product)-[:CONTAINS_ALLERGEN]->(:Allergen {name: allergen})))
+WITH count(*) AS count, collect(product.name) AS products, productCount
+RETURN count,
+       apoc.math.round(count*1.0/productCount, 2) AS percentageOfProducts,
+       products
+----
+
+.How many things can I eat in Itsu?
+[opts="header", cols="1,1,3"]
+|===
+| count | percentageOfProducts | products
+| 61    | 0.59       | ["aluminium refill flask", "itsu still water", "edamame", "dark chocolate rice cakes", "veggie rice’bowl & quinoa burgers", "winter wonderland", "veggie dragon roll", "christmas cracker gyoza", "detox miso’noodle soup", "little choc pot", "porridge’power", "itsu sparkling water", "hoisin duck tokyo wrap", "vegetable fusion gyoza", "chicken noodle soup", "ginger & lemon kombucha", "ginger’low", "veg press", "lean chicken machine", "miso soup", "original kombucha", "coconut chicken soup", "thai chicken rice’bowl", "blueberry’boost porridge", "beef twerky", "crispy seaweed thins sweet soy & sea salt", "passionfruit kombucha", "raw fruitfix beauty’smoothie", "cucumber & mint zen’water", "Hawaii 5.0 fruit cup", "crispy seaweed thins sea salt", "bacon bao’bun", "ginger detox zinger", "pork & truffle gyoza", "crispy seaweed thins wasabi", "veggie club rolls", "veggie’gyoza udon ", "spicy korean chicken rice’bowl", "veggie thai soup", "the sesame chicken salad", "i’thai udon [stir-fry style]", "lean satay chicken tokyo wrap", "quinoa burgers tokyo wrap", "little salted caramel pot", "orange press", "hoisin duck bao buns", "peach & lychee zen’water", "veggie sushi collection", "raw veg cleanse beauty’smoothie", "chilli’chicken udon", "super’seeds porridge", "no meat mondays", "avo baby rolls", "lemon’low", "tenderstem broccoli with sesame dressing", "crushed coconut & chocolate oishi bar", "teriyaki chicken rice’bowl", "vegetable dumplings", "wasabi peas [healthy snack]", "chargrilled chicken udon", "goji, mandarin & lime"]
+|===
+
+A lot more than I expected!
+Let's simplify this query a bit by creating a function that returns the product count:
+
+[source,cypher]
+----
+CALL apoc.custom.asFunction("productCount",
+  "MATCH (:Product) RETURN count(*) AS count",
+  "LONG", null, true)
+----
+
+And now we'll update our previous query to use this function:
+
+[source,cypher]
+----
+WITH ["crustaceans", "nuts", "peanuts", "egg", "dairy", "fish"] AS allergens
+MATCH (product:Product)
+WHERE all(allergen in allergens WHERE not((product)-[:CONTAINS_ALLERGEN]->(:Allergen {name: allergen})))
+WITH count(*) AS count, collect(product.name) AS products
+RETURN count,
+       apoc.math.round(count*1.0/custom.productCount(), 2) AS percentage,
+       products
+----
+
+=== How many hot things can I eat in Itsu?
+
+Let's say I want to eat something from the `hot` category.
+We haven't modelled that in our graph, but it is embedded in the `url` property stored on each product.
+The following query will find the products that I can eat in this category:
+
+[source,cypher]
+----
+WITH ["crustaceans", "nuts", "peanuts", "egg", "dairy", "fish"] AS allergens
+MATCH (product:Product)
+WHERE all(allergen in allergens WHERE not((product)-[:CONTAINS_ALLERGEN]->(:Allergen {name: allergen})))
+WITH product WHERE split(product.url, "/")[-3] = "hot"
+RETURN product.name AS product, product.url AS url,
+       [(product)-[:CONTAINS_ALLERGEN]->(allergen) | allergen.name] AS allergens
+----
+
+.Which hot things can I eat in Itsu?
+[opts="header", cols="1,2,3"]
+|===
+| product | url | allergens
+| "veggie rice’bowl & quinoa burgers" | "https://www.itsu.com/menu/hot/quinoa-falafel-veg-ricebowl/"  | ["sulphur dioxide", "sesame", "mustard", "celery", "soya", "gluten"]
+| "winter wonderland"                 | "https://www.itsu.com/menu/hot/winter-wonderland/"            | ["sesame", "mustard", "celery", "soya", "gluten"]
+| "christmas cracker gyoza"           | "https://www.itsu.com/menu/hot/christmas-cracker-gyoza/"      | ["sesame", "soya", "gluten"]
+| "detox miso’noodle soup"            | "https://www.itsu.com/menu/hot/detox-noodles/"                | ["soya", "sesame", "gluten"]
+| "vegetable fusion gyoza"            | "https://www.itsu.com/menu/hot/vegetable-fusion-gyoza/"       | ["soya", "sesame", "gluten"]
+| "chicken noodle soup"               | "https://www.itsu.com/menu/hot/the-chicken-noodle-soup/"      | ["mustard", "soya", "celery", "sulphur dioxide", "gluten", "sesame"]
+| "miso soup"                         | "https://www.itsu.com/menu/hot/miso-soup/"                    | ["soya"]
+| "coconut chicken soup"              | "https://www.itsu.com/menu/hot/coconutchicken-greens/"        | ["sulphur dioxide", "sesame", "soya", "mustard", "celery"]
+| "thai chicken rice’bowl"            | "https://www.itsu.com/menu/hot/chicken-thai-ricebowl/"        | ["celery", "sulphur dioxide", "sesame", "mustard", "soya", "gluten"]
+| "veggie’gyoza udon "                | "https://www.itsu.com/menu/hot/veggie-gyoza-noodles/"         | ["celery", "sesame", "sulphur dioxide", "mustard", "soya", "gluten"]
+| "spicy korean chicken rice’bowl"    | "https://www.itsu.com/menu/hot/korean-bbq-chicken-ricebowl/"  | ["gluten", "sesame", "soya", "mustard", "celery", "sulphur dioxide"]
+| "veggie thai soup"                  | "https://www.itsu.com/menu/hot/thai-coconut-veggierice/"      | ["celery", "soya", "mustard", "sulphur dioxide", "sesame"]
+| "i’thai udon [stir-fry style]"      | "https://www.itsu.com/menu/hot/ithai-udon-noodles-yaki-udon/" | ["gluten", "sesame", "mustard", "celery", "soya", "sulphur dioxide"]
+| "hoisin duck bao buns"              | "https://www.itsu.com/menu/hot/hoisin-duck-bao-buns/"         | ["sesame", "soya", "gluten", "mullusc"]
+| "chilli’chicken udon"               | "https://www.itsu.com/menu/hot/chilli-chicken-udon-2/"        | ["sulphur dioxide", "celery", "soya", "sesame", "gluten", "mustard"]
+| "teriyaki chicken rice’bowl"        | "https://www.itsu.com/menu/hot/chicken-teriyaki-ricebowl/"    | ["mustard", "gluten", "celery", "sesame", "soya", "sulphur dioxide"]
+| "chargrilled chicken udon"          | "https://www.itsu.com/menu/hot/chargrilled-chicken-noodles/"  | ["sulphur dioxide", "celery", "sesame", "mustard", "soya", "gluten"]
+|===
+
+It occurs to me after writing this post that this dataset would be much easier to explore via a web app, so perhaps a GRANDstack allergen application is the next thing in my future.
