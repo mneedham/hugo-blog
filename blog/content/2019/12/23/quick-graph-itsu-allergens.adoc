@@ -5,14 +5,14 @@ title="QuickGraph #3: Itsu Allergens"
 tag=['quickgraph', 'neo4j']
 category=['QuickGraph']
 description="Learn how to build a graph of Itsu allergens."
-image="uploads/2019/12/itsu_logo.svg"
+image="uploads/2019/12/GUIDE_LOGO_itsu.png"
 +++
 
 As someone who's allergic to lots of different things, the introduction of allergen charts in restaurants over the last few years has been very helpful.
 These charts are often hidden away in PDF files, but the Asian inspired Itsu restaurant have all this information available on their online menus.
 This therefore seemed like a great opportunity for another https://markhneedham.com/blog/tag/quickgraph/[QuickGraph^].
 
-image::{{<siteurl>}}/uploads/2019/12/itsu_logo.svg[]
+image::{{<siteurl>}}/uploads/2019/12/Itsu_logo.svg[]
 
 == Scraping the Itsu website
 
@@ -81,7 +81,7 @@ Next we're going to learn how we can use `LOAD CSV` to import the products into 
 
 We're going to import the data into the following graph model:
 
-image::{{<siteurl>}}/uploads/2019/12/itsu-graph-model.svg[]
+image::{{<siteurl>}}/uploads/2019/12/itsu-graph-model.png[]
 
 The following `LOAD CSV` statement imports the products and their allergens:
 
