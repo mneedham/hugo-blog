@@ -1,0 +1,113 @@
++++
+draft = false
+date="2020-01-02 00:21:00"
+title="Spotify: Making my first call"
+tag=['spotify']
+category=['Spotify']
+description="Learn how to call the Spotify API to retrieve details about a particular song."
+image="uploads/2020/01/spotify-logo.png"
++++
+
+I wanted to enrich the data for a little music application I'm working on and realised it would be a perfect opportunity to try out the https://developer.spotify.com/documentation/[Spotify API^].
+I want to extract data about individual tracks (via the https://developer.spotify.com/documentation/web-api/reference-beta/#category-tracks[Tracks API^]), but before we do that we'll need to create an app and have it approved for access to the Spotify API.
+
+image::{{<siteurl>}}/uploads/2020/01/spotify-logo.png[]
+
+
+== Registering an application
+
+After logging into the https://developer.spotify.com/dashboard/applications[Spotify Dashboard^] using my usual Spotify credentials, I was prompted to create an application:
+
+image::{{<siteurl>}}/uploads/2020/01/create-app.png[]
+
+We then have to fill in a three part form, providing some information about the application that we want to build:
+
+image::{{<siteurl>}}/uploads/2020/01/spotify-sign-up.png[]
+
+Once we submit that form, we will be redirected to a screen similar to the following:
+
+image::{{<siteurl>}}/uploads/2020/01/dashboard.png[]
+
+Before we start using the API in the next section, we'll need to have our Client ID and Client Secret handy.
+The Client ID is already visible, and we can retrieve our Client Secret by clicking on the _Show Client Secret_ link:
+
+image::{{<siteurl>}}/uploads/2020/01/dashboard-secret.png[]
+
+Once we click on that link, we'll see the following screen:
+
+image::{{<siteurl>}}/uploads/2020/01/spotify-show-secret.png[]
+
+We're now ready to start using the API.
+
+== Requesting access token
+
+Since we're not interested in accessing user information via the API, we can use the _Client Credentials Flow_ described in the https://developer.spotify.com/documentation/general/guides/authorization-guide/#client-credentials-flow[Authorization Developer Guide^].
+The diagram below, taken from this guide, explains how this works:
+
+image::{{<siteurl>}}/uploads/2020/01/spotify-AuthG_ClientCredentials.png[]
+
+We're going to use the https://requests.readthedocs.io/en/master/[Python requests library ^] to call the `/api/token` endpoint.
+This endpoint expects to receive the `Authorization` header parameter with a value set to a Base 64  encoded string of our Client ID and Client Secret, which we saw on our Dashboard in the previous section.
+
+Let's create environment variables containing these values, by running the commands below on our terminal window:
+
+[NOTE]
+====
+Don't forget to change the placeholder values to your Client ID and Client Secret.
+====
+
+[source, bash]
+----
+export CLIENT_ID="<our-client-id>"
+export CLIENT_SECRET="<our-client-secret>"
+----
+
+Once we've done that, we can write the following Python script to get an access token:
+
+_spotify_exploration.py_
+
+[source,python]
+----
+import requests
+import base64
+import os
+import json
+
+credentials = f"{os.environ['CLIENT_ID']}:{os.environ['CLIENT_SECRET']}"
+encoded_credentials = str(base64.b64encode(credentials.encode("utf-8")), "utf-8")
+
+payload = {"grant_type": "client_credentials"}
+headers = {"Authorization": f"Basic {encoded_credentials}"}
+
+response = requests.post("https://accounts.spotify.com/api/token", headers=headers, data=payload).json()
+
+print("Response:", response)
+----
+
+If we run that script, we'll see the following output:
+
+.python spotify_exploration.py
+|===
+| Response: {'access_token': '<our-access-token>', 'token_type': 'Bearer', 'expires_in': 3600, 'scope': ''}
+|===
+
+We can now extend our script to make a call to the Tracks API to retrieve information about the UK's longest running number 1 song of 2019, Dance Monkey:
+
+[source,python]
+----
+token = response["access_token"]
+headers = {"Authorization": f"Bearer {token}"}
+track_response = requests.get("https://api.spotify.com/v1/tracks/2XU0oxnq2qxCpomAAuJY8K", headers=headers).json()
+
+print("Track Response:", json.dumps(track_response))
+----
+
+If we run our script again, we'll see the following output:
+
+.python spotify_exploration.py
+|===
+| Track Response: {"album": {"album_type": "single", "artists": [{"external_urls": {"spotify": "https://open.spotify.com/artist/2NjfBq1NflQcKSeiDooVjY"}, "href": "https://api.spotify.com/v1/artists/2NjfBq1NflQcKSeiDooVjY", "id": "2NjfBq1NflQcKSeiDooVjY", "name": "Tones and I", "type": "artist", "uri": "spotify:artist:2NjfBq1NflQcKSeiDooVjY"}], "available_markets": ["AD", "AE", "AR", "AT", "BE", "BG", "BH", "BO", "BR", "CA", "CH", "CL", "CO", "CR", "CY", "CZ", "DE", "DK", "DO", "DZ", "EC", "EE", "EG", "ES", "FI", "FR", "GB", "GR", "GT", "HK", "HN", "HU", "ID", "IE", "IL", "IS", "IT", "JO", "JP", "KW", "LB", "LI", "LT", "LU", "LV", "MA", "MC", "MT", "MX", "MY", "NI", "NL", "NO", "OM", "PA", "PE", "PH", "PL", "PS", "PT", "PY", "QA", "RO", "SA", "SE", "SG", "SK", "SV", "TH", "TN", "TR", "TW", "US", "UY", "VN", "ZA"], "external_urls": {"spotify": "https://open.spotify.com/album/0UywfDKYlyiu1b38DRrzYD"}, "href": "https://api.spotify.com/v1/albums/0UywfDKYlyiu1b38DRrzYD", "id": "0UywfDKYlyiu1b38DRrzYD", "images": [{"height": 640, "url": "https://i.scdn.co/image/b98ddadfe65507738699fa7f80dc654f7f4d022d", "width": 640}, {"height": 300, "url": "https://i.scdn.co/image/2610e3524ce08c4d6ad16e7b9327f46998e1b821", "width": 300}, {"height": 64, "url": "https://i.scdn.co/image/93740961697e111d69fbbb8a16af64b354528cce", "width": 64}], "name": "Dance Monkey (Stripped Back) / Dance Monkey", "release_date": "2019-10-17", "release_date_precision": "day", "total_tracks": 2, "type": "album", "uri": "spotify:album:0UywfDKYlyiu1b38DRrzYD"}, "artists": [{"external_urls": {"spotify": "https://open.spotify.com/artist/2NjfBq1NflQcKSeiDooVjY"}, "href": "https://api.spotify.com/v1/artists/2NjfBq1NflQcKSeiDooVjY", "id": "2NjfBq1NflQcKSeiDooVjY", "name": "Tones and I", "type": "artist", "uri": "spotify:artist:2NjfBq1NflQcKSeiDooVjY"}], "available_markets": ["AD", "AE", "AR", "AT", "BE", "BG", "BH", "BO", "BR", "CA", "CH", "CL", "CO", "CR", "CY", "CZ", "DE", "DK", "DO", "DZ", "EC", "EE", "EG", "ES", "FI", "FR", "GB", "GR", "GT", "HK", "HN", "HU", "ID", "IE", "IL", "IS", "IT", "JO", "JP", "KW", "LB", "LI", "LT", "LU", "LV", "MA", "MC", "MT", "MX", "MY", "NI", "NL", "NO", "OM", "PA", "PE", "PH", "PL", "PS", "PT", "PY", "QA", "RO", "SA", "SE", "SG", "SK", "SV", "TH", "TN", "TR", "TW", "US", "UY", "VN", "ZA"], "disc_number": 1, "duration_ms": 209438, "explicit": false, "external_ids": {"isrc": "QZES71982312"}, "external_urls": {"spotify": "https://open.spotify.com/track/2XU0oxnq2qxCpomAAuJY8K"}, "href": "https://api.spotify.com/v1/tracks/2XU0oxnq2qxCpomAAuJY8K", "id": "2XU0oxnq2qxCpomAAuJY8K", "is_local": false, "name": "Dance Monkey", "popularity": 100, "preview_url": "https://p.scdn.co/mp3-preview/535ffea66207a0fc07d57fbaea7b5594be797f9b?cid=<our-client-id>", "track_number": 2, "type": "track", "uri": "spotify:track:2XU0oxnq2qxCpomAAuJY8K"}
+|===
+
+We've now successfully made our first call to the Spotify API.
+And it's onwards with the rest of our application!
