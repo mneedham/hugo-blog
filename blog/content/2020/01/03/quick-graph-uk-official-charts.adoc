@@ -1,6 +1,6 @@
 +++
 draft = true
-date="2020-01-02 00:21:00"
+date="2020-01-03 00:21:00"
 title="QuickGraph #4: UK Official Singles Chart 2019"
 tag=['quickgraph', 'neo4j']
 category=['QuickGraph']
@@ -11,4 +11,4 @@ image="uploads/2019/12/GUIDE_LOGO_itsu.png"
 
 == Scraping the Official Charts
 
-== 
+==

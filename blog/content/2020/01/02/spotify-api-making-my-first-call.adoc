@@ -1,8 +1,8 @@
 +++
 draft = false
 date="2020-01-02 00:21:00"
-title="Spotify: Making my first call"
-tag=['spotify']
+title="Spotify API: Making my first call"
+tag=['spotify', 'python', 'apis']
 category=['Spotify']
 description="Learn how to call the Spotify API to retrieve details about a particular song."
 image="uploads/2020/01/spotify-logo.png"
@@ -79,7 +79,8 @@ encoded_credentials = str(base64.b64encode(credentials.encode("utf-8")), "utf-8"
 payload = {"grant_type": "client_credentials"}
 headers = {"Authorization": f"Basic {encoded_credentials}"}
 
-response = requests.post("https://accounts.spotify.com/api/token", headers=headers, data=payload).json()
+response = requests.post("https://accounts.spotify.com/api/token",
+  headers=headers, data=payload).json()
 
 print("Response:", response)
 ----
@@ -91,13 +92,16 @@ If we run that script, we'll see the following output:
 | Response: {'access_token': '<our-access-token>', 'token_type': 'Bearer', 'expires_in': 3600, 'scope': ''}
 |===
 
+== Calling the Tracks API
+
 We can now extend our script to make a call to the Tracks API to retrieve information about the UK's longest running number 1 song of 2019, Dance Monkey:
 
 [source,python]
 ----
 token = response["access_token"]
 headers = {"Authorization": f"Bearer {token}"}
-track_response = requests.get("https://api.spotify.com/v1/tracks/2XU0oxnq2qxCpomAAuJY8K", headers=headers).json()
+track_response = requests.get("https://api.spotify.com/v1/tracks/2XU0oxnq2qxCpomAAuJY8K",
+  headers=headers).json()
 
 print("Track Response:", json.dumps(track_response))
 ----
