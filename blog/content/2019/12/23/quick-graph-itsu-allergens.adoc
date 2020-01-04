@@ -2,7 +2,7 @@
 draft = false
 date="2019-12-23 00:21:00"
 title="QuickGraph #3: Itsu Allergens"
-tag=['quickgraph', 'neo4j']
+tag=['quickgraph', 'neo4j','apoc']
 category=['QuickGraph']
 description="Learn how to build a graph of Itsu allergens."
 image="uploads/2019/12/GUIDE_LOGO_itsu.png"
@@ -54,7 +54,7 @@ $ head -n3 import/items.json | jq '.'
 }
 ----
 
-We can also use Neo4j's `LOAD CSV` tool to explore the data.
+We can also use the https://neo4j.com/docs/labs/apoc/3.5/[APOC^] Library's https://neo4j.com/docs/labs/apoc/current/import/load-json/[`apoc.load.json`^] procedure to explore the data.
 The following query returns the 1st product:
 
 [source,cypher]
@@ -71,7 +71,11 @@ If we run that query we'll see the following output:
 [opts="header"]
 |===
 | value
-| {description: "for only £1.99, our aluminium refill flask is eco-friendly and can be used again and again. Proudly supporting Blue Marine Foundation.", title: "aluminium refill flask", url: "https://www.itsu.com/menu/sides-snacks/aluminium-refill-flask/", allergens: []}
+a|
+[source,json]
+----
+{description: "for only £1.99, our aluminium refill flask is eco-friendly and can be used again and again. Proudly supporting Blue Marine Foundation.", title: "aluminium refill flask", url: "https://www.itsu.com/menu/sides-snacks/aluminium-refill-flask/", allergens: []}
+----
 |===
 
 This isn't a particularly interesting product as it doesn't have any allergens!
@@ -83,8 +87,7 @@ We're going to import the data into the following graph model:
 
 image::{{<siteurl>}}/uploads/2019/12/itsu-graph-model.png[]
 
-The following `LOAD CSV` statement imports the products and their allergens:
-
+The following statement imports the products and their allergens:
 
 [source,cypher]
 ----
