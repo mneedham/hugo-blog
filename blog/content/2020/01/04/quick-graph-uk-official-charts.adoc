@@ -1,6 +1,6 @@
 +++
-draft = true
-date="2020-01-03 00:21:00"
+draft = false
+date="2020-01-04 00:21:00"
 title="QuickGraph #4: UK Official Singles Chart 2019"
 tag=['quickgraph', 'neo4j', 'apoc']
 category=['QuickGraph']
@@ -344,7 +344,6 @@ ORDER BY bestPosition
 
 The last two on this list are hangovers from 2018.
 I expect they charted much higher during that year.
-It's interesting that he's had a collaborator on all his other songs in 2019, and all of his songs charted in the top 5.
 
 We can create a visual representation of this data by tweaking our query slightly:
 
@@ -369,6 +368,28 @@ RETURN *
 We could probably achieve the same result by tweaking the first part of the query, but I never like to miss an opportunity to use virtual nodes and relationships.
 
 image::{{<siteurl>}}/uploads/2020/01/ed-sheeran-songs.png[title="Ed Sheeran songs in the UK Charts of 2019"]
+
+It's interesting that he's had a collaborator on all his other songs in 2019, and all of his songs charted in the top 5.
+Let's explore artist collaborations a bit more.
+
+=== How many collaborators did artists have during the year?
+
+The following query computes the number of collaborators each artist had and then creates a histogram of those counts:
+
+[source,cypher]
+----
+MATCH (artist:Artist)
+OPTIONAL MATCH (artist)<-[:ARTIST]-(song)-[:ARTIST]->(otherArtist)
+WITH artist, count(otherArtist) AS count
+RETURN count, count(*)
+ORDER BY count
+----
+
+This data is easiest to interpret as a chart, which we can create using https://www.chartgo.com/[chartgo.com^].
+
+image::{{<siteurl>}}/uploads/2020/01/collaborations-count.png[title="Artist Collaborations"]
+
+Although the majority of artists mostly worked alone or had only one collaborator, there are a reasonable number who had 6 or more collaborators over the year.
 
 In all the queries that we're written so far, we've been looking at the chart position for a song in a single week.
 We haven't written any queries that look at how a song's chart position changes over the weeks.
@@ -410,10 +431,110 @@ WITH song, collect(artist.name) AS artists,
      inChartPrevious.position AS firstPosition,
      inChart.position AS secondPosition,
      previousChart, chart
-RETURN song.title, artists, firstPosition, secondPosition,
+RETURN song.title AS song, artists, firstPosition, secondPosition,
        firstPosition - secondPosition AS change,
        toString(previousChart.end) AS firstChart,
        toString(chart.end) AS secondChart
 ORDER BY change DESC
 LIMIT 5
 ----
+
+.Which song had the biggest climb between weeks?
+[opts="header"]
+|===
+| song            | artists                            | firstPosition | secondPosition | change | firstChart   | secondChart
+| "Bruises"             | ["Lewis Capaldi"]                  | 82            | 11             | 71     | "2019-10-03" | "2019-10-10"
+| "Playing Games"       | ["Summer Walker", "Bryson Tiller"] | 93            | 25             | 68     | "2019-10-10" | "2019-10-17"
+| "Girls Like You"      | ["Maroon 5", "Cardi B"]            | 97            | 34             | 63     | "2019-01-03" | "2019-01-10"
+| "Lose You To Love Me" | ["Selena Gomez"]                   | 65            | 3              | 62     | "2019-10-31" | "2019-11-07"
+| "Play"                | ["Years & Years", "Jax Jones"]     | 80            | 19             | 61     | "2019-01-03" | "2019-01-10"
+|===
+
+There are some big climbers there, but I think it'll be more interesting to look at number 1 songs in this context.
+
+=== Which songs went straight in at number 1?
+
+Let's start by seeing whether any of our number 1 songs went straight in at number 1.
+The following query will tell us the answer to this question:
+
+[source,cypher]
+----
+// Find songs that charted at position 1
+MATCH (song:Song)-[inChart:IN_CHART {position: 1}]->(chart)
+
+// And didn't have an entry on a chart before this one
+WHERE not((chart)<-[:NEXT*]-()<-[:IN_CHART]-(song))
+
+WITH song, chart ORDER BY chart.end
+RETURN song.title AS song,
+       [(song)-[:ARTIST]->(artist) | artist.name] AS artists,
+       collect(toString(chart.end)) AS chart
+----
+
+.Which songs went straight in at number 1?
+[opts="header"]
+|===
+| song                                      | artists                          | chart
+| "Sweet But Psycho"                        | ["Ava Max"]                      | ["2019-01-03"]
+| "7 Rings"                                 | ["Ariana Grande"]                | ["2019-01-31"]
+| "Break Up With Your Girlfriend I'M Bored" | ["Ariana Grande"]                | ["2019-02-21"]
+| "Vossi Bop"                               | ["Stormzy"]                      | ["2019-05-09"]
+| "I Don'T Care"                            | ["Ed Sheeran", "Justin Bieber"]  | ["2019-05-23"]
+| "I Love Sausage Rolls"                    | ["LadBaby"]                      | ["2019-12-26"]
+|===
+
+6 songs went straight in at the top.
+That means we still have 6 songs that came in at a lower position and then climbed to number 1.
+
+=== Which songs didn't go straight to number 1?
+
+The following query will help us figure out what position they charted on their first entry:
+
+[source,cypher]
+----
+// Find the first week that the song got to number 1
+MATCH (song:Song)-[inChart:IN_CHART {position: 1}]->(chart)
+WITH song, chart ORDER BY song, chart.end
+WITH song, collect(chart)[0] AS firstWeekAtNumber1
+
+// Find the earliest week that the song charted
+MATCH (firstWeekAtNumber1)<-[:NEXT*]-(previous)<-[previousInChart:IN_CHART]-(song)
+WITH song, firstWeekAtNumber1, previous, previousInChart
+ORDER BY song, previous.end
+WITH song, firstWeekAtNumber1,
+     collect(previousInChart.position)[0] AS firstPosition,
+     collect(previous)[0] AS firstWeek
+
+RETURN song.title AS song,
+       [(song)-[:ARTIST]->(artist) | artist.name] AS artists,
+       toString(firstWeekAtNumber1.end) AS firstWeekAtNumber1,
+       firstPosition AS firstPosition,
+       toString(firstWeek.end) AS firstWeek,
+       [path = (firstWeekAtNumber1)<-[:NEXT*]-(firstWeek) | length(path)][0] AS weeksToReachNumber1
+----
+
+.Which songs didn't go straight to number 1?
+[opts="header"]
+|===
+| song                     | artists | firstWeekAtNumber1 | firstPosition | firstWeek    | weeksToReachNumber1
+| "Someone You Loved"      | ["Lewis Capaldi"]                  | "2019-03-07"       | 66            | "2019-01-17" | 7
+| "Dance Monkey"           | ["Tones and I"]                    | "2019-10-10"       | 82            | "2019-08-15" | 8
+| "Take Me Back To London" | ["Ed Sheeran", "Stormzy"]          | "2019-09-05"       | 3             | "2019-07-25" | 6
+| "Senorita"               | ["Shawn Mendes", "Camila Cabello"] | "2019-07-18"       | 2             | "2019-07-04" | 2
+| "Beautiful People"       | ["Khalid", "Ed Sheeran"]           | "2019-07-25"       | 3             | "2019-07-11" | 2
+| "Old Town Road"          | ["Billy Ray Cyrus", "Lil Nas X"]   | "2019-04-25"       | 67            | "2019-04-04" | 3
+|===
+
+Interestingly the longest running number 1, Dance Monkey, started at the lowest position.
+And not only that, it took almost 2 months for it to get up to the number 1 spot.
+So if you start with a low chart position, all is not lost!
+
+== What’s interesting about this QuickGraph?
+
+This post has gone on for much longer than I intended, but I'll conclude with some thoughts on what makes this QuickGraph interesting.
+
+There's a lot of analysis of the charts in the UK, but it's often done along one dimension, be that a song or an artist.
+By modelling the data as a graph we can easily query the data along multiple dimensions.
+I especially enjoyed writing the queries that looked at how songs did across multiple charts.
+
+We could certainly extend our analysis further by adding in Wiki data, as Jesús Barrassa did in his https://jbarrasa.com/2019/12/05/quickgraph10-enrich-your-neo4j-knowledge-graph-by-querying-wikidata/[QuickGraph #10^], but that can wait for another blog post!
