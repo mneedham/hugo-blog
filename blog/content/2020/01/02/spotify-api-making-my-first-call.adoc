@@ -8,6 +8,8 @@ description="Learn how to call the Spotify API to retrieve details about a parti
 image="uploads/2020/01/spotify-logo.png"
 +++
 
+:icons: font
+
 I wanted to enrich the data for a little music application I'm working on and realised it would be a perfect opportunity to try out the https://developer.spotify.com/documentation/[Spotify API^].
 I want to extract data about individual tracks (via the https://developer.spotify.com/documentation/web-api/reference-beta/#category-tracks[Tracks API^]), but before we do that we'll need to create an app and have it approved for access to the Spotify API.
 

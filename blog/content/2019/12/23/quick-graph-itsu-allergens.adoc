@@ -71,11 +71,7 @@ If we run that query we'll see the following output:
 [opts="header"]
 |===
 | value
-a|
-[source,json]
-----
-{description: "for only £1.99, our aluminium refill flask is eco-friendly and can be used again and again. Proudly supporting Blue Marine Foundation.", title: "aluminium refill flask", url: "https://www.itsu.com/menu/sides-snacks/aluminium-refill-flask/", allergens: []}
-----
+| {description: "for only £1.99, our aluminium refill flask is eco-friendly and can be used again and again. Proudly supporting Blue Marine Foundation.", title: "aluminium refill flask", url: "https://www.itsu.com/menu/sides-snacks/aluminium-refill-flask/", allergens: []}
 |===
 
 This isn't a particularly interesting product as it doesn't have any allergens!
