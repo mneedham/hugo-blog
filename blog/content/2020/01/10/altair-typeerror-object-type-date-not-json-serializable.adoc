@@ -36,7 +36,7 @@ chart = alt.Chart(df).mark_point(color="red").encode(x='date', y='position')
 chart.save("chart.html")
 ----
 
-if we run this script, we'll see the following error message:
+If we run this script, we'll see the following error message:
 
 [source,cypher]
 ----
