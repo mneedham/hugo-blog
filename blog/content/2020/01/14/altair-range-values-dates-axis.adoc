@@ -1,10 +1,11 @@
 +++
 draft = false
 date="2020-01-14 00:21:00"
-title="Altair: Setting the range of Date values for an axis"
+title="Python: Altair - Setting the range of Date values for an axis"
 tag=['python', 'altair']
 category=['Python']
 description="Learn how to set the range of date values on the x axis of an Altair chart"
+image="uploads/2020/01/altair-dance-monkey-full-year.png"
 +++
 
 In my continued experiments with the https://altair-viz.github.io/index.html[Altair visualisation library], I wanted to set a custom range of data values on the x axis of a chart.
@@ -69,3 +70,5 @@ chart = alt.Chart(df).mark_point(color="red").encode(
     y='position')
 chart.save("chart.html")
 ----
+
+All the code from this blog post is available in a https://gist.github.com/mneedham/e5d347cbffe0b04584a267c0d961e1a1[GitHub Gist^].
