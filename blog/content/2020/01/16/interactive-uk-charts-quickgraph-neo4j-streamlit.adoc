@@ -1,10 +1,10 @@
 +++
 draft = true
-date="2020-01-15 00:21:00"
+date="2020-01-16 00:21:00"
 title="Creating an Interactive UK Official Charts Data App with Streamlit and Neo4j"
 tag=['neo4j', 'streamlit', 'python']
 category=['Neo4j']
-description="Description"
+description="Learn how to use Streamlit and Neo4j to create an interactive data app of the UK Official Charts Graph."
 +++
 
 I recently came across https://www.streamlit.io/[Streamlit^], a tool that makes it easy to https://towardsdatascience.com/coding-ml-tools-like-you-code-ml-models-ddba3357eace[build data based single page web applications^].
@@ -221,4 +221,9 @@ We can use Streamlit to create a DataFrame and scatterplot showing how a song ch
 
 And let's see how Dance Monkey fared:
 
-image::{{<siteurl>}}/uploads/2020/01/streamlit-dance-monkey.png[title="The top of the chart on 12th June 2019"]
+image::{{<siteurl>}}/uploads/2020/01/streamlit-dance-monkey.png[title="Dance Monkey's chart positions over the year"]
+
+We can see from this chart that the song had a very gradual climb to the top.
+I'd always assumed that songs achieved their top position when they were first released, but this is an interesting counter example.
+
+That's all for this blog post, but I'm looking forward to combining Streamlit and Neo4j on future datasets.
