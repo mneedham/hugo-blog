@@ -1,0 +1,224 @@
++++
+draft = true
+date="2020-01-15 00:21:00"
+title="Creating an Interactive UK Official Charts Data App with Streamlit and Neo4j"
+tag=['neo4j', 'streamlit', 'python']
+category=['Neo4j']
+description="Description"
++++
+
+I recently came across https://www.streamlit.io/[Streamlit^], a tool that makes it easy to https://towardsdatascience.com/coding-ml-tools-like-you-code-ml-models-ddba3357eace[build data based single page web applications^].
+I wanted to give it a try, and the https://markhneedham.com/blog/2020/01/04/quick-graph-uk-official-charts/[UK Charts QuickGraph^] that I recently wrote about seemed like a good opportunity for that.
+
+This blog post starts from where we left off.
+The data is loaded into Neo4j and we've written some queries to explore different aspects of the dataset.
+Let's see what we can do if we integrate Neo4j and Streamlit.
+
+== Setting up our environment
+
+The first thing we need to do is setup our environment.
+Streamlit is a Python library, so we'll be using it alongside the https://neo4j.com/docs/api/python-driver/current/[Neo4j Python driver^], as well as some other dependencies.
+
+I like to use https://github.com/pypa/pipenv[Pipenv^] for my Python projects.
+Our _Pipfile_ is defined below:
+
+.Pipfile
+[source,text]
+----
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+streamlit = "*"
+neo4j = "*"
+vega-datasets = "*"
+selenium = "*"
+vegascope = "*"
+
+[requires]
+python_version = "3.7"
+----
+
+If we create that file in a directory, we can install all our dependencies by running the following command:
+
+[source,bash]
+----
+pipenv install
+----
+
+If we run that command, we'll see the following output:
+
+[source,bash]
+----
+Pipfile.lock not found, creating…
+Locking [dev-packages] dependencies…
+Locking [packages] dependencies…
+✔ Success!
+Updated Pipfile.lock (0882a9)!
+Installing dependencies from Pipfile.lock (0882a9)…
+  🐍   ▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉ 84/84 — 00:00:11
+To activate this project's virtualenv, run pipenv shell.
+Alternatively, run a command inside the virtualenv with pipenv run.
+----
+
+We'll follow those instructions, and now we're ready to build our Streamlit application.
+
+== Streamlit Application
+
+We're going to create our Streamlit application in a file called `visualise.py`.
+Let's import the libraries that we're going to be using:
+
+.visualise.py
+[source,python]
+----
+import streamlit as st
+from neo4j import GraphDatabase
+import pandas as pd
+import altair as alt
+import datetime
+from PIL import Image
+----
+
+We'll also instantiate our Neo4j Driver and give our Streamlit application a title and an image to make it look a bit prettier:
+
+.visualise.py
+[source,python]
+----
+driver = GraphDatabase.driver("bolt://localhost", auth=("neo4j", "neo"))
+
+st.title("UK Charts 2019")
+st.write("In this Streamlit application we're going to explore data from the UK Official Singles Chart.")
+st.image(Image.open("images/uk-charts.png"))
+----
+
+We can now launch our application by running the following command from the terminal:
+
+[source,bash]
+----
+streamlit run visualise.py
+----
+
+When we run this command, we'll see the following output:
+
+[source,bash]
+----
+You can now view your Streamlit app in your browser.
+
+Local URL: http://localhost:8501
+Network URL: http://192.168.86.25:8501
+----
+
+If we navigate to the Local URL, we'll see a page that looks like this:
+
+image::{{<siteurl>}}/uploads/2020/01/streamlit-header.png[title="Our first Streamlit Application"]
+
+So far so good!
+Let's add some more content to the page based on the queries that we ran in the QuickGraph blog post.
+
+=== Which song was number 1 for the most weeks?
+
+The first thing we did in our previous post was work out which song was number 1 for the most weeks.
+We'll start by returning all the numbers 1 songs in 2019.
+The following code sample uses the Neo4j Python driver to execute a Cypher query that finds all the number 1 songs, puts them in a DataFrame, and then displays that DataFrame:
+
+[source,python]
+----
+with driver.session() as session:
+    st.subheader("Number 1s")
+    st.write("The chart below shows the number 1 charting songs of 2019.")
+    result = session.run("""
+    MATCH (chart:Chart)<-[inChart:IN_CHART {position: 1}]-(song)-[:ARTIST]->(artist)
+    WITH chart, song, collect(artist.name) AS artists
+    RETURN toString(chart.end) AS date, song.title AS song, artists
+    ORDER BY chart.end
+    """)
+    df = pd.DataFrame(result.data())
+    st.dataframe(df.style.hide_index())
+----
+
+If we refresh the page in our web browser, we'll see the following output:
+
+image::{{<siteurl>}}/uploads/2020/01/streamlit-number1s.png[title="A DataFrame displaying Number 1 songs"]
+
+We want to know which song was number 1 for the most weeks, and a bar chart seems like a good way of displaying this data.
+Let's create one:
+
+[source,python]
+----
+    result = session.run("""
+    MATCH (song:Song)-[inChart:IN_CHART {position: 1}]->(chart)
+    RETURN song.title AS song, count(*) AS count
+    ORDER By count DESC;
+    """)
+
+    df = pd.DataFrame(result.data())
+
+    c = alt.Chart(df, width=500, height=400).mark_bar(clip=True).encode(x='song', y='count')
+    st.altair_chart(c)
+----
+
+image::{{<siteurl>}}/uploads/2020/01/streamlit-number1s-count.png[title="An Altair chart showing the Number 1 songs"]
+
+=== Which song was number 1 on a specific date?
+
+As well as returning the results of a hard coded query like this, we can also execute dynamic queries based on user input.
+The `date_input` component gives us a calendar from which the user can select a date that we use in a query.
+The code below runs a query that returns the chart for a given date:
+
+[source,python]
+----
+    st.subheader("Top songs by week")
+    date = st.date_input("Search by date", datetime.date(2019, 12, 12))
+
+    result = session.run("""
+    MATCH (chart:Chart)<-[inChart:IN_CHART]-(song)
+    WHERE chart.start <= $date <= chart.end
+    RETURN inChart.position AS position, song.title AS song, [(song)-[:ARTIST]->(artist) | artist.name] AS artists
+    ORDER BY position
+    """, {"date": date})
+    df = pd.DataFrame(result.data())
+    st.dataframe(df.style.hide_index())
+----
+
+Let's have a look which songs were at the top of the chart in June 2019:
+
+image::{{<siteurl>}}/uploads/2020/01/streamlit-chart-by-date.png[title="The top of the chart on 12th June 2019"]
+
+=== How did a song chart over the year?
+
+In the QuickGraph blog post we wrote a query to find out which number 1 songs didn't go straight in at number 1.
+One of my favourite songs, Dance Monkey, took 8 weeks from its first appearance in the chart until it got to the top.
+
+We can use Streamlit to create a DataFrame and scatterplot showing how a song charted over the year:
+
+[source,python]
+----
+    st.subheader("Songs charting over time")
+    name = st.text_input('Search by song title', 'All I Want For Christmas')
+    if name:
+            result = session.run("""
+            MATCH (chart:Chart)<-[inChart:IN_CHART]-(song)-[:ARTIST]->(artist)
+            WHERE song.title contains $songTitle
+            WITH song, inChart, chart, collect(artist.name) AS artists
+            RETURN song.title AS song, artists, inChart.position AS position, chart.end AS date
+            ORDER BY chart.end
+            """, {"songTitle": name})
+
+            df = pd.DataFrame(result.data())
+            st.dataframe(df.style.hide_index())
+
+            if df.shape[0] > 0:
+                c = alt.Chart(df, title=f"Chart positions for {name}", width=500, height=300).mark_point().encode(
+                    x=alt.X('date:T', timeUnit='yearmonthdate', scale=alt.Scale(domain=list(domain_pd))),
+                    y=alt.Y('position', sort="descending")
+                )
+                st.altair_chart(c)
+----
+
+And let's see how Dance Monkey fared:
+
+image::{{<siteurl>}}/uploads/2020/01/streamlit-dance-monkey.png[title="The top of the chart on 12th June 2019"]

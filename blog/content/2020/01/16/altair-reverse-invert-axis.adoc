@@ -1,7 +1,7 @@
 +++
 draft = true
-date="2020-01-09 00:21:00"
-title="Altair: Reversing or inverting an axis"
+date="2020-01-14 00:21:00"
+title="Python: Altair - Reversing or inverting an axis"
 tag=['python', 'altair']
 category=['Python']
 description="Description"

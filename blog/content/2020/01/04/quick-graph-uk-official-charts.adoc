@@ -533,4 +533,4 @@ There's a lot of analysis of the charts in the UK, but it's often done along one
 By modelling the data as a graph we can easily query the data along multiple dimensions.
 I especially enjoyed writing the queries that looked at how songs did across multiple charts.
 
-We could certainly extend our analysis further by adding in Wiki data, as Jesús Barrassa did in his https://jbarrasa.com/2019/12/05/quickgraph10-enrich-your-neo4j-knowledge-graph-by-querying-wikidata/[QuickGraph #10^], but that can wait for another blog post!
+We could certainly extend our analysis further by adding in Wiki data, as Jesús Barrasa did in his https://jbarrasa.com/2019/12/05/quickgraph10-enrich-your-neo4j-knowledge-graph-by-querying-wikidata/[QuickGraph #10^], but that can wait for another blog post!

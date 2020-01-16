@@ -42,7 +42,7 @@ If we run this script, we'll have the following chart in `chart.html`:
 image::{{<siteurl>}}/uploads/2020/01/altair-dance-monkey.png[title="Chart showing chart positions"]
 
 At the moment the x axis of our chart covers the range of dates included in our DataFrame.
-I wanted to have that axis start from 1st January 2019 and end on 31st January 2019, and came across https://github.com/altair-viz/altair/issues/1005[a GitHub issue^] describing how to do this.
+I wanted to have that axis start from 1st January 2019 and end on 31st December 2019, and came across https://github.com/altair-viz/altair/issues/1005[a GitHub issue^] describing how to do this.
 
 One way to do this is to create a Pandas index and then define a custom domain for the `scale` of the x axis.
 The code below does this:
