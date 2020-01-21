@@ -1,10 +1,11 @@
 +++
-draft = true
+draft = false
 date="2020-01-16 00:21:00"
 title="Creating an Interactive UK Official Charts Data App with Streamlit and Neo4j"
 tag=['neo4j', 'streamlit', 'python']
 category=['Neo4j']
 description="Learn how to use Streamlit and Neo4j to create an interactive data app of the UK Official Charts Graph."
+image="uploads/2020/01/streamlit-neo4j-banner.png"
 +++
 
 I recently came across https://www.streamlit.io/[Streamlit^], a tool that makes it easy to https://towardsdatascience.com/coding-ml-tools-like-you-code-ml-models-ddba3357eace[build data based single page web applications^].
@@ -13,6 +14,8 @@ I wanted to give it a try, and the https://markhneedham.com/blog/2020/01/04/quic
 This blog post starts from where we left off.
 The data is loaded into Neo4j and we've written some queries to explore different aspects of the dataset.
 Let's see what we can do if we integrate Neo4j and Streamlit.
+
+image::{{<siteurl>}}/uploads/2020/01/streamlit-neo4j-banner.png[title="Streamlit and Neo4j. Background from https://www.freepik.com/free-photo/3d-network-background-with-connecting-lines-dots_3961382.htm"]
 
 == Setting up our environment
 
