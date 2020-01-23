@@ -282,7 +282,8 @@ We could import all the tournaments in one transaction, but our import will be m
 ----
 CALL apoc.periodic.iterate(
   "UNWIND range(2000, 2019) AS year RETURN year",
-  "WITH 'https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_' AS base, year
+  "WITH 'https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_' AS base, 
+        year
    LOAD CSV WITH HEADERS FROM base + year + '.csv' AS row
    WITH row, split(row.score, ' ') AS rawSets WHERE row.tourney_name = 'Australian Open'
    WITH row, row.tourney_date + '_' + row.match_num AS matchId
@@ -410,11 +411,13 @@ Let's have a look at Naomi Osaka's journey to the 2019 final:
 MATCH path = (p:Player)-[:WINNER]->(match:Match {round: "F"})<-[:NEXT_MATCH*]-(m)<-[:WINNER]-(p)
 
 // Only get the winner of the 2019 tournament 
-// Only get the longest path of NEXT_MATCH relationships that includes all matches played by the winner
+// Only get the longest path of NEXT_MATCH relationships that includes all matches 
+// played by the winner
 WHERE not((m)<-[:NEXT_MATCH]-()) AND (match)-[:IN_TOURNAMENT]-(:Tournament {year: 2019})
 
 // Find the winners and losers of all the matches in which the winner participated
-RETURN path, [node in nodes(path) WHERE node:Match | [p = (p1)-[:WINNER]->(node)<-[:LOSER]-(p2) | p]];
+RETURN path, 
+       [node in nodes(path) WHERE node:Match | [p = (p1)-[:WINNER]->(node)<-[:LOSER]-(p2) | p]];
 ----
 
 image::{{<siteurl>}}/uploads/2020/01/aus-open-osaka.png[title="Naomi Osaka's path to the 2019 final"]
@@ -535,11 +538,13 @@ We can update the graph with the following Cypher statement:
 ----
 CALL apoc.periodic.iterate(
   "UNWIND range(2000, 2019) AS year RETURN year",
-  "WITH 'https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_' AS base, year
+  "WITH 'https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_' AS base, 
+        year
    LOAD CSV WITH HEADERS FROM base + year + '.csv' AS row
    WITH row, split(row.score, ' ') AS rawSets WHERE row.tourney_name = 'Australian Open'
    WITH row, rawSets, 
-        [set in rawSets | apoc.text.regexGroups(set, \"(\\\\d{1,2})-(\\\\d{1,2})\")[0][1..]] AS sets,
+        [set in rawSets | 
+          apoc.text.regexGroups(set, \"(\\\\d{1,2})-(\\\\d{1,2})\")[0][1..]] AS sets,
         row.tourney_date + '_' + row.match_num AS matchId
 
    MATCH (m:Match {id: matchId})
@@ -565,7 +570,7 @@ CALL apoc.periodic.iterate(
 
 We can see a sample of the graph with sets included in the Neo4j Browser visualisation below:
 
-image::{{<siteurl>}}/uploads/2020/01/aus-open-graph-sets.png[title="Sample of the Graph with sets added"]
+image::{{<siteurl>}}/uploads/2020/01/aus-open-sets.png[title="Sample of the Graph with sets added"]
 
 Now let's write some queries against the updated model.
 
@@ -629,13 +634,14 @@ ORDER BY rounds[match.round]
 WITH winner, t,
      collect({round: match.round, opponent: opponent.name, score: match.score }) AS matches,
      collect([(match)<-[:IN_MATCH]-(set)<-[:LOSER]-(winner) | set]) AS sets
-RETURN winner.name AS winner, t.year AS year, size(matches) AS count, size(apoc.coll.flatten(sets)) AS sets,  matches
+RETURN winner.name AS winner, t.year AS year, size(matches) AS count, 
+       size(apoc.coll.flatten(sets)) AS sets,  matches
 ORDER BY count DESC
 LIMIT 5
 ----
 
 .Did the winner drop any sets?
-[opts="header"]
+[opts="header", cols="2,1,1,1,5"]
 |===
 |  winner               | year | count | sets | matches   
 | "Thomas Johansson"   | 2002 | 6     | 7    | [{score: "6-1 3-6 7-6(2) 6-4", round: "R128", opponent: "Jacobo Diaz"}, {score: "5-7 6-2 6-2 6-4", round: "R32", opponent: "Younes El Aynaoui"}, {score: "6-7(8) 6-2 6-0 6-4", round: "R16", opponent: "Adrian Voinea"}, {score: "6-0 2-6 6-3 6-4", round: "QF", opponent: "Jonas Bjorkman"}, {score: "7-6(5) 0-6 4-6 6-3 6-4", round: "SF", opponent: "Jiri Novak"}, {score: "3-6 6-4 6-4 7-6(4)", round: "F", opponent: "Marat Safin"}] 
