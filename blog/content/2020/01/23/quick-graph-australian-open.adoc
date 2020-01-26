@@ -6,7 +6,6 @@ tag=['quickgraph', 'neo4j', 'apoc']
 category=['QuickGraph']
 description="Learn how to build a graph of the Australian Open tennis tournament"
 image="uploads/2020/01/aus-open-banner.png"
-
 +++
 
 It's time for another QuickGraph, this one based on data from the Australian Open tennis tournament.
@@ -159,7 +158,7 @@ a|
 
 We've got lots of information to work with here.
 
-We'll filter the data using the `tourney_name` so that we only have matches from the Australian Open. 
+We'll filter the data using the `tourney_name` so that we only have matches from the Australian Open.
 `winner_id` and `loser_id` will act as the primary keys for our players and we can combine `match_num` and `tourney_date` as the primary key for matches.
 `winner_name` and `loser_name` give us the human readable version of the players and the `score` property tells us the result of the match.
 
@@ -194,10 +193,10 @@ SHOW DATABASES;
 [opts="header"]
 |===
 | name     | address        | role         | requestedStatus | currentStatus | error | default
-| "neo4j"  | "0.0.0.0:7687" | "standalone" | "online"        | "online"      | ""    | TRUE    
-| "system" | "0.0.0.0:7687" | "standalone" | "online"        | "online"      | ""    | FALSE   
-| "womens"  | "0.0.0.0:7687" | "standalone" | "online"        | "online"      | ""    | FALSE   
-| "mens"    | "0.0.0.0:7687" | "standalone" | "online"        | "online"      | ""    | FALSE   
+| "neo4j"  | "0.0.0.0:7687" | "standalone" | "online"        | "online"      | ""    | TRUE
+| "system" | "0.0.0.0:7687" | "standalone" | "online"        | "online"      | ""    | FALSE
+| "womens"  | "0.0.0.0:7687" | "standalone" | "online"        | "online"      | ""    | FALSE
+| "mens"    | "0.0.0.0:7687" | "standalone" | "online"        | "online"      | ""    | FALSE
 |===
 
 Everything's looking good, we're ready to start importing the data!
@@ -228,13 +227,13 @@ Let's run the following statements:
 
 [source, cypher]
 ----
-CREATE CONSTRAINT ON (p:Player) 
+CREATE CONSTRAINT ON (p:Player)
 ASSERT p.id IS UNIQUE;
 
-CREATE CONSTRAINT ON (m:Match) 
+CREATE CONSTRAINT ON (m:Match)
 ASSERT m.id IS UNIQUE;
 
-CREATE CONSTRAINT ON (t:Tournament) 
+CREATE CONSTRAINT ON (t:Tournament)
 ASSERT (t.name, t.year) IS NODE KEY;
 ----
 
@@ -269,7 +268,7 @@ MERGE (m)-[:IN_TOURNAMENT]->(t)
 .Results
 |===
 a| 0 rows available after 1218 ms, consumed after another 0 ms
-Added 256 nodes, Created 381 relationships, Set 765 properties, Added 256 labels 
+Added 256 nodes, Created 381 relationships, Set 765 properties, Added 256 labels
 |===
 
 We can see a sample of the imported graph in the Neo4j Browser visualisation below:
@@ -277,7 +276,7 @@ We can see a sample of the imported graph in the Neo4j Browser visualisation bel
 image::{{<siteurl>}}/uploads/2020/01/aus-open-preview.png[title="Sample of the Australian Open Graph"]
 
 Let's now load in the data for some of the other years.
-Jeff Sackmann has curated data going back to 1968, but we'll only load data from the year 2000 onwards. 
+Jeff Sackmann has curated data going back to 1968, but we'll only load data from the year 2000 onwards.
 
 We could import all the tournaments in one transaction, but our import will be much quicker if we use the `apoc.periodic.iterate` procedure from https://neo4j.com/docs/labs/apoc/3.5/[APOC^], Neo4j's standard library.
 
@@ -286,7 +285,7 @@ We could import all the tournaments in one transaction, but our import will be m
 ----
 CALL apoc.periodic.iterate(
   "UNWIND range(2000, 2019) AS year RETURN year",
-  "WITH 'https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_' AS base, 
+  "WITH 'https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_' AS base,
         year
    LOAD CSV WITH HEADERS FROM base + year + '.csv' AS row
    WITH row, split(row.score, ' ') AS rawSets WHERE row.tourney_name = 'Australian Open'
@@ -313,7 +312,7 @@ CALL apoc.periodic.iterate(
 [opts="header"]
 |===
 | batches | total | timeTaken | committedOperations | failedOperations | failedBatches | retries | errorMessages | batch                                           | operations                                        | wasTerminated | failedParams
-| 1       | 20    | 13         | 20                  | 0                | 0             | 0       | {}            | {total: 1, committed: 1, failed: 0, errors: {}} | {total: 20, committed: 20, failed: 0, errors: {}} | FALSE         | {}  
+| 1       | 20    | 13         | 20                  | 0                | 0             | 0       | {}            | {total: 1, committed: 1, failed: 0, errors: {}} | {total: 20, committed: 20, failed: 0, errors: {}} | FALSE         | {}
 |===
 
 One interesting thing about this dataset is that it has implicit relationships between tournaments and between matches.
@@ -325,7 +324,7 @@ The following Cypher statements create the relationships:
 
 [source, cypher]
 ----
-// Store the rounds in a list that will be used to sort matches 
+// Store the rounds in a list that will be used to sort matches
 :params rounds: ["R128", "R64", "R32", "R16", "QF", "SF", "F"];
 
 // Build a map from that list
@@ -355,7 +354,7 @@ RETURN count(*);
 
 image::{{<siteurl>}}/uploads/2020/01/aus-open-linked-lists.png[title="Linked Lists in the Australian Open Graph"]
 
-The full import script for the women's tournament is available in the https://github.com/mneedham/australian-open-neo4j/blob/master/scripts/import_womens.cypher[import_womens.cypher^] file. 
+The full import script for the women's tournament is available in the https://github.com/mneedham/australian-open-neo4j/blob/master/scripts/import_womens.cypher[import_womens.cypher^] file.
 And there is an equivalent import script for the men's tournament in the https://github.com/mneedham/australian-open-neo4j/blob/master/scripts/import_mens.cypher[import_mens.cypher^] file.
 
 == Querying the graph
@@ -368,9 +367,9 @@ Let's start with a simple query to find out the finalists in each tournament and
 
 [source,cypher]
 ----
-MATCH (winner:Player)-[:WINNER]->(match:Match {round: "F"})<-[:LOSER]-(loser), 
+MATCH (winner:Player)-[:WINNER]->(match:Match {round: "F"})<-[:LOSER]-(loser),
       (match)-[:IN_TOURNAMENT]->(tournament)
-RETURN tournament.year AS year, winner.name AS winner, 
+RETURN tournament.year AS year, winner.name AS winner,
        loser.name AS loser, match.score AS score
 ORDER BY tournament.year
 ----
@@ -378,27 +377,27 @@ ORDER BY tournament.year
 .Who won each of the tournaments?
 [opts="header"]
 |===
-| year | winner               | loser                | score 
-| 2000 | "Lindsay Davenport"  | "Martina Hingis"     | "6-1 7-5"        
-| 2001 | "Jennifer Capriati"  | "Martina Hingis"     | "6-4 6-3"        
-| 2002 | "Jennifer Capriati"  | "Martina Hingis"     | "4-6 7-6(7) 6-2" 
-| 2003 | "Serena Williams"    | "Venus Williams"     | "7-6(4) 3-6 6-4" 
-| 2004 | "Justine Henin"      | "Kim Clijsters"      | "6-3 4-6 6-3"    
-| 2005 | "Serena Williams"    | "Lindsay Davenport"  | "2-6 6-3 6-0"    
-| 2006 | "Amelie Mauresmo"    | "Justine Henin"      | "6-1 2-0 RET"    
-| 2007 | "Serena Williams"    | "Maria Sharapova"    | "6-1 6-2"        
-| 2008 | "Maria Sharapova"    | "Ana Ivanovic"       | "7-5 6-3"        
-| 2009 | "Serena Williams"    | "Dinara Safina"      | "6-0 6-3"        
-| 2010 | "Serena Williams"    | "Justine Henin"      | "6-4 3-6 6-2"    
-| 2011 | "Kim Clijsters"      | "Na Li"              | "3-6 6-3 6-3"    
-| 2012 | "Victoria Azarenka"  | "Maria Sharapova"    | "6-3 6-0"        
-| 2013 | "Victoria Azarenka"  | "Na Li"              | "4-6 6-4 6-3"    
-| 2014 | "Na Li"              | "Dominika Cibulkova" | "7-6(3) 6-0"     
-| 2015 | "Serena Williams"    | "Maria Sharapova"    | "6-3 7-6(5)"     
-| 2016 | "Angelique Kerber"   | "Serena Williams"    | "6-4 3-6 6-4"    
-| 2017 | "Serena Williams"    | "Venus Williams"     | "6-4 6-4"        
-| 2018 | "Caroline Wozniacki" | "Simona Halep"       | "7-6(2) 3-6 6-4" 
-| 2019 | "Naomi Osaka"        | "Petra Kvitova"      | "7-6(2) 5-7 6-4" 
+| year | winner               | loser                | score
+| 2000 | "Lindsay Davenport"  | "Martina Hingis"     | "6-1 7-5"
+| 2001 | "Jennifer Capriati"  | "Martina Hingis"     | "6-4 6-3"
+| 2002 | "Jennifer Capriati"  | "Martina Hingis"     | "4-6 7-6(7) 6-2"
+| 2003 | "Serena Williams"    | "Venus Williams"     | "7-6(4) 3-6 6-4"
+| 2004 | "Justine Henin"      | "Kim Clijsters"      | "6-3 4-6 6-3"
+| 2005 | "Serena Williams"    | "Lindsay Davenport"  | "2-6 6-3 6-0"
+| 2006 | "Amelie Mauresmo"    | "Justine Henin"      | "6-1 2-0 RET"
+| 2007 | "Serena Williams"    | "Maria Sharapova"    | "6-1 6-2"
+| 2008 | "Maria Sharapova"    | "Ana Ivanovic"       | "7-5 6-3"
+| 2009 | "Serena Williams"    | "Dinara Safina"      | "6-0 6-3"
+| 2010 | "Serena Williams"    | "Justine Henin"      | "6-4 3-6 6-2"
+| 2011 | "Kim Clijsters"      | "Na Li"              | "3-6 6-3 6-3"
+| 2012 | "Victoria Azarenka"  | "Maria Sharapova"    | "6-3 6-0"
+| 2013 | "Victoria Azarenka"  | "Na Li"              | "4-6 6-4 6-3"
+| 2014 | "Na Li"              | "Dominika Cibulkova" | "7-6(3) 6-0"
+| 2015 | "Serena Williams"    | "Maria Sharapova"    | "6-3 7-6(5)"
+| 2016 | "Angelique Kerber"   | "Serena Williams"    | "6-4 3-6 6-4"
+| 2017 | "Serena Williams"    | "Venus Williams"     | "6-4 6-4"
+| 2018 | "Caroline Wozniacki" | "Simona Halep"       | "7-6(2) 3-6 6-4"
+| 2019 | "Naomi Osaka"        | "Petra Kvitova"      | "7-6(2) 5-7 6-4"
 |===
 
 We've got lots of different winners here and a few players who have won the tournament multiple times.
@@ -406,7 +405,7 @@ Serena Williams has won the tournament an incredible 7 times in 20 years!
 
 === What was Osaka's route to the 2019 final?
 
-The final is the most important match, but what route did the winner take to get there? 
+The final is the most important match, but what route did the winner take to get there?
 Let's have a look at Naomi Osaka's journey to the 2019 final:
 
 [source,cypher]
@@ -414,13 +413,13 @@ Let's have a look at Naomi Osaka's journey to the 2019 final:
 // Find all the matches that the winner of the tournament played
 MATCH path = (p:Player)-[:WINNER]->(match:Match {round: "F"})<-[:NEXT_MATCH*]-(m)<-[:WINNER]-(p)
 
-// Only get the winner of the 2019 tournament 
-// Only get the longest path of NEXT_MATCH relationships that includes all matches 
+// Only get the winner of the 2019 tournament
+// Only get the longest path of NEXT_MATCH relationships that includes all matches
 // played by the winner
 WHERE not((m)<-[:NEXT_MATCH]-()) AND (match)-[:IN_TOURNAMENT]-(:Tournament {year: 2019})
 
 // Find the winners and losers of all the matches in which the winner participated
-RETURN path, 
+RETURN path,
        [node in nodes(path) WHERE node:Match | [p = (p1)-[:WINNER]->(node)<-[:LOSER]-(p2) | p]];
 ----
 
@@ -442,14 +441,14 @@ RETURN player.name AS player, t.year, t2.year
 [opts="header"]
 |===
 | player            | t.year | t2.year
-| "Maria Sharapova" | 2007   | 2008    
-| "Na Li"           | 2013   | 2014    
-| "Serena Williams" | 2016   | 2017    
+| "Maria Sharapova" | 2007   | 2008
+| "Na Li"           | 2013   | 2014
+| "Serena Williams" | 2016   | 2017
 |===
 
 Just the three players fixed their heart break at losing the final as quickly as possible.
 
-=== Who lost the final, but subsequently won the tournament? 
+=== Who lost the final, but subsequently won the tournament?
 
 Are there any players who lost the final but won it at some future tournament even if it wasn't the next year?
 
@@ -467,11 +466,11 @@ RETURN player.name, t.year, t2.year
 [opts="header"]
 |===
 | player            | t.year | t2.year
-| "Maria Sharapova" | 2007   | 2008    
-| "Kim Clijsters"   | 2004   | 2011    
-| "Na Li"           | 2013   | 2014    
-| "Na Li"           | 2011   | 2014    
-| "Serena Williams" | 2016   | 2017       
+| "Maria Sharapova" | 2007   | 2008
+| "Kim Clijsters"   | 2004   | 2011
+| "Na Li"           | 2013   | 2014
+| "Na Li"           | 2011   | 2014
+| "Serena Williams" | 2016   | 2017
 |===
 
 We get the 3 players from the previous query as well as Kim Clijsters and Li Na.
@@ -500,7 +499,7 @@ MATCH (firstLoss)-[:NEXT_TOURNAMENT*]->(t2),
       WITH player, firstLoss, t2
 ORDER BY player, t2.year
 WITH player, firstLoss, collect(t2)[0] AS firstWin
-      
+
 RETURN player.name, firstLoss.year, firstWin.year, firstWin.year - firstLoss.year AS theWait
 ORDER BY theWait DESC
 ----
@@ -508,10 +507,10 @@ ORDER BY theWait DESC
 .How long did players wait from their first final defeat until their first win?
 [opts="header"]
 |===
-| player.name       | firstLoss.year | firstWin.year | theWait 
-| "Kim Clijsters"   | 2004           | 2011          | 7       
-| "Na Li"           | 2011           | 2014          | 3           
-| "Maria Sharapova" | 2007           | 2008          | 1             
+| player.name       | firstLoss.year | firstWin.year | theWait
+| "Kim Clijsters"   | 2004           | 2011          | 7
+| "Na Li"           | 2011           | 2014          | 3
+| "Maria Sharapova" | 2007           | 2008          | 1
 |===
 
 Clijsters had to wait the longest and Serena had in fact previously won the tournament, so she isn't returned in the results anymore.
@@ -521,8 +520,8 @@ We can run this query against the Men's database as well by switching to that da
 .How long did players wait from their first final defeat until their first win?
 [opts="header"]
 |===
-| player.name       | firstLoss.year | firstWin.year | theWait 
-| "Marat Safin" | 2002           | 2005          | 3            
+| player.name       | firstLoss.year | firstWin.year | theWait
+| "Marat Safin" | 2002           | 2005          | 3
 |===
 
 Marat Safin is the only one, and he didn't have to wait too long to win the tournament.
@@ -542,12 +541,12 @@ We can update the graph with the following Cypher statement:
 ----
 CALL apoc.periodic.iterate(
   "UNWIND range(2000, 2019) AS year RETURN year",
-  "WITH 'https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_' AS base, 
+  "WITH 'https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_' AS base,
         year
    LOAD CSV WITH HEADERS FROM base + year + '.csv' AS row
    WITH row, split(row.score, ' ') AS rawSets WHERE row.tourney_name = 'Australian Open'
-   WITH row, rawSets, 
-        [set in rawSets | 
+   WITH row, rawSets,
+        [set in rawSets |
           apoc.text.regexGroups(set, \"(\\\\d{1,2})-(\\\\d{1,2})\")[0][1..]] AS sets,
         row.tourney_date + '_' + row.match_num AS matchId
 
@@ -603,7 +602,7 @@ RETURN winner.name AS winner, t.year AS year
 [opts="header"]
 |===
 | winner | year
-| "Roger Federer" | 2007           
+| "Roger Federer" | 2007
 |===
 
 Just the one on the men's side. What about the women's?
@@ -612,9 +611,9 @@ Just the one on the men's side. What about the women's?
 [opts="header"]
 |===
 | winner | year
-| "Lindsay Davenport" | 2000 
-| "Maria Sharapova"   | 2008 
-| "Serena Williams"   | 2017           
+| "Lindsay Davenport" | 2000
+| "Maria Sharapova"   | 2008
+| "Serena Williams"   | 2017
 |===
 
 Only three players here.
@@ -638,7 +637,7 @@ ORDER BY rounds[match.round]
 WITH winner, t,
      collect({round: match.round, opponent: opponent.name, score: match.score }) AS matches,
      collect([(match)<-[:IN_MATCH]-(set)<-[:LOSER]-(winner) | set]) AS sets
-RETURN winner.name AS winner, t.year AS year, size(matches) AS count, 
+RETURN winner.name AS winner, t.year AS year, size(matches) AS count,
        size(apoc.coll.flatten(sets)) AS sets,  matches
 ORDER BY count DESC
 LIMIT 5
@@ -647,12 +646,12 @@ LIMIT 5
 .Did the winner drop any sets?
 [opts="header", cols="2,1,1,1,5"]
 |===
-|  winner               | year | count | sets | matches   
-| "Thomas Johansson"   | 2002 | 6     | 7    | [{score: "6-1 3-6 7-6(2) 6-4", round: "R128", opponent: "Jacobo Diaz"}, {score: "5-7 6-2 6-2 6-4", round: "R32", opponent: "Younes El Aynaoui"}, {score: "6-7(8) 6-2 6-0 6-4", round: "R16", opponent: "Adrian Voinea"}, {score: "6-0 2-6 6-3 6-4", round: "QF", opponent: "Jonas Bjorkman"}, {score: "7-6(5) 0-6 4-6 6-3 6-4", round: "SF", opponent: "Jiri Novak"}, {score: "3-6 6-4 6-4 7-6(4)", round: "F", opponent: "Marat Safin"}] 
-| "Roger Federer"      | 2017 | 4     | 7    | [{score: "7-5 3-6 6-2 6-2", round: "R128", opponent: "Jurgen Melzer"}, {score: "6-7(4) 6-4 6-1 4-6 6-3", round: "R16", opponent: "Kei Nishikori"}, {score: "7-5 6-3 1-6 4-6 6-3", round: "SF", opponent: "Stanislas Wawrinka"}, {score: "6-4 3-6 6-1 3-6 6-3", round: "F", opponent: "Rafael Nadal"}]                                                                                                                                     
-| "Marat Safin"        | 2005 | 4     | 5    | [{score: "6-4 3-6 6-3 6-4", round: "R32", opponent: "Mario Ancic"}, {score: "4-6 7-6(1) 7-6(5) 7-6(2)", round: "R16", opponent: "Olivier Rochus"}, {score: "5-7 6-4 5-7 7-6(6) 9-7", round: "SF", opponent: "Roger Federer"}, {score: "1-6 6-3 6-4 6-4", round: "F", opponent: "Lleyton Hewitt"}]                                                                                                                                         
-| "Roger Federer"      | 2006 | 4     | 5    | [{score: "6-4 6-0 3-6 4-6 6-2", round: "R16", opponent: "Tommy Haas"}, {score: "6-4 3-6 7-6(7) 7-6(5)", round: "QF", opponent: "Nikolay Davydenko"}, {score: "6-3 5-7 6-0 6-2", round: "SF", opponent: "Nicolas Kiefer"}, {score: "5-7 7-5 6-0 6-2", round: "F", opponent: "Marcos Baghdatis"}]                                                                                                                                           
-| "Stanislas Wawrinka" | 2014 | 4     | 5    | [{score: "6-3 6-3 6-7(4) 6-4", round: "R64", opponent: "Alejandro Falla"}, {score: "2-6 6-4 6-2 3-6 9-7", round: "QF", opponent: "Novak Djokovic"}, {score: "6-3 6-7(1) 7-6(3) 7-6(4)", round: "SF", opponent: "Tomas Berdych"}, {score: "6-3 6-2 3-6 6-3", round: "F", opponent: "Rafael Nadal"}]                                                                                                                                        
+|  winner               | year | count | sets | matches
+| "Thomas Johansson"   | 2002 | 6     | 7    | [{score: "6-1 3-6 7-6(2) 6-4", round: "R128", opponent: "Jacobo Diaz"}, {score: "5-7 6-2 6-2 6-4", round: "R32", opponent: "Younes El Aynaoui"}, {score: "6-7(8) 6-2 6-0 6-4", round: "R16", opponent: "Adrian Voinea"}, {score: "6-0 2-6 6-3 6-4", round: "QF", opponent: "Jonas Bjorkman"}, {score: "7-6(5) 0-6 4-6 6-3 6-4", round: "SF", opponent: "Jiri Novak"}, {score: "3-6 6-4 6-4 7-6(4)", round: "F", opponent: "Marat Safin"}]
+| "Roger Federer"      | 2017 | 4     | 7    | [{score: "7-5 3-6 6-2 6-2", round: "R128", opponent: "Jurgen Melzer"}, {score: "6-7(4) 6-4 6-1 4-6 6-3", round: "R16", opponent: "Kei Nishikori"}, {score: "7-5 6-3 1-6 4-6 6-3", round: "SF", opponent: "Stanislas Wawrinka"}, {score: "6-4 3-6 6-1 3-6 6-3", round: "F", opponent: "Rafael Nadal"}]
+| "Marat Safin"        | 2005 | 4     | 5    | [{score: "6-4 3-6 6-3 6-4", round: "R32", opponent: "Mario Ancic"}, {score: "4-6 7-6(1) 7-6(5) 7-6(2)", round: "R16", opponent: "Olivier Rochus"}, {score: "5-7 6-4 5-7 7-6(6) 9-7", round: "SF", opponent: "Roger Federer"}, {score: "1-6 6-3 6-4 6-4", round: "F", opponent: "Lleyton Hewitt"}]
+| "Roger Federer"      | 2006 | 4     | 5    | [{score: "6-4 6-0 3-6 4-6 6-2", round: "R16", opponent: "Tommy Haas"}, {score: "6-4 3-6 7-6(7) 7-6(5)", round: "QF", opponent: "Nikolay Davydenko"}, {score: "6-3 5-7 6-0 6-2", round: "SF", opponent: "Nicolas Kiefer"}, {score: "5-7 7-5 6-0 6-2", round: "F", opponent: "Marcos Baghdatis"}]
+| "Stanislas Wawrinka" | 2014 | 4     | 5    | [{score: "6-3 6-3 6-7(4) 6-4", round: "R64", opponent: "Alejandro Falla"}, {score: "2-6 6-4 6-2 3-6 9-7", round: "QF", opponent: "Novak Djokovic"}, {score: "6-3 6-7(1) 7-6(3) 7-6(4)", round: "SF", opponent: "Tomas Berdych"}, {score: "6-3 6-2 3-6 6-3", round: "F", opponent: "Rafael Nadal"}]
 |===
 
 So Thomas Johansson had the toughest route to the title, dropping a set in every match except for the 2nd round (R64).
@@ -662,9 +661,9 @@ We could probably think of some other set based queries to execute against this 
 == What’s interesting about this QuickGraph?
 
 I've always wanted to put tennis matches into a graph, but I was always struggling to think what type of graphy queries could be run against such a dataset.
-And for most of this blog post I wasn't really convinced that a graph was allowing us to write very interesting queries. 
+And for most of this blog post I wasn't really convinced that a graph was allowing us to write very interesting queries.
 
-Things got more interesting in the last section where we did set analysis. 
+Things got more interesting in the last section where we did set analysis.
 I found having the data in a graph structure made was helpful for answering these questions, especially when we were looking for the non existence of a relationship.
 I do still wonder if there's a cleaner way to write those queries.
 
