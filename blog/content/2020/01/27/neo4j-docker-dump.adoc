@@ -1,0 +1,23 @@
++++
+draft = true
+date="2020-01-26 00:21:00"
+title="Neo4j: Finding the longest path"
+tag=['quickgraph', 'neo4j', 'apoc']
+category=['QuickGraph']
+description="Learn how to build a graph of the Australian Open tennis tournament"
+image="uploads/2020/01/aus-open-banner.png"
++++
+
+
+
+https://serverfault.com/questions/835092/how-do-you-perform-a-dump-of-a-neo4j-database-within-a-docker-container
+https://stackoverflow.com/questions/22049212/copying-files-from-docker-container-to-host
+
+
+[source, bash]
+----
+$ docker exec -it quickgraph-aus-open neo4j-admin dump --database=womens --to=/tmp/womens-aus-open.dump
+Done: 75 files, 252.9MiB processed.
+----
+
+docker cp quickgraph-aus-open:/tmp/womens-aus-open.dump .
