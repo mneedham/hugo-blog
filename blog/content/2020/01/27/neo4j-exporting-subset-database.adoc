@@ -1,0 +1,436 @@
++++
+draft = true
+date="2020-01-26 00:21:00"
+title="Neo4j: Exporting a subset of data from one database to another"
+tag=['neo4j', 'apoc']
+category=['Neo4j']
+description="Learn how to export a subset of data from one Neo4j database to another one"
+image="uploads/2020/01/apoc-export-json.png"
++++
+
+As part of the preparation for another blog post, I wanted to export a subset of data from one Neo4j database to another one, which seemed like a blog post in its own right.
+
+image::{{<siteurl>}}/uploads/2020/01/apoc-export-json.png[title="Exporting data using APOC's Export JSON"]
+
+== Setting up Neo4j
+
+We're going to use the following Docker Compose configuration in this blog post:
+
+.Dockerfile
+[source,yaml]
+----
+version: '3.7'
+
+services:
+  neo4j:
+    image: neo4j:4.0.0-enterprise
+    container_name: "quickgraph-aus-open"
+    volumes:
+      - ./plugins:/plugins
+      - ./data:/data
+      - ./import:/var/lib/neo4j/import
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - "NEO4J_ACCEPT_LICENSE_AGREEMENT=yes"
+      - "NEO4J_AUTH=neo4j/neo"
+      - NEO4J_apoc_import_file_use__neo4j__config=true
+      - NEO4J_apoc_import_file_enabled=true
+      - NEO4J_apoc_export_file_enabled=true
+      - NEO4JLABS_PLUGINS=["apoc"]
+----
+
+Once we've created that file we need to open a terminal session where that file lives and then run the following command to spin up Neo4j:
+
+[source,bash]
+----
+docker-compose up
+----
+
+If we run that command, we'll see the following (truncated) output:
+
+[source,text]
+----
+Started quickgraph-aus-open ... done
+Attaching to quickgraph-aus-open
+quickgraph-aus-open | Changed password for user 'neo4j'.
+quickgraph-aus-open | Fetching versions.json for Plugin 'apoc' from https://neo4j-contrib.github.io/neo4j-apoc-procedures/versions.json
+quickgraph-aus-open | Installing Plugin 'apoc' from https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/4.0.0.0/apoc-4.0.0.0-all.jar to /plugins/apoc.jar
+quickgraph-aus-open | Applying default values for plugin apoc to neo4j.conf
+quickgraph-aus-open | Directories in use:
+quickgraph-aus-open |   home:         /var/lib/neo4j
+quickgraph-aus-open |   config:       /var/lib/neo4j/conf
+quickgraph-aus-open |   logs:         /logs
+quickgraph-aus-open |   plugins:      /plugins
+quickgraph-aus-open |   import:       /import
+quickgraph-aus-open |   data:         /var/lib/neo4j/data
+quickgraph-aus-open |   certificates: /var/lib/neo4j/certificates
+quickgraph-aus-open |   run:          /var/lib/neo4j/run
+quickgraph-aus-open | Starting Neo4j.
+quickgraph-aus-open | 2020-01-21 22:24:29.976+0000 INFO  ======== Neo4j 4.0.0 ========
+quickgraph-aus-open | 2020-01-21 22:24:29.982+0000 INFO  Starting...
+quickgraph-aus-open | 2020-01-21 22:24:35.656+0000 INFO  Called db.clearQueryCaches(): Query cache already empty.
+quickgraph-aus-open | 2020-01-21 22:24:40.765+0000 INFO  Sending metrics to CSV file at /var/lib/neo4j/metrics
+quickgraph-aus-open | 2020-01-21 22:24:40.790+0000 INFO  Bolt enabled on 0.0.0.0:7687.
+quickgraph-aus-open | 2020-01-21 22:24:40.791+0000 INFO  Started.
+quickgraph-aus-open | 2020-01-21 22:24:40.879+0000 INFO  Server thread metrics have been registered successfully
+quickgraph-aus-open | 2020-01-21 22:24:41.723+0000 INFO  Remote interface available at http://0.0.0.0:7474/
+----
+
+Once we see that last line we're ready to roll.
+
+== Exporting data
+
+In the https://markhneedham.com/blog/2020/01/23/quick-graph-australian-open/[Australian Open QuickGraph^] blog post we imported all the matches from the Australian Open tennis tournament.
+We can see a sample of the imported graph in the Neo4j Browser visualisation below:
+
+image::{{<siteurl>}}/uploads/2020/01/aus-open-preview.png[title="Sample of the Australian Open Graph"]
+
+Let's quickly check how much data this graph contains.
+We'll query the database via the Cypher Shell command, which we can launch by running the following:
+
+[source,bash]
+----
+$ docker exec -it quickgraph-aus-open cypher-shell -u neo4j -p neo -d womens
+
+Connected to Neo4j 4.0.0 at neo4j://localhost:7687 as user neo4j.
+Type :help for a list of available commands or :exit to exit the shell.
+Note that Cypher queries must end with a semicolon.
+neo4j@womens>
+----
+
+We'll use APOC's `apoc.meta.stats` procedure to get back a summary of what's in this database:
+
+[source,cypher]
+----
+CALL apoc.meta.stats()
+YIELD nodeCount, relCount, labels, relTypesCount
+RETURN nodeCount, relCount, labels, relTypesCount
+----
+
+.apoc.meta.stats
+[opts="header"]
+|===
+| nodeCount | relCount | labels | relTypesCount
+|  9013      | 27727    | {Player: 571, Set: 5882, Tournament: 20, Match: 2540} | {WINNER: 8383, IN_TOURNAMENT: 2540, NEXT_MATCH: 2520, NEXT_TOURNAMENT: 19, LOSER: 8383, IN_MATCH: 5882}
+|===
+
+There's not much data in there, but we only want to export the `Tournament` nodes, `NEXT_TOURNAMENT` relationships, `Match` nodes for the finals, and the `Player` nodes that competed in those finals.
+We're going to export the data with a little help from https://neo4j.com/docs/labs/apoc/3.5/[APOC^]'s https://neo4j.com/docs/labs/apoc/current/export/json/[export to JSON procedures^].
+
+P.S. 👇
+
+++++
+<blockquote class="twitter-tweet" data-theme="light"><p lang="en" dir="ltr">Finally finished refactoring the <a href="https://twitter.com/hashtag/Neo4j?src=hash&amp;ref_src=twsrc%5Etfw">#Neo4j</a> <a href="https://twitter.com/hashtag/APOC?src=hash&amp;ref_src=twsrc%5Etfw">#APOC</a> export documentation - <a href="https://t.co/RXTjV9n5rV">https://t.co/RXTjV9n5rV</a><br><br>Let us know what&#39;s missing/what else can be improved!</p>&mdash; Mark Needham (@markhneedham) <a href="https://twitter.com/markhneedham/status/1220813924360163328?ref_src=twsrc%5Etfw">January 24, 2020</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+++++
+
+When we're using the export procedures, we need to specify some properties that enable this functionality.
+In our Dockerfile, we have the following lines:
+
+[source,yaml]
+----
+  - NEO4J_apoc_import_file_use__neo4j__config=true
+  - NEO4J_apoc_export_file_enabled=true
+----
+
+These properties are the equivalent of adding the following values to the `apoc.conf` file:
+
+[source,yaml]
+----
+apoc.import.file.use_neo4j_config=true
+apoc.export.file.enabled=true
+----
+
+* `apoc.export.file.enabled=true` enables writing export files to disk
+* `apoc.import.file.use_neo4j_config=true` writes those export files to the `import` directory
+
+
+We'll export the data in two parts using the `apoc.export.json.query` procedure, writing:
+
+* one query to export the `Tournament` nodes and the `NEXT_TOURNAMENT` relationships between them
+* one query to export the `Match` nodes where `round: "F"` and the associated `Player` and `Tournament` nodes and any relationships
+
+.The following query exports the tournaments to the file `tournaments.json`
+[source,cypher]
+----
+WITH "MATCH path = (t1:Tournament)-[rel:NEXT_TOURNAMENT]->(t2)
+      RETURN t1, t2, rel" AS query
+CALL apoc.export.json.query(query, "tournaments.json", {format: "plain"})
+YIELD file
+RETURN file
+----
+
+.import/tournaments.json
+[source,json]
+----
+{"t1":{"type":"node","id":"256","labels":["Tournament"],"properties":{"year":2000,"name":"Australian Open"}},"t2":{"type":"node","id":"257","labels":["Tournament"],"properties":{"year":2001,"name":"Australian Open"}},"rel":{"id":"10266","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"256","labels":["Tournament"]},"end":{"id":"257","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"257","labels":["Tournament"],"properties":{"year":2001,"name":"Australian Open"}},"t2":{"type":"node","id":"258","labels":["Tournament"],"properties":{"year":2002,"name":"Australian Open"}},"rel":{"id":"10267","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"257","labels":["Tournament"]},"end":{"id":"258","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"258","labels":["Tournament"],"properties":{"year":2002,"name":"Australian Open"}},"t2":{"type":"node","id":"259","labels":["Tournament"],"properties":{"year":2003,"name":"Australian Open"}},"rel":{"id":"10268","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"258","labels":["Tournament"]},"end":{"id":"259","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"259","labels":["Tournament"],"properties":{"year":2003,"name":"Australian Open"}},"t2":{"type":"node","id":"260","labels":["Tournament"],"properties":{"year":2004,"name":"Australian Open"}},"rel":{"id":"10269","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"259","labels":["Tournament"]},"end":{"id":"260","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"260","labels":["Tournament"],"properties":{"year":2004,"name":"Australian Open"}},"t2":{"type":"node","id":"261","labels":["Tournament"],"properties":{"year":2005,"name":"Australian Open"}},"rel":{"id":"10270","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"260","labels":["Tournament"]},"end":{"id":"261","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"261","labels":["Tournament"],"properties":{"year":2005,"name":"Australian Open"}},"t2":{"type":"node","id":"262","labels":["Tournament"],"properties":{"year":2006,"name":"Australian Open"}},"rel":{"id":"10271","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"261","labels":["Tournament"]},"end":{"id":"262","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"262","labels":["Tournament"],"properties":{"year":2006,"name":"Australian Open"}},"t2":{"type":"node","id":"263","labels":["Tournament"],"properties":{"year":2007,"name":"Australian Open"}},"rel":{"id":"10272","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"262","labels":["Tournament"]},"end":{"id":"263","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"263","labels":["Tournament"],"properties":{"year":2007,"name":"Australian Open"}},"t2":{"type":"node","id":"264","labels":["Tournament"],"properties":{"year":2008,"name":"Australian Open"}},"rel":{"id":"10273","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"263","labels":["Tournament"]},"end":{"id":"264","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"264","labels":["Tournament"],"properties":{"year":2008,"name":"Australian Open"}},"t2":{"type":"node","id":"265","labels":["Tournament"],"properties":{"year":2009,"name":"Australian Open"}},"rel":{"id":"10274","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"264","labels":["Tournament"]},"end":{"id":"265","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"265","labels":["Tournament"],"properties":{"year":2009,"name":"Australian Open"}},"t2":{"type":"node","id":"266","labels":["Tournament"],"properties":{"year":2010,"name":"Australian Open"}},"rel":{"id":"10275","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"265","labels":["Tournament"]},"end":{"id":"266","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"266","labels":["Tournament"],"properties":{"year":2010,"name":"Australian Open"}},"t2":{"type":"node","id":"267","labels":["Tournament"],"properties":{"year":2011,"name":"Australian Open"}},"rel":{"id":"10276","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"266","labels":["Tournament"]},"end":{"id":"267","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"267","labels":["Tournament"],"properties":{"year":2011,"name":"Australian Open"}},"t2":{"type":"node","id":"268","labels":["Tournament"],"properties":{"year":2012,"name":"Australian Open"}},"rel":{"id":"10277","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"267","labels":["Tournament"]},"end":{"id":"268","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"268","labels":["Tournament"],"properties":{"year":2012,"name":"Australian Open"}},"t2":{"type":"node","id":"269","labels":["Tournament"],"properties":{"year":2013,"name":"Australian Open"}},"rel":{"id":"10278","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"268","labels":["Tournament"]},"end":{"id":"269","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"269","labels":["Tournament"],"properties":{"year":2013,"name":"Australian Open"}},"t2":{"type":"node","id":"270","labels":["Tournament"],"properties":{"year":2014,"name":"Australian Open"}},"rel":{"id":"10279","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"269","labels":["Tournament"]},"end":{"id":"270","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"270","labels":["Tournament"],"properties":{"year":2014,"name":"Australian Open"}},"t2":{"type":"node","id":"271","labels":["Tournament"],"properties":{"year":2015,"name":"Australian Open"}},"rel":{"id":"10280","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"270","labels":["Tournament"]},"end":{"id":"271","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"271","labels":["Tournament"],"properties":{"year":2015,"name":"Australian Open"}},"t2":{"type":"node","id":"272","labels":["Tournament"],"properties":{"year":2016,"name":"Australian Open"}},"rel":{"id":"10281","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"271","labels":["Tournament"]},"end":{"id":"272","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"272","labels":["Tournament"],"properties":{"year":2016,"name":"Australian Open"}},"t2":{"type":"node","id":"273","labels":["Tournament"],"properties":{"year":2017,"name":"Australian Open"}},"rel":{"id":"10282","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"272","labels":["Tournament"]},"end":{"id":"273","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"273","labels":["Tournament"],"properties":{"year":2017,"name":"Australian Open"}},"t2":{"type":"node","id":"274","labels":["Tournament"],"properties":{"year":2018,"name":"Australian Open"}},"rel":{"id":"10283","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"273","labels":["Tournament"]},"end":{"id":"274","labels":["Tournament"]}}}
+{"t1":{"type":"node","id":"274","labels":["Tournament"],"properties":{"year":2018,"name":"Australian Open"}},"t2":{"type":"node","id":"0","labels":["Tournament"],"properties":{"year":2019,"name":"Australian Open"}},"rel":{"id":"10284","type":"relationship","label":"NEXT_TOURNAMENT","start":{"id":"274","labels":["Tournament"]},"end":{"id":"0","labels":["Tournament"]}}}
+----
+
+.The following query exports the final matches and surrounding nodes and relationships to the file `finalists.json`
+[source,cypher]
+----
+WITH "MATCH (t:Tournament)<-[tournRel:IN_TOURNAMENT]-(match:Match {round: 'F'})<-[winnerRel:WINNER]-(winner),
+            (loser)-[loserRel:LOSER]->(match)
+      RETURN t, tournRel, winner, winnerRel, loser, loserRel, match" AS query
+CALL apoc.export.json.query(query, "finalists.json", {format: "plain"})
+YIELD file
+RETURN file
+----
+
+.import/finalists.json
+[source,json]
+----
+{"t":{"type":"node","id":"0","labels":["Tournament"],"properties":{"year":2019,"name":"Australian Open"}},"tournRel":{"id":"380","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"191","labels":["Match"]},"end":{"id":"0","labels":["Tournament"]}},"winner":{"type":"node","id":"34","labels":["Player"],"properties":{"name":"Naomi Osaka","id":"211768"}},"winnerRel":{"id":"378","type":"relationship","label":"WINNER","start":{"id":"34","labels":["Player"]},"end":{"id":"191","labels":["Match"]}},"loser":{"type":"node","id":"66","labels":["Player"],"properties":{"name":"Petra Kvitova","id":"201520"}},"loserRel":{"id":"379","type":"relationship","label":"LOSER","start":{"id":"66","labels":["Player"]},"end":{"id":"191","labels":["Match"]}},"match":{"type":"node","id":"191","labels":["Match"],"properties":{"score":"7-6(2) 5-7 6-4","round":"F","id":"20190114_226"}}}
+{"t":{"type":"node","id":"256","labels":["Tournament"],"properties":{"year":2000,"name":"Australian Open"}},"tournRel":{"id":"887","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"464","labels":["Match"]},"end":{"id":"256","labels":["Tournament"]}},"winner":{"type":"node","id":"401","labels":["Player"],"properties":{"name":"Lindsay Davenport","id":"200128"}},"winnerRel":{"id":"885","type":"relationship","label":"WINNER","start":{"id":"401","labels":["Player"]},"end":{"id":"464","labels":["Match"]}},"loser":{"type":"node","id":"276","labels":["Player"],"properties":{"name":"Martina Hingis","id":"200001"}},"loserRel":{"id":"886","type":"relationship","label":"LOSER","start":{"id":"276","labels":["Player"]},"end":{"id":"464","labels":["Match"]}},"match":{"type":"node","id":"464","labels":["Match"],"properties":{"score":"6-1 7-5","round":"F","id":"20000117_127"}}}
+{"t":{"type":"node","id":"257","labels":["Tournament"],"properties":{"year":2001,"name":"Australian Open"}},"tournRel":{"id":"1268","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"621","labels":["Match"]},"end":{"id":"257","labels":["Tournament"]}},"winner":{"type":"node","id":"351","labels":["Player"],"properties":{"name":"Jennifer Capriati","id":"200077"}},"winnerRel":{"id":"1266","type":"relationship","label":"WINNER","start":{"id":"351","labels":["Player"]},"end":{"id":"621","labels":["Match"]}},"loser":{"type":"node","id":"276","labels":["Player"],"properties":{"name":"Martina Hingis","id":"200001"}},"loserRel":{"id":"1267","type":"relationship","label":"LOSER","start":{"id":"276","labels":["Player"]},"end":{"id":"621","labels":["Match"]}},"match":{"type":"node","id":"621","labels":["Match"],"properties":{"score":"6-4 6-3","round":"F","id":"20010115_127"}}}
+{"t":{"type":"node","id":"258","labels":["Tournament"],"properties":{"year":2002,"name":"Australian Open"}},"tournRel":{"id":"1649","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"770","labels":["Match"]},"end":{"id":"258","labels":["Tournament"]}},"winner":{"type":"node","id":"351","labels":["Player"],"properties":{"name":"Jennifer Capriati","id":"200077"}},"winnerRel":{"id":"1647","type":"relationship","label":"WINNER","start":{"id":"351","labels":["Player"]},"end":{"id":"770","labels":["Match"]}},"loser":{"type":"node","id":"276","labels":["Player"],"properties":{"name":"Martina Hingis","id":"200001"}},"loserRel":{"id":"1648","type":"relationship","label":"LOSER","start":{"id":"276","labels":["Player"]},"end":{"id":"770","labels":["Match"]}},"match":{"type":"node","id":"770","labels":["Match"],"properties":{"score":"4-6 7-6(7) 6-2","round":"F","id":"20020114_127"}}}
+{"t":{"type":"node","id":"259","labels":["Tournament"],"properties":{"year":2003,"name":"Australian Open"}},"tournRel":{"id":"2030","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"912","labels":["Match"]},"end":{"id":"259","labels":["Tournament"]}},"winner":{"type":"node","id":"16","labels":["Player"],"properties":{"name":"Serena Williams","id":"200033"}},"winnerRel":{"id":"2028","type":"relationship","label":"WINNER","start":{"id":"16","labels":["Player"]},"end":{"id":"912","labels":["Match"]}},"loser":{"type":"node","id":"8","labels":["Player"],"properties":{"name":"Venus Williams","id":"200748"}},"loserRel":{"id":"2029","type":"relationship","label":"LOSER","start":{"id":"8","labels":["Player"]},"end":{"id":"912","labels":["Match"]}},"match":{"type":"node","id":"912","labels":["Match"],"properties":{"score":"7-6(4) 3-6 6-4","round":"F","id":"20030113_127"}}}
+{"t":{"type":"node","id":"260","labels":["Tournament"],"properties":{"year":2004,"name":"Australian Open"}},"tournRel":{"id":"2405","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"1054","labels":["Match"]},"end":{"id":"260","labels":["Tournament"]}},"winner":{"type":"node","id":"278","labels":["Player"],"properties":{"name":"Justine Henin","id":"200003"}},"winnerRel":{"id":"2403","type":"relationship","label":"WINNER","start":{"id":"278","labels":["Player"]},"end":{"id":"1054","labels":["Match"]}},"loser":{"type":"node","id":"547","labels":["Player"],"properties":{"name":"Kim Clijsters","id":"200079"}},"loserRel":{"id":"2404","type":"relationship","label":"LOSER","start":{"id":"547","labels":["Player"]},"end":{"id":"1054","labels":["Match"]}},"match":{"type":"node","id":"1054","labels":["Match"],"properties":{"score":"6-3 4-6 6-3","round":"F","id":"20040119_127"}}}
+{"t":{"type":"node","id":"261","labels":["Tournament"],"properties":{"year":2005,"name":"Australian Open"}},"tournRel":{"id":"2738","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"1184","labels":["Match"]},"end":{"id":"261","labels":["Tournament"]}},"winner":{"type":"node","id":"16","labels":["Player"],"properties":{"name":"Serena Williams","id":"200033"}},"winnerRel":{"id":"2736","type":"relationship","label":"WINNER","start":{"id":"16","labels":["Player"]},"end":{"id":"1184","labels":["Match"]}},"loser":{"type":"node","id":"401","labels":["Player"],"properties":{"name":"Lindsay Davenport","id":"200128"}},"loserRel":{"id":"2737","type":"relationship","label":"LOSER","start":{"id":"401","labels":["Player"]},"end":{"id":"1184","labels":["Match"]}},"match":{"type":"node","id":"1184","labels":["Match"],"properties":{"score":"2-6 6-3 6-0","round":"F","id":"20050117_127"}}}
+{"t":{"type":"node","id":"262","labels":["Tournament"],"properties":{"year":2006,"name":"Australian Open"}},"tournRel":{"id":"3110","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"1331","labels":["Match"]},"end":{"id":"262","labels":["Tournament"]}},"winner":{"type":"node","id":"339","labels":["Player"],"properties":{"name":"Amelie Mauresmo","id":"200065"}},"winnerRel":{"id":"3108","type":"relationship","label":"WINNER","start":{"id":"339","labels":["Player"]},"end":{"id":"1331","labels":["Match"]}},"loser":{"type":"node","id":"278","labels":["Player"],"properties":{"name":"Justine Henin","id":"200003"}},"loserRel":{"id":"3109","type":"relationship","label":"LOSER","start":{"id":"278","labels":["Player"]},"end":{"id":"1331","labels":["Match"]}},"match":{"type":"node","id":"1331","labels":["Match"],"properties":{"score":"6-1 2-0 RET","round":"F","id":"20060116_127"}}}
+{"t":{"type":"node","id":"263","labels":["Tournament"],"properties":{"year":2007,"name":"Australian Open"}},"tournRel":{"id":"3491","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"1473","labels":["Match"]},"end":{"id":"263","labels":["Tournament"]}},"winner":{"type":"node","id":"16","labels":["Player"],"properties":{"name":"Serena Williams","id":"200033"}},"winnerRel":{"id":"3489","type":"relationship","label":"WINNER","start":{"id":"16","labels":["Player"]},"end":{"id":"1473","labels":["Match"]}},"loser":{"type":"node","id":"90","labels":["Player"],"properties":{"name":"Maria Sharapova","id":"201345"}},"loserRel":{"id":"3490","type":"relationship","label":"LOSER","start":{"id":"90","labels":["Player"]},"end":{"id":"1473","labels":["Match"]}},"match":{"type":"node","id":"1473","labels":["Match"],"properties":{"score":"6-1 6-2","round":"F","id":"20070115_127"}}}
+{"t":{"type":"node","id":"264","labels":["Tournament"],"properties":{"year":2008,"name":"Australian Open"}},"tournRel":{"id":"3899","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"1621","labels":["Match"]},"end":{"id":"264","labels":["Tournament"]}},"winner":{"type":"node","id":"90","labels":["Player"],"properties":{"name":"Maria Sharapova","id":"201345"}},"winnerRel":{"id":"3897","type":"relationship","label":"WINNER","start":{"id":"90","labels":["Player"]},"end":{"id":"1621","labels":["Match"]}},"loser":{"type":"node","id":"1156","labels":["Player"],"properties":{"name":"Ana Ivanovic","id":"201421"}},"loserRel":{"id":"3898","type":"relationship","label":"LOSER","start":{"id":"1156","labels":["Player"]},"end":{"id":"1621","labels":["Match"]}},"match":{"type":"node","id":"1621","labels":["Match"],"properties":{"score":"7-5 6-3","round":"F","id":"20080114_127"}}}
+{"t":{"type":"node","id":"265","labels":["Tournament"],"properties":{"year":2009,"name":"Australian Open"}},"tournRel":{"id":"4268","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"1758","labels":["Match"]},"end":{"id":"265","labels":["Tournament"]}},"winner":{"type":"node","id":"16","labels":["Player"],"properties":{"name":"Serena Williams","id":"200033"}},"winnerRel":{"id":"4266","type":"relationship","label":"WINNER","start":{"id":"16","labels":["Player"]},"end":{"id":"1758","labels":["Match"]}},"loser":{"type":"node","id":"990","labels":["Player"],"properties":{"name":"Dinara Safina","id":"201336"}},"loserRel":{"id":"4267","type":"relationship","label":"LOSER","start":{"id":"990","labels":["Player"]},"end":{"id":"1758","labels":["Match"]}},"match":{"type":"node","id":"1758","labels":["Match"],"properties":{"score":"6-0 6-3","round":"F","id":"20090119_127"}}}
+{"t":{"type":"node","id":"266","labels":["Tournament"],"properties":{"year":2010,"name":"Australian Open"}},"tournRel":{"id":"4637","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"1887","labels":["Match"]},"end":{"id":"266","labels":["Tournament"]}},"winner":{"type":"node","id":"16","labels":["Player"],"properties":{"name":"Serena Williams","id":"200033"}},"winnerRel":{"id":"4635","type":"relationship","label":"WINNER","start":{"id":"16","labels":["Player"]},"end":{"id":"1887","labels":["Match"]}},"loser":{"type":"node","id":"278","labels":["Player"],"properties":{"name":"Justine Henin","id":"200003"}},"loserRel":{"id":"4636","type":"relationship","label":"LOSER","start":{"id":"278","labels":["Player"]},"end":{"id":"1887","labels":["Match"]}},"match":{"type":"node","id":"1887","labels":["Match"],"properties":{"score":"6-4 3-6 6-2","round":"F","id":"20100118_127"}}}
+{"t":{"type":"node","id":"267","labels":["Tournament"],"properties":{"year":2011,"name":"Australian Open"}},"tournRel":{"id":"5021","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"2024","labels":["Match"]},"end":{"id":"267","labels":["Tournament"]}},"winner":{"type":"node","id":"547","labels":["Player"],"properties":{"name":"Kim Clijsters","id":"200079"}},"winnerRel":{"id":"5019","type":"relationship","label":"WINNER","start":{"id":"547","labels":["Player"]},"end":{"id":"2024","labels":["Match"]}},"loser":{"type":"node","id":"1110","labels":["Player"],"properties":{"name":"Na Li","id":"201419"}},"loserRel":{"id":"5020","type":"relationship","label":"LOSER","start":{"id":"1110","labels":["Player"]},"end":{"id":"2024","labels":["Match"]}},"match":{"type":"node","id":"2024","labels":["Match"],"properties":{"score":"3-6 6-3 6-3","round":"F","id":"20110117_127"}}}
+{"t":{"type":"node","id":"268","labels":["Tournament"],"properties":{"year":2012,"name":"Australian Open"}},"tournRel":{"id":"5402","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"2166","labels":["Match"]},"end":{"id":"268","labels":["Tournament"]}},"winner":{"type":"node","id":"210","labels":["Player"],"properties":{"name":"Victoria Azarenka","id":"201458"}},"winnerRel":{"id":"5400","type":"relationship","label":"WINNER","start":{"id":"210","labels":["Player"]},"end":{"id":"2166","labels":["Match"]}},"loser":{"type":"node","id":"90","labels":["Player"],"properties":{"name":"Maria Sharapova","id":"201345"}},"loserRel":{"id":"5401","type":"relationship","label":"LOSER","start":{"id":"90","labels":["Player"]},"end":{"id":"2166","labels":["Match"]}},"match":{"type":"node","id":"2166","labels":["Match"],"properties":{"score":"6-3 6-0","round":"F","id":"20120116_127"}}}
+{"t":{"type":"node","id":"269","labels":["Tournament"],"properties":{"year":2013,"name":"Australian Open"}},"tournRel":{"id":"5798","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"2306","labels":["Match"]},"end":{"id":"269","labels":["Tournament"]}},"winner":{"type":"node","id":"210","labels":["Player"],"properties":{"name":"Victoria Azarenka","id":"201458"}},"winnerRel":{"id":"5796","type":"relationship","label":"WINNER","start":{"id":"210","labels":["Player"]},"end":{"id":"2306","labels":["Match"]}},"loser":{"type":"node","id":"1110","labels":["Player"],"properties":{"name":"Na Li","id":"201419"}},"loserRel":{"id":"5797","type":"relationship","label":"LOSER","start":{"id":"1110","labels":["Player"]},"end":{"id":"2306","labels":["Match"]}},"match":{"type":"node","id":"2306","labels":["Match"],"properties":{"score":"4-6 6-4 6-3","round":"F","id":"20130114_127"}}}
+{"t":{"type":"node","id":"270","labels":["Tournament"],"properties":{"year":2014,"name":"Australian Open"}},"tournRel":{"id":"6176","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"2435","labels":["Match"]},"end":{"id":"270","labels":["Tournament"]}},"winner":{"type":"node","id":"1110","labels":["Player"],"properties":{"name":"Na Li","id":"201419"}},"winnerRel":{"id":"6174","type":"relationship","label":"WINNER","start":{"id":"1110","labels":["Player"]},"end":{"id":"2435","labels":["Match"]}},"loser":{"type":"node","id":"220","labels":["Player"],"properties":{"name":"Dominika Cibulkova","id":"201495"}},"loserRel":{"id":"6175","type":"relationship","label":"LOSER","start":{"id":"220","labels":["Player"]},"end":{"id":"2435","labels":["Match"]}},"match":{"type":"node","id":"2435","labels":["Match"],"properties":{"score":"7-6(3) 6-0","round":"F","id":"20140113_127"}}}
+{"t":{"type":"node","id":"271","labels":["Tournament"],"properties":{"year":2015,"name":"Australian Open"}},"tournRel":{"id":"6602","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"2587","labels":["Match"]},"end":{"id":"271","labels":["Tournament"]}},"winner":{"type":"node","id":"16","labels":["Player"],"properties":{"name":"Serena Williams","id":"200033"}},"winnerRel":{"id":"6600","type":"relationship","label":"WINNER","start":{"id":"16","labels":["Player"]},"end":{"id":"2587","labels":["Match"]}},"loser":{"type":"node","id":"90","labels":["Player"],"properties":{"name":"Maria Sharapova","id":"201345"}},"loserRel":{"id":"6601","type":"relationship","label":"LOSER","start":{"id":"90","labels":["Player"]},"end":{"id":"2587","labels":["Match"]}},"match":{"type":"node","id":"2587","labels":["Match"],"properties":{"score":"6-3 7-6(5)","round":"F","id":"20150119_127"}}}
+{"t":{"type":"node","id":"272","labels":["Tournament"],"properties":{"year":2016,"name":"Australian Open"}},"tournRel":{"id":"6983","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"2720","labels":["Match"]},"end":{"id":"272","labels":["Tournament"]}},"winner":{"type":"node","id":"128","labels":["Player"],"properties":{"name":"Angelique Kerber","id":"201493"}},"winnerRel":{"id":"6981","type":"relationship","label":"WINNER","start":{"id":"128","labels":["Player"]},"end":{"id":"2720","labels":["Match"]}},"loser":{"type":"node","id":"16","labels":["Player"],"properties":{"name":"Serena Williams","id":"200033"}},"loserRel":{"id":"6982","type":"relationship","label":"LOSER","start":{"id":"16","labels":["Player"]},"end":{"id":"2720","labels":["Match"]}},"match":{"type":"node","id":"2720","labels":["Match"],"properties":{"score":"6-4 3-6 6-4","round":"F","id":"20160118_226"}}}
+{"t":{"type":"node","id":"273","labels":["Tournament"],"properties":{"year":2017,"name":"Australian Open"}},"tournRel":{"id":"7364","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"2855","labels":["Match"]},"end":{"id":"273","labels":["Tournament"]}},"winner":{"type":"node","id":"16","labels":["Player"],"properties":{"name":"Serena Williams","id":"200033"}},"winnerRel":{"id":"7362","type":"relationship","label":"WINNER","start":{"id":"16","labels":["Player"]},"end":{"id":"2855","labels":["Match"]}},"loser":{"type":"node","id":"8","labels":["Player"],"properties":{"name":"Venus Williams","id":"200748"}},"loserRel":{"id":"7363","type":"relationship","label":"LOSER","start":{"id":"8","labels":["Player"]},"end":{"id":"2855","labels":["Match"]}},"match":{"type":"node","id":"2855","labels":["Match"],"properties":{"score":"6-4 6-4","round":"F","id":"20170116_226"}}}
+{"t":{"type":"node","id":"274","labels":["Tournament"],"properties":{"year":2018,"name":"Australian Open"}},"tournRel":{"id":"7745","type":"relationship","label":"IN_TOURNAMENT","start":{"id":"2984","labels":["Match"]},"end":{"id":"274","labels":["Tournament"]}},"winner":{"type":"node","id":"96","labels":["Player"],"properties":{"name":"Caroline Wozniacki","id":"201496"}},"winnerRel":{"id":"7743","type":"relationship","label":"WINNER","start":{"id":"96","labels":["Player"]},"end":{"id":"2984","labels":["Match"]}},"loser":{"type":"node","id":"2","labels":["Player"],"properties":{"name":"Simona Halep","id":"201594"}},"loserRel":{"id":"7744","type":"relationship","label":"LOSER","start":{"id":"2","labels":["Player"]},"end":{"id":"2984","labels":["Match"]}},"match":{"type":"node","id":"2984","labels":["Match"],"properties":{"score":"7-6(2) 3-6 6-4","round":"F","id":"20180115_701"}}}
+----
+
+== Importing data
+
+We're now ready to import the data into a new database.
+Let's first create a new database and start using it:
+
+[source,cypher]
+----
+:use system;
+CREATE DATABASE blog;
+:use blog
+----
+
+Before we import any data, let's create the constraints that we had on our original database:
+
+[source, cypher]
+----
+CREATE CONSTRAINT ON (p:Player)
+ASSERT p.id IS UNIQUE;
+
+CREATE CONSTRAINT ON (m:Match)
+ASSERT m.id IS UNIQUE;
+
+CREATE CONSTRAINT ON (t:Tournament)
+ASSERT (t.name, t.year) IS NODE KEY;
+----
+
+We can check that those have been created by running the following command:
+
+[source,cypher]
+----
+CALL db.indexes();
+----
+
+.CALL db.indexes()
+[opts="header"]
+|===
+| id | name                  | state    | populationPercent | uniqueness | type    | entityType | labelsOrTypes  | properties       | provider
+| 5  | "constraint_989cb13a" | "ONLINE" | 100.0             | "UNIQUE"   | "BTREE" | "NODE"     | ["Tournament"] | ["name", "year"] | "native-btree-1.0"
+| 3  | "constraint_a016a763" | "ONLINE" | 100.0             | "UNIQUE"   | "BTREE" | "NODE"     | ["Match"]      | ["id"]           | "native-btree-1.0"
+| 1  | "constraint_cbe92269" | "ONLINE" | 100.0             | "UNIQUE"   | "BTREE" | "NODE"     | ["Player"]     | ["id"]           | "native-btree-1.0"
+|===
+
+Alright, it's time to import the data!
+We're going to use the `apoc.load.json` procedure to do this, and we'll start with `tournaments.json`.
+Let's quickly run an exploratory query to remind ourselves the data that we'll be working with:
+
+[source,cypher]
+----
+CALL apoc.load.json("tournaments.json")
+YIELD value
+RETURN value.t1, value.t2, value.rel
+LIMIT 1;
+----
+
+.Exploring `tournaments.json`
+[opts="header"]
+|===
+| value.t1                                                                                             | value.t2                                                                                             | value.rel
+| {id: "256", type: "node", properties: {name: "Australian Open", year: 2000}, labels: ["Tournament"]} | {id: "257", type: "node", properties: {name: "Australian Open", year: 2001}, labels: ["Tournament"]} | {start: {id: "256", labels: ["Tournament"]}, end: {id: "257", labels: ["Tournament"]}, id: "10266", label: "NEXT_TOURNAMENT", type: "relationship"}
+|===
+
+where:
+
+* `t1` and `t2` represent `Tournament` nodes
+* `rel` represents the `NEXT_TOURNAMENT` relationship
+
+We can recreate the original graph structure by running the following query:
+
+[source,cypher]
+----
+CALL apoc.load.json("tournaments.json") YIELD value
+CALL apoc.merge.node(value.t1.labels, value.t1.properties) YIELD node AS t1
+CALL apoc.merge.node(value.t2.labels, value.t2.properties) YIELD node AS t2
+CALL apoc.merge.relationship(t1, value.rel.label, {}, {}, t2, {}) YIELD rel
+RETURN count(*);
+----
+
+We're using the `apoc.merge.node` and `apoc.merge.relationship` procedures to create the nodes and relationships.
+These procedures are the equivalent of Cypher's https://neo4j.com/docs/cypher-manual/current/clauses/merge/[`MERGE`^] clause, and come in handy when we're importing data from a dynamic source
+e.g. a JSON file
+
+.Results
+[opts="header"]
+|===
+| count(*)
+| 19
+|===
+
+Everything looks good, but let's quickly check the contents of our database by running the `apoc.meta.stats` procedure that we ran earlier:
+
+[source,cypher]
+----
+CALL apoc.meta.stats()
+YIELD nodeCount, relCount, labels, relTypesCount
+RETURN nodeCount, relCount, labels, relTypesCount;
+----
+
+.apoc.meta.stats
+[opts="header"]
+|===
+| nodeCount | relCount | labels | relTypesCount
+|  20        | 19       | {Tournament: 20} | {NEXT_TOURNAMENT: 19}
+|===
+
+So we've got 20 nodes representing the 20 tournaments from 2000 to 2019 and 19 relationships between them.
+So far so good.
+
+Time to import `finalists.json`.
+We'll start with an exploratory query:
+
+[source,cypher]
+----
+CALL apoc.load.json("finalists.json")
+YIELD value
+RETURN value.t, value.tournRel,
+       value.winner, value.winnerRel,
+       value.loser, value.loserRel,
+       value.match
+LIMIT 1;
+----
+
+.Exploring `finalists.json`
+[opts="header"]
+|===
+| value.t | value.tournRel   | value.winner                                                                                  | value.winnerRel                                                                                                                | value.loser                                                                                     | value.loserRel                                                                                                                | value.match
+| {id: "0", type: "node", properties: {name: "Australian Open", year: 2019}, labels: ["Tournament"]} | {start: {id: "191", labels: ["Match"]}, end: {id: "0", labels: ["Tournament"]}, id: "380", label: "IN_TOURNAMENT", type: "relationship"} | {id: "34", type: "node", properties: {name: "Naomi Osaka", id: "211768"}, labels: ["Player"]} | {start: {id: "34", labels: ["Player"]}, end: {id: "191", labels: ["Match"]}, id: "378", label: "WINNER", type: "relationship"} | {id: "66", type: "node", properties: {name: "Petra Kvitova", id: "201520"}, labels: ["Player"]} | {start: {id: "66", labels: ["Player"]}, end: {id: "191", labels: ["Match"]}, id: "379", label: "LOSER", type: "relationship"} | {id: "191", type: "node", properties: {score: "7-6(2) 5-7 6-4", id: "20190114_226", round: "F"}, labels: ["Match"]}
+|===
+
+where:
+
+* `t` represents the `Tournament` node
+* `winner` and `loser` represent `Player` nodes
+* `match` represents the `Match` node
+* `winnerRel` represents the `WINNER` relationship between a `Player` and a `Match`
+* `loserRel` represents the `LOSER` relationship between a `Player` and a `Match`
+* `tournRel` represents the `IN_TOURNAMENT` relationship between a `Match` and a `Tournament`
+
+Let's now run the following query to import our matches:
+
+[source,cypher]
+----
+CALL apoc.load.json("finalists.json") yield value
+CALL apoc.merge.node(value.winner.labels, value.winner.properties) YIELD node AS winner
+CALL apoc.merge.node(value.loser.labels, value.loser.properties) YIELD node AS loser
+CALL apoc.merge.node(value.match.labels, value.match.properties) YIELD node AS match
+CALL apoc.merge.node(value.t.labels, value.t.properties) YIELD node AS tournament
+CALL apoc.merge.relationship(winner, value.winnerRel.label, {}, {}, match, {}) YIELD rel AS winnerRel
+CALL apoc.merge.relationship(loser, value.loserRel.label, {}, {}, match, {}) YIELD rel AS loserRel
+CALL apoc.merge.relationship(match, value.tournRel.label, {}, {}, tournament, {}) YIELD rel AS tournRel
+return count(*);
+----
+
+.Results
+[opts="header"]
+|===
+| count(*)
+| 20
+|===
+
+Let's do one last call to `apoc.meta.stats`:
+
+[source,cypher]
+----
+CALL apoc.meta.stats()
+YIELD nodeCount, relCount, labels, relTypesCount
+RETURN nodeCount, relCount, labels, relTypesCount;
+----
+
+.apoc.meta.stats
+[opts="header"]
+|===
+| nodeCount | relCount | labels | relTypesCount
+|  59        | 79       | {Player: 19, Tournament: 20, Match: 20} | {WINNER: 20, LOSER: 20, IN_TOURNAMENT: 20, NEXT_TOURNAMENT: 19}
+|===
+
+And finally, let's run one of the queries from the original QuickGraph post to check that everything's in order:
+
+[source,cypher]
+----
+MATCH (winner:Player)-[:WINNER]->(match:Match {round: "F"})<-[:LOSER]-(loser),
+      (match)-[:IN_TOURNAMENT]->(tournament)
+RETURN tournament.year AS year, winner.name AS winner,
+       loser.name AS loser, match.score AS score
+ORDER BY tournament.year
+----
+
+.Results
+[opts="header"]
+|===
+| year | winner               | loser                | score
+| 2000 | "Lindsay Davenport"  | "Martina Hingis"     | "6-1 7-5"
+| 2001 | "Jennifer Capriati"  | "Martina Hingis"     | "6-4 6-3"
+| 2002 | "Jennifer Capriati"  | "Martina Hingis"     | "4-6 7-6(7) 6-2"
+| 2003 | "Serena Williams"    | "Venus Williams"     | "7-6(4) 3-6 6-4"
+| 2004 | "Justine Henin"      | "Kim Clijsters"      | "6-3 4-6 6-3"
+| 2005 | "Serena Williams"    | "Lindsay Davenport"  | "2-6 6-3 6-0"
+| 2006 | "Amelie Mauresmo"    | "Justine Henin"      | "6-1 2-0 RET"
+| 2007 | "Serena Williams"    | "Maria Sharapova"    | "6-1 6-2"
+| 2008 | "Maria Sharapova"    | "Ana Ivanovic"       | "7-5 6-3"
+| 2009 | "Serena Williams"    | "Dinara Safina"      | "6-0 6-3"
+| 2010 | "Serena Williams"    | "Justine Henin"      | "6-4 3-6 6-2"
+| 2011 | "Kim Clijsters"      | "Na Li"              | "3-6 6-3 6-3"
+| 2012 | "Victoria Azarenka"  | "Maria Sharapova"    | "6-3 6-0"
+| 2013 | "Victoria Azarenka"  | "Na Li"              | "4-6 6-4 6-3"
+| 2014 | "Na Li"              | "Dominika Cibulkova" | "7-6(3) 6-0"
+| 2015 | "Serena Williams"    | "Maria Sharapova"    | "6-3 7-6(5)"
+| 2016 | "Angelique Kerber"   | "Serena Williams"    | "6-4 3-6 6-4"
+| 2017 | "Serena Williams"    | "Venus Williams"     | "6-4 6-4"
+| 2018 | "Caroline Wozniacki" | "Simona Halep"       | "7-6(2) 3-6 6-4"
+| 2019 | "Naomi Osaka"        | "Petra Kvitova"      | "7-6(2) 5-7 6-4"
+|===
+
+Same results as before, which I think classifies as a #win!

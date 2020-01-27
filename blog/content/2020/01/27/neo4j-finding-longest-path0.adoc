@@ -1,0 +1,61 @@
++++
+draft = true
+date="2020-01-26 00:21:00"
+title="Neo4j: Finding the longest path"
+tag=['quickgraph', 'neo4j', 'apoc']
+category=['QuickGraph']
+description="Learn how to build a graph of the Australian Open tennis tournament"
+image="uploads/2020/01/aus-open-banner.png"
++++
+
+
+finding the longest path in variable path queries
+and then finding the longest path after analysing predicates on a variable path query
+
+
+[source,cypher]
+----
+WITH "MATCH path = (t1:Tournament)-[rel:NEXT_TOURNAMENT]->(t2)
+      RETURN t1, t2, rel" AS query
+CALL apoc.export.json.query(query, "tournaments.json", {format: "plain"})
+YIELD file
+RETURN file
+----
+
+[source,cypher]
+----
+WITH "MATCH (t:Tournament)<-[tournRel:IN_TOURNAMENT]-(match:Match {round: 'F'})<-[winnerRel:WINNER]-(winner),
+            (loser)-[loserRel:LOSER]->(match)
+      RETURN t, tournRel, winner, winnerRel, loser, loserRel, match" AS query
+CALL apoc.export.json.query(query, "finalists.json", {format: "plain"})
+YIELD file
+RETURN file
+----
+
+[source,cypher]
+----
+:use system;
+CREATE DATABASE blog;
+:use blog
+----
+
+[source,cypher]
+----
+CALL apoc.load.json("tournaments.json") YIELD value
+CALL apoc.merge.node(value.t1.labels, value.t1.properties) YIELD node AS t1
+CALL apoc.merge.node(value.t2.labels, value.t2.properties) YIELD node AS t2
+CALL apoc.merge.relationship(t1, value.rel.label, {}, {}, t2, {}) YIELD rel
+RETURN count(*)
+----
+
+----
+CALL apoc.load.json("finalists.json") yield value
+CALL apoc.merge.node(value.winner.labels, value.winner.properties) YIELD node AS winner
+CALL apoc.merge.node(value.loser.labels, value.loser.properties) YIELD node AS loser
+CALL apoc.merge.node(value.match.labels, value.match.properties) YIELD node AS match
+CALL apoc.merge.node(value.t.labels, value.t.properties) YIELD node AS tournament
+CALL apoc.merge.relationship(winner, value.winnerRel.label, {}, {}, match, {}) YIELD rel AS winnerRel
+CALL apoc.merge.relationship(loser, value.loserRel.label, {}, {}, match, {}) YIELD rel AS loserRel
+CALL apoc.merge.relationship(match, value.tournRel.label, {}, {}, tournament, {}) YIELD rel AS tournRel
+return count(*)
+----
