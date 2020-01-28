@@ -1,0 +1,101 @@
++++
+draft = false
+date="2020-01-28 00:21:00"
+title="Neo4j: Performing a database dump within a Docker container"
+tag=['docker', 'neo4j']
+category=['QuickGraph']
+description="Learn how to take a dump of a Neo4j database that's running within a Docker container."
+image="uploads/2020/01/neo4j-docker.png"
++++
+
+Before the release of https://neo4j.com/release-notes/neo4j-4-0-0/[Neo4j 4.0^], https://serverfault.com/questions/835092/how-do-you-perform-a-dump-of-a-neo4j-database-within-a-docker-container[taking a dump of a database running within a Docker container^] was a tricky affair.
+
+We'd need to stop the container and remove it, run the container again in bash mode, and finally take a dump of the database.
+With 4.0 things are simpler.
+
+image::{{<siteurl>}}/uploads/2020/01/neo4j-docker.png[title="Neo4j on Docker"]
+
+
+We'll be using the following Docker Compose configuration in this blog post:
+
+.Dockerfile
+[source,yaml]
+----
+  version: '3.7'
+
+  services:
+    neo4j:
+      image: neo4j:4.0.0-enterprise
+      container_name: "quickgraph-aus-open"
+      volumes:
+        - ./plugins:/plugins
+        - ./data:/data
+        - ./import:/var/lib/neo4j/import
+      ports:
+        - "7474:7474"
+        - "7687:7687"
+      environment:
+        - "NEO4J_ACCEPT_LICENSE_AGREEMENT=yes"
+        - "NEO4J_AUTH=neo4j/neo"
+----
+
+Once we’ve created that file we need to open a terminal session where that file lives and then run `docker-compose up` to spin up Neo4j.
+When that's finished running, we can then run the following command to check on the status of our container:
+
+[source,bash]
+----
+$ docker ps
+
+CONTAINER ID        IMAGE                    COMMAND                  CREATED             STATUS              PORTS                                                      NAMES
+77b91b30aa88        neo4j:4.0.0-enterprise   "/sbin/tini -g -- /d…"   8 seconds ago       Up 6 seconds        0.0.0.0:7474->7474/tcp, 7473/tcp, 0.0.0.0:7687->7687/tcp   quickgraph-aus-open
+----
+
+Let's check which databases our Neo4j instance contains by running the https://neo4j.com/docs/operations-manual/current/manage-databases/queries/#manage-databases-queries-stop-database[`SHOW DATABASES`^] command:
+
+[source,bash]
+----
+$ docker exec -it quickgraph-aus-open cypher-shell -u neo4j -p neo -d system "SHOW DATABASES;"
+----
+
+.SHOW DATABASES
+[opts="header"]
+|===
+| name     | address        | role         | requestedStatus | currentStatus | error | default
+| "neo4j"  | "0.0.0.0:7687" | "standalone" | "online"        | "online"      | ""    | TRUE
+| "system" | "0.0.0.0:7687" | "standalone" | "online"        | "online"      | ""    | FALSE
+| "womens" | "0.0.0.0:7687" | "standalone" | "online"        | "online"      | ""    | FALSE
+|===
+
+We're going to take a dump of the `womens` database using the https://neo4j.com/docs/operations-manual/current/tools/dump-load/[Neo4j Admin dump command^].
+We can call that command by running the following:
+
+[source, bash]
+----
+$ docker exec -it quickgraph-aus-open neo4j-admin dump --database=womens --to=/tmp/womens-aus-open.dump
+The database is in use. Stop database 'womens' and try again.
+----
+
+Let's stop that database using the https://neo4j.com/docs/operations-manual/current/manage-databases/queries/#manage-databases-queries-stop-database[`STOP DATABASE`^] command:
+
+[source,bash]
+----
+$ docker exec -it quickgraph-aus-open cypher-shell -u neo4j -p neo -d system "STOP DATABASE womens;"
+0 rows available after 268 ms, consumed after another 0 ms
+----
+
+And now let's re-run the dump command:
+
+[source, bash]
+----
+$ docker exec -it quickgraph-aus-open neo4j-admin dump --database=womens --to=/tmp/womens-aus-open.dump
+Done: 75 files, 252.9MiB processed.
+----
+
+The dump file is written to the Docker container, so now we need to https://stackoverflow.com/questions/22049212/copying-files-from-docker-container-to-host[copy that file onto the host^]:
+
+[source, bash]
+----
+docker cp quickgraph-aus-open:/tmp/womens-aus-open.dump .
+----
+
+And we're done!
