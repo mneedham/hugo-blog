@@ -1,0 +1,230 @@
++++
+draft = false
+date="2020-01-29 00:21:00"
+title="A newbie's guide to querying Wikidata"
+tag=['sparql','wikidata']
+category=['Wikidata']
+description="Learn how to query Wikidata's SPARQL API"
+image="uploads/2020/01/wikidata-logo.png"
++++
+
+After reading one of Jesús Barrasa's recent QuickGraph posts about https://jbarrasa.com/2019/12/05/quickgraph10-enrich-your-neo4j-knowledge-graph-by-querying-wikidata/[enriching a knowledge graph with data from Wikidata^], I wanted to learn how to query the Wikidata API so that I could pull in the data for my own QuickGraphs.
+I want to look up information about tennis players, and one of my favourite players is https://en.wikipedia.org/wiki/Nick_Kyrgios[Nick Kyrgios^], so this blog post is going to be all about him.
+
+image::{{<siteurl>}}/uploads/2020/01/wikidata-logo.png[title="Wikidata"]
+
+So what is Wikidata?
+
+[quote, Jesús Barrasa, QuickGraph#10 Enrich your Neo4j Knowledge Graph by querying Wikidata]
+____
+Wikidata is a collaboratively edited knowledge base.
+It is a source of open data that you may want to use in your projects.
+Wikidata offers a query service for integrations.
+____
+
+The query service can be accessed by navigating to https://query.wikidata.org/[query.wikidata.org]
+If we go there, we'll see the following screen:
+
+image::{{<siteurl>}}/uploads/2020/01/wikidata-newbie.png[title="Wikidata Query Service"]
+
+There are a bunch of examples that we can pick from, but we're going to start with something even simpler than that.
+Wikidata stores data in triples of the form (subject, predicate, object), so we'll start with a query that returns one such triple:
+
+[source,sparql]
+----
+SELECT * WHERE {
+  ?subject ?predicate ?object
+}
+LIMIT 1
+----
+
+.Results
+[opts="header"]
+|===
+|subject|predicate|object
+|http://wikiba.se/ontology#Dump|http://creativecommons.org/ns#license|http://creativecommons.org/publicdomain/zero/1.0/
+|===
+
+Admittedly it's not a very interesting triple, but we're off and running.
+What we actually want to do is find triples about Nick Kyrgios, so let's update our query to do that:
+
+[source,sparql]
+----
+SELECT * WHERE {
+  ?subject ?predicate "Nick Kyrgios"@en
+}
+----
+
+This query finds any triples in Wikidata that have an object that matches the English language string "Nick Kyrgios".
+If we run this query, we'll get the following results:
+
+.Results
+[opts="header"]
+|===
+| subject |predicate
+| https://en.wikipedia.org/wiki/Nick_Kyrgios | http://schema.org/name
+| http://www.wikidata.org/entity/Q3720084 | http://www.w3.org/2000/01/rdf-schema#label
+|===
+
+So there are two triples that find Nick.
+I think we'll filter our query further to keep the one that returns a Wikidata URI, which means that we need to update the predicate in our query to be `rdfs:label`.
+Let's do that:
+
+[source,sparql]
+----
+SELECT *
+WHERE {
+  ?person rdfs:label 'Nick Kyrgios'@en
+}
+----
+
+.Results
+[opts="header"]
+|===
+| person
+| http://www.wikidata.org/entity/Q3720084
+|===
+
+We can navigate to that URI to see all the statements about Nick Kyrgios.
+One piece of information that we'd like to extract is his date of birth:
+
+image::{{<siteurl>}}/uploads/2020/01/sparql-query-1.png[title="Nick Kyrgios' date of birth"]
+
+We can see from this screenshot that date of birth can be accessed via the property https://www.wikidata.org/wiki/Property:P569[`P569`^].
+To do this we'll construct the predicate `wdt:P569`, where:
+
+[quote, Wikidata:SPARQL query service/queries, https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service/queries]
+____
+In line with the SPARQL model of everything as a triple, the wdt: namespace contains manifestations of properties as simple predicates that can directly connect an item to a value.
+____
+
+Let's update our query to return date of birth:
+
+[source,sparql]
+----
+SELECT *
+WHERE {
+  ?person rdfs:label 'Nick Kyrgios'@en .
+  ?person wdt:P569 ?dateOfBirth
+}
+----
+
+We can simplify this query by using the `;` syntax to construct multiple statements around `?person`.
+A more concise version is shown below:
+
+[source,sparql]
+----
+SELECT *
+WHERE {
+  ?person rdfs:label 'Nick Kyrgios'@en ;
+          wdt:P569 ?dateOfBirth
+}
+----
+
+.Results
+[opts="header"]
+|===
+| person | dateOfBirth
+| http://www.wikidata.org/entity/Q3720084 | 1995-04-27T00:00:00Z
+|===
+
+Next we'd like to pull in the country of citizenship, which is property https://www.wikidata.org/wiki/Property:P27[`P27`^].
+
+[source,sparql]
+----
+SELECT *
+WHERE {
+  ?person rdfs:label 'Nick Kyrgios'@en ;
+          wdt:P569 ?dateOfBirth;
+          wdt:P27 ?country
+}
+----
+
+.Results
+[opts="header"]
+|===
+| person | dateOfBirth | country
+| http://www.wikidata.org/entity/Q3720084 | 1995-04-27T00:00:00Z | http://www.wikidata.org/entity/Q408
+|===
+
+This query returns the entity representing Australia, but what if we want to return the name of that page rather than the URI?
+We can return this by using the `rdfs:label` predicate:
+
+[source,sparql]
+----
+SELECT *
+WHERE {
+  ?person rdfs:label 'Nick Kyrgios'@en ;
+          wdt:P569 ?dateOfBirth;
+          wdt:P27 ?country .
+  ?country rdfs:label ?countryName
+}
+----
+
+.Results
+[opts="header"]
+|===
+| person | dateOfBirth | country |countryName
+| http://www.wikidata.org/entity/Q3720084|1995-04-27T00:00:00Z|http://www.wikidata.org/entity/Q408|Australia
+| http://www.wikidata.org/entity/Q3720084|1995-04-27T00:00:00Z|http://www.wikidata.org/entity/Q408|Awıstralya
+| http://www.wikidata.org/entity/Q3720084|1995-04-27T00:00:00Z|http://www.wikidata.org/entity/Q408|Awstralska
+| http://www.wikidata.org/entity/Q3720084|1995-04-27T00:00:00Z|http://www.wikidata.org/entity/Q408|अस्ट्रेलिया
+4+| ...
+| http://www.wikidata.org/entity/Q3720084|1995-04-27T00:00:00Z|http://www.wikidata.org/entity/Q408|Аѵстралїꙗ
+| http://www.wikidata.org/entity/Q3720084|1995-04-27T00:00:00Z|http://www.wikidata.org/entity/Q408|Австрали
+| http://www.wikidata.org/entity/Q3720084|1995-04-27T00:00:00Z|http://www.wikidata.org/entity/Q408|Awstralia
+
+|===
+
+Wow, that returned a lot more rows than we were expecting!
+The problem is that we've returned country names in every single language when actually we only want the English version.
+
+We can fix that by applying a filter on the language of `countryName`:
+
+[source,sparql]
+----
+SELECT *
+WHERE {
+  ?person rdfs:label 'Nick Kyrgios'@en ;
+          wdt:P569 ?dateOfBirth;
+          wdt:P27 ?country .
+  ?country rdfs:label ?countryName
+  filter(lang(?countryName) = "en")
+}
+----
+
+.Results
+[opts="header"]
+|===
+| person | dateOfBirth | country |countryName
+| http://www.wikidata.org/entity/Q3720084 |1995-04-27T00:00:00Z | http://www.wikidata.org/entity/Q408 | Australia
+
+|===
+
+That's more like it!
+But we're still returning the URI for Australia when we only want the country name.
+
+We can fix that by changing the fields returned in our `SELECT` statement, or we could use the `[]` operator to go from the person to country name in one statement, without needing to bind the `country` variable.
+The following query does this:
+
+[source]
+----
+SELECT *
+WHERE { ?person wdt:P106 wd:Q10833314 ;
+                rdfs:label 'Nick Kyrgios'@en ;
+                wdt:P569 ?dateOfBirth ;
+                wdt:P27 [ rdfs:label ?countryName ] .
+       filter(lang(?countryName) = "en")
+}
+----
+
+.Results
+[opts="header"]
+|===
+| person | dateOfBirth | countryName
+| http://www.wikidata.org/entity/Q3720084 |1995-04-27T00:00:00Z | Australia
+|===
+
+That's all the data that we want to extract for now, but if we wanted to get more stuff it wouldn't be too difficult to extend our query.
+
+And thanks to https://twitter.com/barrasadv[Jesus^] for his help with understanding the SPARQL syntax enough to get my queries working.
