@@ -166,7 +166,6 @@ We'll filter the data using the `tourney_name` so that we only have matches from
 
 We're going to create one database for the men's matches and one for the women's matches, with a bit of help from https://neo4j.com/release-notes/neo4j-4-0-0/[Neo4j 4.0^]'s https://neo4j.com/developer/manage-multiple-databases/[multi database feature^].
 
-
 [source,cypher]
 ----
 :use system
