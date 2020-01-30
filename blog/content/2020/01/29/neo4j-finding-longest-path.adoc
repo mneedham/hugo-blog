@@ -4,8 +4,8 @@ date="2020-01-29 15:21:00"
 title="Neo4j: Finding the longest path"
 tag=['neo4j', 'apoc']
 category=['Neo4j']
-description="Learn how to build a graph of the Australian Open tennis tournament"
-image="uploads/2020/01/aus-open-banner.png"
+description="Learn how to write a Cypher query to find the longest path in a graph."
+image="uploads/2020/01/longest-path.png"
 +++
 
 One on my favourite things about storing data in a graph database is executing path based queries against that data.
