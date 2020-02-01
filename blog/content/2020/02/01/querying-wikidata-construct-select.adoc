@@ -1,0 +1,184 @@
++++
+draft = true
+date="2020-01-30 19:21:00"
+title="Querying Wikidata: SELECT vs CONSTRUCT"
+tag=['wikidata', 'sparql']
+category=['Wikidata']
+description="Description"
++++
+
+We finished the last blog post with the following query that finds the date of birth and nationality of Nick Kyrgios:
+
+The following query finds a tennis player with the name "Nick Kyrgios" and returns their date of birth:
+
+[source,sparql]
+----
+SELECT *
+WHERE { ?person wdt:P106 wd:Q10833314 ;
+                rdfs:label 'Nick Kyrgios'@en ;
+                wdt:P569 ?dateOfBirth
+}
+----
+
+.Results
+[opts="header"]
+|===
+| person | dateOfBirth
+| http://www.wikidata.org/entity/Q3720084 | 1995-04-27T00:00:00Z
+|===
+
+But what if we want to return the results in graph structure?
+We can use the https://www.w3.org/TR/sparql11-query/#constructWhere[`CONSTRUCT WHERE`^] clause instead of `SELECT`.
+
+[quote]
+____
+A short form for the CONSTRUCT query form is provided for the case where the template and the pattern are the same and the pattern is just a basic graph pattern (no FILTERs and no complex graph patterns are allowed in the short form).
+The keyword WHERE is required in the short form.
+____
+
+I found https://www.futurelearn.com/courses/linked-data/0/steps/16104[a good article explaining this construct^] as part of FutureLearn's Introduction to Linked Data and the Semantic Web course.
+
+Our updated query looks like this:
+
+[source,sparql]
+----
+CONSTRUCT
+WHERE { ?person wdt:P106 wd:Q10833314 ;
+                rdfs:label 'Nick Kyrgios'@en ;
+                wdt:P569 ?dateOfBirth
+}
+----
+
+And if we run that we'll get the following output:
+
+.Results
+[opts="header"]
+|===
+| subject | predicate | object
+| http://www.wikidata.org/entity/Q3720084 | http://www.wikidata.org/prop/direct/P106 | http://www.wikidata.org/entity/Q10833314
+| http://www.wikidata.org/entity/Q3720084 | http://www.w3.org/2000/01/rdf-schema#label | Nick Kyrgios
+| http://www.wikidata.org/entity/Q3720084 | http://www.wikidata.org/prop/direct/P569 | 1995-04-27T00:00:00Z
+|===
+
+where:
+
+*  _Q3720084_ is Nick Kyrgios
+* _P106_ is occupation
+* _Q10833314_ is tennis player
+* _P569_ is date of birth
+
+So if we translate the three triples returned, what we have is:
+
+
+.Translated results
+|===
+| Nick Kyrgios | occupation | tennis player
+| Nick Kyrgios | label | Nick Kyrgios
+| Nick Kyrgios | date of birth | 1995-04-27T00:00:00Z
+|===
+
+So far, so good.
+Let's extend our `SELECT` query to return the person's nationality:
+
+[source, spaqrl]
+----
+SELECT *
+WHERE { ?person wdt:P106 wd:Q10833314 ;
+                rdfs:label 'Nick Kyrgios'@en ;
+                wdt:P569 ?dateOfBirth ;
+                wdt:P27 [ rdfs:label ?countryName ] .
+       filter(lang(?countryName) = "en")
+}
+----
+
+.Results
+[opts="header"]
+|===
+| person | dateOfBirth | countryName
+| http://www.wikidata.org/entity/Q3720084 |1995-04-27T00:00:00Z | Australia
+|===
+
+Now we want to do the same thing with our `CONSTRUCT` query:
+
+[source, spaqrl]
+----
+CONSTRUCT
+WHERE { ?person wdt:P106 wd:Q10833314 ;
+                rdfs:label 'Nick Kyrgios'@en ;
+                wdt:P569 ?dateOfBirth ;
+                wdt:P27 [ rdfs:label ?countryName ] .
+       filter(lang(?countryName) = "en")
+}
+----
+
+If we run that query, we'll get the following error:
+
+[source,text]
+----
+SPARQL-QUERY: queryStr=CONSTRUCT
+WHERE { ?person wdt:P106 wd:Q10833314 ;
+                rdfs:label 'Nick Kyrgios'@en ;
+                wdt:P569 ?dateOfBirth ;
+                wdt:P27 [ rdfs:label ?countryName ] .
+       filter(lang(?countryName) = "en")
+}
+java.util.concurrent.ExecutionException: org.openrdf.query.MalformedQueryException: CONSTRUCT WHERE only permits statement patterns in the WHERE clause.
+----
+
+
+[source, spaqrl]
+----
+CONSTRUCT {
+filter(lang(?countryName) = "en")
+}
+WHERE { ?person wdt:P106 wd:Q10833314 ;
+                rdfs:label 'Nick Kyrgios'@en ;
+                wdt:P569 ?dateOfBirth ;
+                wdt:P27 [ rdfs:label ?countryName ] .
+}
+----
+
+
+
+Here we've used the `SELECT` clause, which returns a table of values.
+
+[source,sparql]
+----
+CONSTRUCT {
+  ?person wdt:P569 ?dateOfBirth;
+          rdfs:label ?personName;
+          wdt:P27 ?country .
+  ?country rdfs:label ?countryName
+}
+WHERE { ?person wdt:P106 wd:Q10833314 ;
+                rdfs:label 'Nick Kyrgios'@en ;
+                rdfs:label ?personName;
+                wdt:P569 ?dateOfBirth ;
+                wdt:P27 ?country .
+       ?country rdfs:label ?countryName
+                filter(lang(?countryName) = "en")
+                filter(lang(?personName) = "en")
+}
+----
+
+
+
+[source]
+----
+SELECT *
+WHERE { ?person wdt:P106 wd:Q10833314 ;
+                rdfs:label 'Nick Kyrgios'@en ;
+                wdt:P569 ?dateOfBirth
+}
+----
+
+[source,sparql]
+----
+CONSTRUCT {
+  ?person wdt:P569 ?dateOfBirth .
+}
+WHERE { ?person wdt:P106 wd:Q10833314 ;
+                rdfs:label 'Nick Kyrgios'@en ;
+                wdt:P569 ?dateOfBirth
+}
+----
