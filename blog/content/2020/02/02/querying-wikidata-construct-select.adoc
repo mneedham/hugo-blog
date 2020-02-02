@@ -1,0 +1,337 @@
++++
+draft = false
+date="2020-02-02 00:21:00"
+title="Querying Wikidata: SELECT vs CONSTRUCT"
+tag=['wikidata', 'sparql']
+category=['Wikidata']
+description="Learn about the difference between SPARQL's SELECT and CONSTRUCT clauses when querying Wikidata."
++++
+
+In this blog post we're going to build upon the https://markhneedham.com/blog/2020/01/29/newbie-guide-querying-wikidata/[newbie's guide to querying Wikidata^], and learn all about the CONSTRUCT clause.
+
+In the newbie's guide, we wrote the following query to find a tennis player with the name "Nick Kyrgios" and return their date of birth:
+
+[source,sparql]
+----
+SELECT *
+WHERE {
+  ?person wdt:P106 wd:Q10833314 ;
+          rdfs:label 'Nick Kyrgios'@en ;
+          wdt:P569 ?dateOfBirth
+}
+----
+
+where:
+
+* `wdt:P106` is occupation
+* `wd:Q10833314` is tennis player
+* `wdt:P569` is date of birth
+
+If we https://query.wikidata.org/#SELECT%20%2a%0AWHERE%20%7B%0A%20%20%3Fperson%20wdt%3AP106%20wd%3AQ10833314%20%3B%0A%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%27Nick%20Kyrgios%27%40en%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP569%20%3FdateOfBirth%0A%7D[run that query^], we'll see the following output:
+
+.Results
+[opts="header"]
+|===
+| person | dateOfBirth
+| http://www.wikidata.org/entity/Q3720084 | 1995-04-27T00:00:00Z
+|===
+
+But what if we want to return the results as a list of triples instead?
+We can use the https://www.w3.org/TR/sparql11-query/#constructWhere[`CONSTRUCT WHERE`^] clause instead of `SELECT`.
+
+[quote]
+____
+A short form for the CONSTRUCT query form is provided for the case where the template and the pattern are the same and the pattern is just a basic graph pattern (no FILTERs and no complex graph patterns are allowed in the short form).
+The keyword WHERE is required in the short form.
+____
+
+I found https://www.futurelearn.com/courses/linked-data/0/steps/16104[a good article explaining the CONSTRUCT clause^] as part of FutureLearn's Introduction to Linked Data and the Semantic Web course.
+
+Our updated query looks like this:
+
+[source,sparql]
+----
+CONSTRUCT
+WHERE { ?person wdt:P106 wd:Q10833314 ;
+                rdfs:label 'Nick Kyrgios'@en ;
+                wdt:P569 ?dateOfBirth
+}
+----
+
+And if we run that we'll get the following output:
+
+.Results
+[opts="header"]
+|===
+| subject | predicate | object
+| http://www.wikidata.org/entity/Q3720084 | http://www.wikidata.org/prop/direct/P106 | http://www.wikidata.org/entity/Q10833314
+| http://www.wikidata.org/entity/Q3720084 | http://www.w3.org/2000/01/rdf-schema#label | Nick Kyrgios
+| http://www.wikidata.org/entity/Q3720084 | http://www.wikidata.org/prop/direct/P569 | 1995-04-27T00:00:00Z
+|===
+
+where:
+
+*  _Q3720084_ is Nick Kyrgios
+* _P106_ is occupation
+* _Q10833314_ is tennis player
+* _P569_ is date of birth
+
+So if we translate the three triples returned, what we have is:
+
+
+.Translated results
+|===
+| Nick Kyrgios | occupation | tennis player
+| Nick Kyrgios | label | Nick Kyrgios
+| Nick Kyrgios | date of birth | 1995-04-27T00:00:00Z
+|===
+
+So far, so good.
+Let's extend our `SELECT` query to also return the person's nationality:
+
+[source, spaqrl]
+----
+SELECT *
+WHERE {
+  ?person wdt:P106 wd:Q10833314 ;
+          rdfs:label 'Nick Kyrgios'@en ;
+          wdt:P569 ?dateOfBirth ;
+          wdt:P27 [ rdfs:label ?countryName ] .
+  filter(lang(?countryName) = "en")
+}
+----
+
+.Results
+[opts="header"]
+|===
+| person | dateOfBirth | countryName
+| http://www.wikidata.org/entity/Q3720084 |1995-04-27T00:00:00Z | Australia
+|===
+
+Now we want to do the same thing with our `CONSTRUCT` query:
+
+[source, spaqrl]
+----
+CONSTRUCT
+WHERE {
+  ?person wdt:P106 wd:Q10833314 ;
+          rdfs:label 'Nick Kyrgios'@en ;
+          wdt:P569 ?dateOfBirth ;
+          wdt:P27 [ rdfs:label ?countryName ] .
+  filter(lang(?countryName) = "en")
+}
+----
+
+If we run that query, we'll get the following error:
+
+[source,text]
+----
+SPARQL-QUERY: queryStr=CONSTRUCT
+WHERE {
+  ?person wdt:P106 wd:Q10833314 ;
+          rdfs:label 'Nick Kyrgios'@en ;
+          wdt:P569 ?dateOfBirth ;
+          wdt:P27 [ rdfs:label ?countryName ] .
+  filter(lang(?countryName) = "en")
+}
+java.util.concurrent.ExecutionException: org.openrdf.query.MalformedQueryException: CONSTRUCT WHERE only permits statement patterns in the WHERE clause.
+----
+
+As the error message indicates, we can only use statement patterns in the WHERE clause.
+The `filter` part of the WHERE clause is problematic, so let's remove that:
+
+[source, spaqrl]
+----
+CONSTRUCT
+WHERE {
+  ?person wdt:P106 wd:Q10833314 ;
+          rdfs:label 'Nick Kyrgios'@en ;
+          wdt:P569 ?dateOfBirth ;
+          wdt:P27 [ rdfs:label ?countryName ]
+}
+----
+
+If we https://query.wikidata.org/#CONSTRUCT%0AWHERE%20%7B%20%3Fperson%20wdt%3AP106%20wd%3AQ10833314%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%27Nick%20Kyrgios%27%40en%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20wdt%3AP569%20%3FdateOfBirth%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20wdt%3AP27%20%5B%20rdfs%3Alabel%20%3FcountryName%20%5D%0A%7D[run that query^], we'll get the following output:
+
+.Results
+[opts="header"]
+|===
+| subject | predicate | object
+| http://www.wikidata.org/entity/Q3720084 | http://www.wikidata.org/prop/direct/P106 | http://www.wikidata.org/entity/Q10833314
+| http://www.wikidata.org/entity/Q3720084 |http://www.w3.org/2000/01/rdf-schema#label | Nick Kyrgios
+| http://www.wikidata.org/entity/Q3720084 | http://www.wikidata.org/prop/direct/P569 | 1995-04-27T00:00:00Z
+| b0 | http://www.w3.org/2000/01/rdf-schema#label | Australia
+|http://www.wikidata.org/entity/Q3720084 | http://www.wikidata.org/prop/direct/P27 | b0
+|b1 | http://www.w3.org/2000/01/rdf-schema#label | Awıstralya
+|http://www.wikidata.org/entity/Q3720084 | http://www.wikidata.org/prop/direct/P27 | b1
+3+| ...
+| b5 |http://www.w3.org/2000/01/rdf-schema#label | ཨས་ཊེཡེ་ལི་ཡ
+| http://www.wikidata.org/entity/Q3720084 | http://www.wikidata.org/prop/direct/P27 | b5
+|===
+
+Hmm, the output isn't exactly what we wanted.
+We have two issues to try and figure out:
+
+* what are those values that prefixed with `b` all about?
+* we've got every single version of "Australia" instead of just the English version
+
+We can fix the first problem by pulling out the country and country name separately instead of doing it all in one statement.
+This means that:
+
+[source,sparql]
+----
+?player wdt:P27 [ rdfs:label ?countryName ]
+----
+
+becomes:
+
+[source,sparql]
+----
+?player wdt:P27 ?country .
+?country rdfs:label ?countryName
+----
+
+If we do that, we'll have the following query:
+
+[source,sparql]
+----
+CONSTRUCT
+WHERE {
+  ?person wdt:P106 wd:Q10833314 ;
+          rdfs:label 'Nick Kyrgios'@en ;
+          wdt:P569 ?dateOfBirth ;
+          wdt:P27 ?country  .
+  ?country rdfs:label ?countryName
+}
+----
+
+And now let's https://query.wikidata.org/#CONSTRUCT%0AWHERE%20%7B%20%3Fperson%20wdt%3AP106%20wd%3AQ10833314%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%27Nick%20Kyrgios%27%40en%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20wdt%3AP569%20%3FdateOfBirth%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20wdt%3AP27%20%3Fcountry%20%20.%0A%20%20%20%20%20%20%20%3Fcountry%20rdfs%3Alabel%20%3FcountryName%0A%7D[run that query^]:
+
+.Results
+[opts="header"]
+|===
+| subject | predicate | object
+|http://www.wikidata.org/entity/Q3720084|http://www.wikidata.org/prop/direct/P106|http://www.wikidata.org/entity/Q10833314
+|http://www.wikidata.org/entity/Q3720084|http://www.w3.org/2000/01/rdf-schema#label|Nick Kyrgios
+|http://www.wikidata.org/entity/Q3720084|http://www.wikidata.org/prop/direct/P569|1995-04-27T00:00:00Z
+|http://www.wikidata.org/entity/Q3720084|http://www.wikidata.org/prop/direct/P27|http://www.wikidata.org/entity/Q408
+|http://www.wikidata.org/entity/Q408|http://www.w3.org/2000/01/rdf-schema#label|Australia
+|http://www.wikidata.org/entity/Q408|http://www.w3.org/2000/01/rdf-schema#label|Australië
+3+| ...
+| http://www.wikidata.org/entity/Q408|http://www.w3.org/2000/01/rdf-schema#label,Австралия,
+| http://www.wikidata.org/entity/Q408|http://www.w3.org/2000/01/rdf-schema#label,Austràlia,
+|===
+
+That's better, but we still have all versions of Australia instead of just the English version.
+As far as I understand, to fix that we'll need to use the normal CONSTRUCT syntax, which requires us to specify all the triples that we'd like to return.
+
+Let's update our query to do that:
+
+[source,sparql]
+----
+CONSTRUCT {
+  ?person wdt:P569 ?dateOfBirth;
+          rdfs:label ?playerName;
+          wdt:P27 ?country .
+  ?country rdfs:label ?countryName
+}
+WHERE {
+  ?person wdt:P106 wd:Q10833314 ;
+          rdfs:label 'Nick Kyrgios'@en ;
+          wdt:P569 ?dateOfBirth ;
+          wdt:P27 ?country  .
+  ?country rdfs:label ?countryName .
+  filter(lang(?countryName) = "en")
+}
+----
+
+And if we https://query.wikidata.org/#CONSTRUCT%20%7B%20%0A%20%20%3Fperson%20wdt%3AP569%20%3FdateOfBirth%3B%0A%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FplayerName%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP27%20%3Fcountry%20.%0A%20%20%3Fcountry%20rdfs%3Alabel%20%3FcountryName%0A%7D%0AWHERE%20%7B%20%3Fperson%20wdt%3AP106%20wd%3AQ10833314%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%27Nick%20Kyrgios%27%40en%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20wdt%3AP569%20%3FdateOfBirth%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20wdt%3AP27%20%3Fcountry%20%20.%0A%20%20%20%20%20%20%20%3Fcountry%20rdfs%3Alabel%20%3FcountryName%20.%0A%20%20%20%20%20%20%20filter%28lang%28%3FcountryName%29%20%3D%20%22en%22%29%0A%7D%0A[run that query^], we'll see the following output:
+
+.Results
+[opts="header"]
+|===
+| subject | predicate | object
+| http://www.wikidata.org/entity/Q3720084|http://www.wikidata.org/prop/direct/P569 |1995-04-27T00:00:00Z
+| http://www.wikidata.org/entity/Q3720084|http://www.wikidata.org/prop/direct/P27 |http://www.wikidata.org/entity/Q408
+| http://www.wikidata.org/entity/Q408|http://www.w3.org/2000/01/rdf-schema#label | Australia
+|===
+
+That's better, but we're missing the statement that returns the player's name.
+
+We do have that statement in the CONSTRUCT clause, but we also need to have it in the WHERE clause.
+If we do that we'll also need to add a language filter so that we only return the English version of the name.
+Our query now looks like this:
+
+[source,sparql]
+----
+CONSTRUCT {
+  ?person wdt:P569 ?dateOfBirth;
+          rdfs:label ?playerName;
+          wdt:P27 ?country .
+  ?country rdfs:label ?countryName
+}
+WHERE {
+  ?person wdt:P106 wd:Q10833314 ;
+          rdfs:label 'Nick Kyrgios'@en ;
+          rdfs:label ?playerName;
+          wdt:P569 ?dateOfBirth ;
+          wdt:P27 ?country  .
+  ?country rdfs:label ?countryName .
+  filter(lang(?countryName) = "en")
+  filter(lang(?playerName) = "en")
+}
+----
+
+Now let's https://query.wikidata.org/#CONSTRUCT%20%7B%20%0A%20%20%3Fperson%20wdt%3AP569%20%3FdateOfBirth%3B%0A%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FplayerName%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP27%20%3Fcountry%20.%0A%20%20%3Fcountry%20rdfs%3Alabel%20%3FcountryName%0A%7D%0AWHERE%20%7B%20%3Fperson%20wdt%3AP106%20wd%3AQ10833314%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%27Nick%20Kyrgios%27%40en%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FplayerName%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20wdt%3AP569%20%3FdateOfBirth%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20wdt%3AP27%20%3Fcountry%20%20.%0A%20%20%20%20%20%20%20%3Fcountry%20rdfs%3Alabel%20%3FcountryName%20.%0A%20%20%20%20%20%20%20filter%28lang%28%3FcountryName%29%20%3D%20%22en%22%29%0A%20%20%20%20%20%20%20filter%28lang%28%3FplayerName%29%20%3D%20%22en%22%29%0A%7D%0A[run that query^]:
+
+.Results
+[opts="header"]
+|===
+| subject | predicate | object
+| http://www.wikidata.org/entity/Q3720084|http://www.wikidata.org/prop/direct/P569 | 1995-04-27T00:00:00Z
+| http://www.wikidata.org/entity/Q3720084|http://www.w3.org/2000/01/rdf-schema#label |Nick Kyrgios
+| http://www.wikidata.org/entity/Q3720084|http://www.wikidata.org/prop/direct/P27 |http://www.wikidata.org/entity/Q408
+| http://www.wikidata.org/entity/Q408|http://www.w3.org/2000/01/rdf-schema#label |Australia
+|===
+
+Much better.
+
+One https://jbarrasa.com/2019/12/05/quickgraph10-enrich-your-neo4j-knowledge-graph-by-querying-wikidata/[other neat thing^] about the `CONSTRUCT` clause is that we can change the RDF graph that our query returns.
+The following query uses vocabulary from schema.org in place of Wikidata predicates:
+
+[source,sparql]
+----
+PREFIX sch: <http://schema.org/>
+
+CONSTRUCT {
+  ?person sch:birthDate ?dateOfBirth;
+          sch:name ?playerName;
+          sch:nationality ?country .
+  ?country sch:name ?countryName
+}
+WHERE {
+  ?person wdt:P106 wd:Q10833314 ;
+          rdfs:label 'Nick Kyrgios'@en ;
+          rdfs:label ?playerName;
+          wdt:P569 ?dateOfBirth ;
+          wdt:P27 ?country  .
+  ?country rdfs:label ?countryName .
+  filter(lang(?countryName) = "en")
+  filter(lang(?playerName) = "en")
+}
+----
+
+If we https://query.wikidata.org/#PREFIX%20sch%3A%20%3Chttp%3A%2F%2Fschema.org%2F%3E%20%0A%0ACONSTRUCT%20%7B%0A%20%20%3Fperson%20sch%3AbirthDate%20%3FdateOfBirth%3B%0A%20%20%20%20%20%20%20%20%20%20sch%3Aname%20%3FplayerName%3B%0A%20%20%20%20%20%20%20%20%20%20sch%3Anationality%20%3Fcountry%20.%0A%20%20%3Fcountry%20sch%3Aname%20%3FcountryName%0A%7D%0AWHERE%20%7B%0A%20%20%3Fperson%20wdt%3AP106%20wd%3AQ10833314%20%3B%0A%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%27Nick%20Kyrgios%27%40en%20%3B%0A%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FplayerName%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP569%20%3FdateOfBirth%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP27%20%3Fcountry%20%20.%0A%20%20%3Fcountry%20rdfs%3Alabel%20%3FcountryName%20.%0A%20%20filter%28lang%28%3FcountryName%29%20%3D%20%22en%22%29%0A%20%20filter%28lang%28%3FplayerName%29%20%3D%20%22en%22%29%0A%7D[run this query^], we get the following, much friendlier looking, output:
+
+.Results
+[opts="header"]
+|===
+| subject | predicate | object
+|http://www.wikidata.org/entity/Q3720084|http://schema.org/birthDate  | 1995-04-27T00:00:00Z
+|http://www.wikidata.org/entity/Q3720084|http://schema.org/name | Nick Kyrgios
+|http://www.wikidata.org/entity/Q3720084|http://schema.org/nationality | http://www.wikidata.org/entity/Q408
+|http://www.wikidata.org/entity/Q408| http://schema.org/name | Australia
+|===
+
+And that's all for now.
+If there's a better way to do anything that I described, do let me know in the comments, I'm still a SPARQL newbie.
