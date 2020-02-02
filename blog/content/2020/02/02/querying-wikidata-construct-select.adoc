@@ -5,9 +5,12 @@ title="Querying Wikidata: SELECT vs CONSTRUCT"
 tag=['wikidata', 'sparql']
 category=['Wikidata']
 description="Learn about the difference between SPARQL's SELECT and CONSTRUCT clauses when querying Wikidata."
+image="uploads/2020/02/wikidata-construct-select.png"
 +++
 
 In this blog post we're going to build upon the https://markhneedham.com/blog/2020/01/29/newbie-guide-querying-wikidata/[newbie's guide to querying Wikidata^], and learn all about the CONSTRUCT clause.
+
+image::{{<siteurl>}}/uploads/2020/02/wikidata-construct-select.png[title="SPARQL's CONSTRUCT and SELECT clauses"]
 
 In the newbie's guide, we wrote the following query to find a tennis player with the name "Nick Kyrgios" and return their date of birth:
 
