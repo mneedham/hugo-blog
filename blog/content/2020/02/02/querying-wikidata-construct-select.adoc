@@ -40,6 +40,9 @@ If we https://query.wikidata.org/#SELECT%20%2a%0AWHERE%20%7B%0A%20%20%3Fperson%2
 |===
 
 But what if we want to return the results as a list of triples instead?
+
+== CONSTRUCT WHERE
+
 We can use the https://www.w3.org/TR/sparql11-query/#constructWhere[`CONSTRUCT WHERE`^] clause instead of `SELECT`.
 
 [quote]
@@ -226,6 +229,9 @@ And now let's https://query.wikidata.org/#CONSTRUCT%0AWHERE%20%7B%20%3Fperson%20
 |===
 
 That's better, but we still have all versions of Australia instead of just the English version.
+
+== Plain old CONSTRUCT
+
 As far as I understand, to fix that we'll need to use the normal CONSTRUCT syntax, which requires us to specify all the triples that we'd like to return.
 
 Let's update our query to do that:
@@ -298,6 +304,8 @@ Now let's https://query.wikidata.org/#CONSTRUCT%20%7B%20%0A%20%20%3Fperson%20wdt
 |===
 
 Much better.
+
+=== Returning a custom RDF graph
 
 One https://jbarrasa.com/2019/12/05/quickgraph10-enrich-your-neo4j-knowledge-graph-by-querying-wikidata/[other neat thing^] about the `CONSTRUCT` clause is that we can change the RDF graph that our query returns.
 The following query uses vocabulary from schema.org in place of Wikidata predicates:
