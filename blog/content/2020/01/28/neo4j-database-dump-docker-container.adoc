@@ -98,4 +98,12 @@ The dump file is written to the Docker container, so now we need to https://stac
 docker cp quickgraph-aus-open:/tmp/womens-aus-open.dump .
 ----
 
+And finally let's start our database back up again:
+
+[source,bash]
+----
+$ docker exec -it quickgraph-aus-open cypher-shell -u neo4j -p neo -d system "START DATABASE womens;"
+0 rows available after 238 ms, consumed after another 0 ms
+----
+
 And we're done!

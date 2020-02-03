@@ -1,0 +1,271 @@
++++
+draft = false
+date="2020-02-03 00:21:00"
+title="Neo4j: Cross database querying with Neo4j Fabric"
+tag=['fabric', 'neo4j']
+category=['Wikidata']
+description="Learn how to write cross database queries against an Australian Open Graph using Neo4j Fabric."
+image="uploads/2020/02/neo4j-fabric-aus-open.png"
++++
+
+A couple of weeks ago I wrote https://markhneedham.com/blog/2020/01/23/quick-graph-australian-open/[a QuickGraph blog post about the Australian Open^], in which I showed how to use Neo4j 4.0's multi database feature.
+
+In that post we focused on queries that could be run on one database, but the 4.0 release also contains another feature for doing cross database querying - https://neo4j.com/docs/operations-manual/current/fabric/introduction/[Neo4j Fabric^] - and we're going to learn how to use that in this post.
+
+image::{{<siteurl>}}/uploads/2020/02/neo4j-fabric-aus-open.png[title="Querying across databases using Neo4j Fabric"]
+
+
+== What is Fabric?
+
+To quote from the source:
+
+[quote, Introduction to Neo4j Fabric, https://neo4j.com/docs/operations-manual/current/fabric/introduction/]
+____
+Fabric, introduced in Neo4j 4.0, is a way to store and retrieve data in multiple databases, whether they are on the same Neo4j DBMS or in multiple DBMSs, using a single Cypher query.
+____
+
+That sounds like what we have.
+It goes on to say:
+
+[quote]
+____
+In practical terms, Fabric provides the infrastructure and tooling for:
+
+* Data Federation: the ability to access data available in distributed sources in the form of disjointed graphs.
+* Data Sharding: the ability to access data available in distributed sources in the form of a common graph partitioned on multiple databases.
+____
+
+Data Federation sounds closer to what we have in our Australian Open Graph.
+The nodes representing the tournaments are the same, but the player, matches, and all other relationships are completely different.
+
+A fabric database can be setup on a Neo4j instance of its own, or alongside other databases.
+The only requirement is that it must be on a Neo4j instance where `dbms.mode=SINGLE`.
+
+== Setting up Neo4j
+
+We're going to use the following Docker Compose configuration in this blog post:
+
+.Dockerfile
+[source,yaml]
+----
+  version: '3.7'
+
+  services:
+    neo4j:
+      image: neo4j:4.0.0-enterprise
+      container_name: "quickgraph-aus-open"
+      volumes:
+        - ./plugins:/plugins
+        - ./data:/data
+        - ./import:/var/lib/neo4j/import
+      ports:
+        - "7474:7474"
+        - "7687:7687"
+      environment:
+        - "NEO4J_ACCEPT_LICENSE_AGREEMENT=yes"
+        - "NEO4J_AUTH=neo4j/neo"
+
+        - NEO4J_fabric_database_name=fabric
+        - NEO4J_fabric_graph_0_name=mens
+        - NEO4J_fabric_graph_0_uri=neo4j://localhost:7687
+        - NEO4J_fabric_graph_0_database=mens
+
+        - NEO4J_fabric_graph_1_name=womens
+        - NEO4J_fabric_graph_1_uri=neo4j://localhost:7687
+        - NEO4J_fabric_graph_1_database=womens
+----
+
+The Fabric specific config begins with the line `NEO4J_fabric_database_name`, which gives a name for our fabric database.
+We'll use that later on.
+
+We also provide details of the graphs that we'd like to query via Fabric.
+`NEO4J_fabric_graph_*_database` specifies the name of the Neo4j database against which we'd like to execute queries.
+`NEO4J_fabric_graph_*_name` specifies the name that we'll use when writing our Fabric queries.
+In our case, both these names are the same.
+
+== Querying across multiple databases
+
+Let's write some queries!
+
+=== Who didn't drop a set in the whole tournament?
+
+If we wanted to find out which players didn't drop a set in the whole tournament, we could write the following query:
+
+[source,cypher]
+----
+:use mens;
+MATCH (winner:Player)-[:WINNER]->(:Match {round: "F"})-[:IN_TOURNAMENT]->(t)
+MATCH (winner)-[:WINNER]->(match)-[:IN_TOURNAMENT]->(t)
+WITH winner, match, t
+ORDER BY t.year
+WITH winner, t,
+     collect([(match)<-[:IN_MATCH]-(set:Set)
+              WHERE (winner)-[:LOSER]->(set) | set
+             ][0]) AS setDropped
+             where size(setDropped) = 0
+RETURN winner, t;
+----
+
+.Results
+[opts="header"]
+|===
+| winner                                          | t
+| (:Player {name: "Roger Federer", id: "103819"}) | (:Tournament {name: "Australian Open", year: 2007})
+|===
+
+And we could do the same for the women's tournament as well by switching database:
+
+[source,cypher]
+----
+:use womens;
+MATCH (winner:Player)-[:WINNER]->(:Match {round: "F"})-[:IN_TOURNAMENT]->(t)
+MATCH (winner)-[:WINNER]->(match)-[:IN_TOURNAMENT]->(t)
+WITH winner, match, t
+ORDER BY t.year
+WITH winner, t,
+     collect([(match)<-[:IN_MATCH]-(set:Set)
+              WHERE (winner)-[:LOSER]->(set) | set
+             ][0]) AS setDropped
+             where size(setDropped) = 0
+RETURN winner, t;
+----
+
+.Results
+[opts="header"]
+|===
+| winner                                          | t
+| (:Player {name: "Lindsay Davenport", id: "200128"}) | (:Tournament {name: "Australian Open", year: 2000})
+| (:Player {name: "Maria Sharapova", id: "201345"})   | (:Tournament {name: "Australian Open", year: 2008})
+| (:Player {name: "Serena Williams", id: "200033"})   | (:Tournament {name: "Australian Open", year: 2017})
+|===
+
+Fabric allows us to combine the results of these queries.
+Let's switch to the Fabric database:
+
+[source,cypher]
+----
+:use fabric;
+----
+
+Once we've done this we could write the following query to return all winners of the Australian Open who didn't drop a set:
+
+[source,cypher]
+----
+USE fabric.mens
+MATCH (winner:Player)-[:WINNER]->(:Match {round: "F"})-[:IN_TOURNAMENT]->(t)
+MATCH (winner)-[:WINNER]->(match)-[:IN_TOURNAMENT]->(t)
+WITH winner, match, t
+ORDER BY t.year
+WITH winner, t,
+     collect([(match)<-[:IN_MATCH]-(set:Set)
+              WHERE (winner)-[:LOSER]->(set) | set
+             ][0]) AS setDropped
+             where size(setDropped) = 0
+RETURN winner.name AS winner, t.year AS year
+
+UNION ALL
+
+USE fabric.womens
+MATCH (winner:Player)-[:WINNER]->(:Match {round: "F"})-[:IN_TOURNAMENT]->(t)
+MATCH (winner)-[:WINNER]->(match)-[:IN_TOURNAMENT]->(t)
+WITH winner, match, t
+ORDER BY t.year
+WITH winner, t,
+     collect([(match)<-[:IN_MATCH]-(set:Set)
+              WHERE (winner)-[:LOSER]->(set) | set
+             ][0]) AS setDropped
+             where size(setDropped) = 0
+RETURN winner.name AS winner, t.year AS year;
+----
+
+.Results
+[opts="header"]
+|===
+| winner              | year
+| "Lindsay Davenport" | 2000
+| "Maria Sharapova"   | 2008
+| "Serena Williams"   | 2017
+| "Roger Federer"     | 2007
+|===
+
+I'm not sure why the year hasn't ordered properly here, perhaps I've made a mistake somewhere.
+It's also a bit annoying having to repeat the query twice though, so an alternative is to use Fabric's https://neo4j.com/docs/operations-manual/current/fabric/queries/#fabric-built-in-functions[`<fabric database name>.graphIds`^] function in combinatin with the https://neo4j.com/docs/cypher-manual/4.0/clauses/call-subquery/[CALL sub query^] syntax.
+That gives us the following:
+
+
+[source,cypher]
+----
+WITH ["Men's", "Women's"] AS tournaments
+UNWIND fabric.graphIds() AS graphId
+CALL {
+  USE fabric.graph(graphId)
+  MATCH (winner:Player)-[:WINNER]->(:Match {round: "F"})-[:IN_TOURNAMENT]->(t)
+  MATCH (winner)-[:WINNER]->(match)-[:IN_TOURNAMENT]->(t)
+  WITH winner, match, t
+  ORDER BY t.year
+  WITH winner, t,
+       collect([(match)<-[:IN_MATCH]-(set:Set)
+                WHERE (winner)-[:LOSER]->(set) | set
+               ][0]) AS setDropped
+               where size(setDropped) = 0
+  RETURN winner, t
+}
+RETURN tournaments[graphId] AS event, winner.name AS winner, t.year AS year
+ORDER BY t.year
+----
+
+.Results
+[opts="header"]
+|===
+| event     | winner              | year
+| "Women's" | "Lindsay Davenport" | 2000
+| "Men's"   | "Roger Federer"     | 2007
+| "Women's" | "Maria Sharapova"   | 2008
+| "Women's" | "Serena Williams"   | 2017
+|===
+
+Sweet!
+The data's sorted correctly and we only had to specify the main part of the query once.
+
+==== How long did players wait from their first final defeat until their first win?
+
+Let's use Fabric to look at one more query.
+
+In the initial blog post we wrote a query to find out how long it took from a player's first final defeat until their first win.
+While writing a blog post about https://markhneedham.com/blog/2020/01/29/neo4j-finding-longest-path/[longest path queries^] I realised that the query was incorrect as it didn't filter out players who had won the final before losing it, and it also returned each final a player had lost before finally winning, rather than just the first one.
+
+The following query finds the longest wait for players from their first final defeat until their first win:
+
+[source,cypher]
+----
+WITH ["Men's", "Women's"] AS tournaments
+UNWIND fabric.graphIds() AS graphId
+CALL {
+  USE fabric.graph(graphId)
+  MATCH (player)-[:LOSER]->(:Match {round: "F"})-[:IN_TOURNAMENT]->(t)-[:NEXT_TOURNAMENT*]->(t2),
+        (player)-[:WINNER]->(:Match {round: "F"})-[:IN_TOURNAMENT]->(t2)
+  // Exclude paths where the player has been in the final of an earlier tournament
+  WHERE  not ((player)-[:LOSER|WINNER]->(:Match {round: "F"})-[:IN_TOURNAMENT]
+              ->()-[:NEXT_TOURNAMENT*]->(t))
+  RETURN player, t, t2
+  }
+RETURN player.name, t.year, t2.year, t2.year - t.year AS difference
+ORDER BY difference DESC
+----
+
+And if we run that query, we'll see the following results:
+
+.Results
+[opts="header"]
+|===
+| player.name       | t.year | t2.year | difference
+| "Kim Clijsters"   | 2004   | 2011    | 7
+| "Marat Safin"     | 2002   | 2005    | 3
+| "Na Li"           | 2011   | 2014    | 3
+| "Maria Sharapova" | 2007   | 2008    | 1
+|===
+
+So Clijsters had the longest wait, although there are many other players who are still waiting!
+
+That's all for now, but if you want to learn more about Neo4j Fabric, we've written https://neo4j.com/developer/multi-tenancy-worked-example/#querying-across-databases[a developer guide showing how to use it against a retail dataset^].
+And don't forget https://neo4j.com/docs/operations-manual/current/fabric/[the docs^]!

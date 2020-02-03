@@ -1,0 +1,9 @@
++++
+draft = true
+date="2020-02-03 00:21:00"
+title="Neo4j: Cross database querying with Neo4j Fabric"
+tag=['fabric', 'neo4j']
+category=['Wikidata']
+description="Learn how to write cross database queries against an Australian Open Graph using Neo4j Fabric."
+image="uploads/2020/02/neo4j-fabric-aus-open.png"
++++
