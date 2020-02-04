@@ -78,9 +78,11 @@ We're going to use the following Docker Compose configuration in this blog post:
 The Fabric specific config begins with the line `NEO4J_fabric_database_name`, which gives a name for our fabric database.
 We'll use that later on.
 
-We also provide details of the graphs that we'd like to query via Fabric.
-`NEO4J_fabric_graph_*_database` specifies the name of the Neo4j database against which we'd like to execute queries.
-`NEO4J_fabric_graph_*_name` specifies the name that we'll use when writing our Fabric queries.
+We also provide details of the graphs that we'd like to query via Fabric:
+
+* `NEO4J_fabric_graph_<n>_name` specifies the name that we'll use when writing our Fabric queries.
+* `NEO4J_fabric_graph_<n>_database` specifies the name of the Neo4j database against which we'd like to execute queries.
+
 In our case, both these names are the same.
 
 == Querying across multiple databases

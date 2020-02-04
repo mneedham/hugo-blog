@@ -1,0 +1,160 @@
++++
+draft = true
+date="2020-02-03 00:21:00"
+title="Neo4j: Enriching the Australian Open Graph by querying the Wikidata SPARQL API"
+tag=['fabric', 'neo4j']
+category=['Wikidata']
+description="Learn how to enrich an existing Neo4j database with data from the Wikidata API"
+image="uploads/2020/02/neo4j-fabric-aus-open.png"
++++
+
+Let's start by executing a query against Wikidata's SPARQL API using the `apoc.load.jsonParams` procedure:
+
+[source,cypher]
+----
+WITH "Nick Kyrgios" AS name
+WITH "SELECT *
+WHERE { ?person wdt:P106 wd:Q10833314 ;
+                rdfs:label '" + name + "'@en ;
+                wdt:P569 ?dateOfBirth ;
+                wdt:P27 [ rdfs:label ?countryName ] .
+       filter(lang(?countryName) = \"en\")
+}" AS sparql
+CALL apoc.load.jsonParams(
+  "https://query.wikidata.org/sparql?query=" + apoc.text.urlencode(sparql),
+  { Accept: "application/sparql-results+json"},
+  null
+)
+YIELD value
+RETURN value
+----
+
+This query returns the nationality and data of birth of Nick Kyrgios, the Australian tennis player.
+If we run that query, we'll see the following output:
+
+.Results
+[opts="header"]
+|===
+| value
+a|
+[source,cypher]
+----
+{
+    head: {
+        vars: ["person", "dateOfBirth", "countryName"]
+    },
+    results: {
+        bindings: [{
+            dateOfBirth: {
+                type: "literal",
+                datatype: "http://www.w3.org/2001/XMLSchema#dateTime",
+                value: "1995-04-27T00:00:00Z"
+            },
+            countryName: {
+                `xml:lang`: "en",
+                type: "literal",
+                value: "Australia"
+            },
+            person: {
+                type: "uri",
+                value: "http://www.wikidata.org/entity/Q3720084"
+            }
+        }]
+    }
+}
+----
+|===
+So far so good, but at the moment our query is hard coded to Nick Kyrgios, when we'd actually like to call the Wikidata API for each player in our database.
+Since we've started with Nick, let's write a query to find him:
+
+
+[source,cypher]
+----
+MATCH (player:Player)
+WHERE player.name = "Nick Kyrgios"
+RETURN player
+----
+
+.Results
+[opts="header"]
+|===
+| player
+| (:Player {name: "Nick Kyrgios", id: "106401"})
+|===
+
+At the moment this node has only a name and identifier.
+
+We'd like to add the date of birth to the `dateOfBirth` property, create a `Country` node based on the nationality value, and then create a `NATIONALITY` relationship from the `Player` to the `Country`.
+We'll also add the `wikidataImportDone` so that we know when a node has already been processed.
+The following query does what we want:
+
+[source,cypher]
+----
+MATCH (player:Player)
+WHERE player.name = "Nick Kyrgios"
+WITH player, player.name AS name
+
+WITH "SELECT *
+WHERE { ?person wdt:P106 wd:Q10833314 ;
+                rdfs:label '" + name + "'@en ;
+                wdt:P569 ?dateOfBirth ;
+                wdt:P27 [ rdfs:label ?countryName ] .
+       filter(lang(?countryName) = \"en\")
+}" AS sparql, player
+CALL apoc.load.jsonParams(
+  "https://query.wikidata.org/sparql?query=" + apoc.text.urlencode(sparql),
+  { Accept: "application/sparql-results+json"},
+  null
+)
+YIELD value
+
+// We use apoc.do.when here because the API might return no results for
+// our player and we need to handle that case
+CALL apoc.do.when(
+  size(value.results.bindings) > 0,
+  'WITH value.results.bindings[0] AS result, player
+   SET player.dateOfBirth = date(datetime(result.dateOfBirth.value)),
+       player.wikidataImportDone = true
+   MERGE (c:Country {name: result.countryName.value })
+   MERGE (player)-[:NATIONALITY]->(c)
+   RETURN player',
+  'SET player.wikidataImportDone = true RETURN player',
+  {value: value, player: player})
+YIELD value AS result
+
+return player;
+----
+
+.Results
+[opts="header"]
+|===
+| player
+| (:Player {name: "Nick Kyrgios", wikidataImportDone: TRUE, dateOfBirth: 1995-04-27, id: "106401"})
+|===
+
+MATCH (player:Player)
+WHERE not(exists(player.wikidataImportDone))
+WITH player, player.name AS name
+LIMIT 5
+
+WITH "SELECT *
+WHERE { ?person wdt:P106 wd:Q10833314 ;
+                rdfs:label '" + name + "'@en ;
+                wdt:P569 ?dateOfBirth ;
+                wdt:P27 [ rdfs:label ?countryName ] .
+       filter(lang(?countryName) = \"en\")
+}" AS sparql, player
+CALL apoc.load.jsonParams("https://query.wikidata.org/sparql?query=" + apoc.text.urlencode(sparql), { Accept: "application/sparql-results+json"}, null)
+YIELD value
+
+CALL apoc.do.when(
+  size(value.results.bindings) > 0,
+  'SET player.dateOfBirth = date(datetime(value.results.bindings[0].dateOfBirth.value)), player.wikidataImportDone = true
+   MERGE (c:Country {name: value.results.bindings[0].countryName.value })
+   MERGE (player)-[:NATIONALITY]->(c)
+   RETURN player',
+   'SET player.wikidataImportDone = true RETURN player',
+  {value: value, player: player})
+YIELD value AS result
+
+return player, result;
