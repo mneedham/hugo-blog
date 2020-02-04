@@ -83,7 +83,7 @@ We also provide details of the graphs that we'd like to query via Fabric:
 * `NEO4J_fabric_graph_<n>_name` specifies the name that we'll use when writing our Fabric queries.
 * `NEO4J_fabric_graph_<n>_database` specifies the name of the Neo4j database against which we'd like to execute queries.
 
-In our case, both these names are the same.
+In our case, both these values are the same.
 
 == Querying across multiple databases
 
