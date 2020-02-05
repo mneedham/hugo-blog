@@ -370,7 +370,6 @@ LIMIT 10;
 | "Spain"                    | 17
 | "United States"            | 16
 | "United Kingdom"           | 12
-
 |===
 
 Unsurprisingly Australia have the most participants, although the United States aren't far behind.
@@ -399,7 +398,6 @@ ORDER BY finals DESC;
 | "Russia"                   | 4      | ["Marat Safin", "Yevgeny Kafelnikov"]
 | "United States of America" | 3      | ["Andre Agassi"]
 | "France"                   | 2      | ["Arnaud Clément", "Jo-Wilfried Tsonga"]
-
 |===
 
 Australia now don't even appear on the list.
