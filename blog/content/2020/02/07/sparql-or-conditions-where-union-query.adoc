@@ -1,0 +1,220 @@
++++
+draft = false
+date="2020-02-07 00:21:00"
+title="SPARQL: OR conditions in a WHERE clause using the UNION clause"
+tag=['wikidata', 'sparql']
+category=['Wikidata']
+description="Learn how to use SPARQL's UNION clause to handle OR conditions in a WHERE clause."
+image="uploads/2020/02/wiki-enrich-banner.png"
++++
+
+This is part 4 of my series of posts about querying the Wikidata API, in which I learn how to use SPARQL's `UNION` clause to handle an OR condition in a `WHERE` clause.
+
+image::{{<siteurl>}}/uploads/2020/02/sparql-or-conditions.png[title="Using SPARQL's UNION clause"]
+
+
+But first, some context!
+After https://markhneedham.com/blog/2020/02/04/neo4j-enriching-existing-graph-wikidata-sparql-api/[running queries against the Wikidata SPARQL API to pull the date of birth and nationality of tennis players into the Australian Open Graph^], I noticed that several players hadn't actually been updated.
+I ran some exploratory queries to work out why, and realised that the problem was that some players had anglicised names in my dataset, whereas Wikidata uses their real name.
+
+For example in my dataset we have 'Nicolas Escude', whereas in Wikidata we have Nicolas Escudé.
+
+I wanted to figure out if there was a way to find players by an alternate name, or another name that they were known by, and found https://stackoverflow.com/questions/46850562/how-to-query-wikidata-for-also-known-as[a StackOverflow answer^] that suggested using the `skos.altLabel` predicate.
+If we wanted to return the date of birth and nationality for the alternate name 'Nicolas Escude', we can write the following query:
+
+.https://query.wikidata.org/#SELECT%20%2a%0AWHERE%20%7B%20%20%20%0A%20%20%3Fperson%20wdt%3AP106%20wd%3AQ10833314%20%3B%0A%20%20%20%20%20%20%20%20%20%20skos%3AaltLabel%20%22Nicolas%20Escude%22%40en%3B%0A%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FplayerName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP569%20%3FdateOfBirth%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP27%20%5B%20rdfs%3Alabel%20%3FcountryName%20%5D%20.%0A%20%20%0A%20%20filter%28lang%28%3FcountryName%29%20%3D%20%22en%22%29%20%20%20%20%20%20%20%0A%20%20filter%28lang%28%3FplayerName%29%20%3D%20%22en%22%29%0A%20%20%0A%7D[Run this query on Wikidata^]
+[source,sparql]
+----
+SELECT *
+WHERE {
+  ?person wdt:P106 wd:Q10833314 ;
+          skos:altLabel "Nicolas Escude"@en;
+          rdfs:label ?playerName ;
+          wdt:P569 ?dateOfBirth;
+          wdt:P27 [ rdfs:label ?countryName ] .
+
+  filter(lang(?countryName) = "en")
+  filter(lang(?playerName) = "en")
+}
+----
+
+If we run this query, we'll see the following output:
+
+.Results
+[opts="header"]
+|===
+| person|playerName|dateOfBirth|countryName
+| http://www.wikidata.org/entity/Q470879|Nicolas Escudé|1976-04-03T00:00:00Z|France
+|===
+
+So far so good.
+But not every player has an alternate name and we don't know whether the name that we have is an alternate name or actual name.
+
+For example, let's try and find the data of birth and nationality for the alternate name 'Roger Federer':
+
+.https://query.wikidata.org/#SELECT%20%2a%0AWHERE%20%7B%20%20%20%0A%20%20%3Fperson%20wdt%3AP106%20wd%3AQ10833314%20%3B%0A%20%20%20%20%20%20%20%20%20%20skos%3AaltLabel%20%22Roger%20Federer%22%40en%3B%0A%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FplayerName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP569%20%3FdateOfBirth%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP27%20%5B%20rdfs%3Alabel%20%3FcountryName%20%5D%20.%0A%20%20%0A%20%20filter%28lang%28%3FcountryName%29%20%3D%20%22en%22%29%20%20%20%20%20%20%20%0A%20%20filter%28lang%28%3FplayerName%29%20%3D%20%22en%22%29%0A%20%20%0A%7D[Run this query on Wikidata^]
+[source,sparql]
+----
+SELECT *
+WHERE {
+  ?person wdt:P106 wd:Q10833314 ;
+          skos:altLabel "Roger Federer"@en;
+          rdfs:label ?playerName ;
+          wdt:P569 ?dateOfBirth;
+          wdt:P27 [ rdfs:label ?countryName ] .
+
+  filter(lang(?countryName) = "en")
+  filter(lang(?playerName) = "en")
+}
+----
+
+If we run that query, we'll see the following output:
+
+.Results
+[opts="header"]
+|===
+| person|playerName|dateOfBirth|countryName
+4+| No matching records found
+|===
+
+Not so good.
+So we actually want to be able to match triples if either `rdfs:label` or `skos:altLabel` equal the name of the player.
+
+I thought there might be a way to write an `OR` clause within the `WHERE` block, but as I understand it, the way to achieve this in SPARQL is via a `UNION` statement.
+I found https://www.w3.org/2009/Talks/0615-qbe/[Query #8 in SPARQL By Example^] helpful for understanding how to write such a query.
+
+Let's write a query that does this:
+
+.https://query.wikidata.org/#SELECT%20%2a%0AWHERE%20%7B%0A%20%20%7B%20%3Fperson%20rdfs%3Alabel%20%22Nicolas%20Escude%22%40en%20%7D%0A%20%20UNION%0A%20%20%7B%3Fperson%20skos%3AaltLabel%20%22Nicolas%20Escude%22%40en%7D%0A%0A%20%20%3Fperson%20wdt%3AP106%20wd%3AQ10833314%20%3B%0A%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FplayerName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP569%20%3FdateOfBirth%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP27%20%5B%20rdfs%3Alabel%20%3FcountryName%20%5D%20%3B%0A%20%20%20%20%20%20%20%20%20%20skos%3AaltLabel%20%3FalternateName%0A%20%20%20%20%20%20%20%20%20%20%0A%20%20filter%28lang%28%3FalternateName%29%20%3D%20%22en%22%29%0A%20%20filter%28lang%28%3FcountryName%29%20%3D%20%22en%22%29%0A%20%20filter%28lang%28%3FplayerName%29%20%3D%20%22en%22%29%0A%0A%7D[Run this query on Wikidata^]
+[source,sparql]
+----
+SELECT *
+WHERE {
+  { ?person rdfs:label "Nicolas Escude"@en }
+  UNION
+  {?person skos:altLabel "Nicolas Escude"@en}
+
+  ?person wdt:P106 wd:Q10833314 ;
+          rdfs:label ?playerName ;
+          wdt:P569 ?dateOfBirth;
+          wdt:P27 [ rdfs:label ?countryName ] ;
+          skos:altLabel ?alternateName
+
+  filter(lang(?alternateName) = "en")
+  filter(lang(?countryName) = "en")
+  filter(lang(?playerName) = "en")
+
+}
+----
+
+And now let's try it out for 'Nicolas Escude':
+
+.Results
+[opts="header"]
+|===
+|person|playerName|dateOfBirth|countryName|alternateName
+|http://www.wikidata.org/entity/Q470879|Nicolas Escudé|1976-04-03T00:00:00Z|France|Nicolas Escude
+|===
+
+Cool, that works.
+And what about for 'Roger Federer'?
+
+.https://query.wikidata.org/#SELECT%20%2a%0AWHERE%20%7B%0A%20%20%7B%20%3Fperson%20rdfs%3Alabel%20%22Roger%20Federer%22%40en%20%7D%0A%20%20UNION%0A%20%20%7B%3Fperson%20skos%3AaltLabel%20%22Roger%20Federer%22%40en%7D%0A%0A%20%20%3Fperson%20wdt%3AP106%20wd%3AQ10833314%20%3B%0A%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FplayerName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP569%20%3FdateOfBirth%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP27%20%5B%20rdfs%3Alabel%20%3FcountryName%20%5D%20%3B%0A%20%20%20%20%20%20%20%20%20%20skos%3AaltLabel%20%3FalternateName%0A%0A%20%20filter%28lang%28%3FalternateName%29%20%3D%20%22en%22%29%0A%20%20filter%28lang%28%3FcountryName%29%20%3D%20%22en%22%29%0A%20%20filter%28lang%28%3FplayerName%29%20%3D%20%22en%22%29%0A%7D[Run this query on Wikidata^]
+[source,sparql]
+----
+SELECT *
+WHERE {
+  { ?person rdfs:label "Roger Federer"@en }
+  UNION
+  {?person skos:altLabel "Roger Federer"@en}
+
+  ?person wdt:P106 wd:Q10833314 ;
+          rdfs:label ?playerName ;
+          wdt:P569 ?dateOfBirth;
+          wdt:P27 [ rdfs:label ?countryName ] ;
+          skos:altLabel ?alternateName
+
+  filter(lang(?alternateName) = "en")
+  filter(lang(?countryName) = "en")
+  filter(lang(?playerName) = "en")
+}
+----
+
+.Results
+[opts="header"]
+|===
+|person|playerName|dateOfBirth|countryName|alternateName
+5+|No matching records found
+|===
+
+D'oh, still no good.
+The problem this time is that we the statement `?player skos:altLabel ?alternateLabel` in our `WHERE` clause, which means we'll only get back results where the player has an alternate name.
+So if we ran this query for 'Rafael Nadal', it would actually work because he has several alternate names:
+
+.https://query.wikidata.org/#SELECT%20%2a%0AWHERE%20%7B%0A%20%20%7B%20%3Fperson%20rdfs%3Alabel%20%22Rafael%20Nadal%22%40en%20%7D%0A%20%20UNION%0A%20%20%7B%3Fperson%20skos%3AaltLabel%20%22Rafael%20Nadal%22%40en%7D%0A%0A%20%20%3Fperson%20wdt%3AP106%20wd%3AQ10833314%20%3B%0A%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FplayerName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP569%20%3FdateOfBirth%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP27%20%5B%20rdfs%3Alabel%20%3FcountryName%20%5D%20%3B%0A%20%20%20%20%20%20%20%20%20%20skos%3AaltLabel%20%3FalternateName%0A%20%20%20%20%20%20%20%20%20%20%0A%20%20filter%28lang%28%3FalternateName%29%20%3D%20%22en%22%29%0A%20%20filter%28lang%28%3FcountryName%29%20%3D%20%22en%22%29%0A%20%20filter%28lang%28%3FplayerName%29%20%3D%20%22en%22%29%0A%7D[Run this query on Wikidata^]
+[source,sparql]
+----
+SELECT *
+WHERE {
+  { ?person rdfs:label "Rafael Nadal"@en }
+  UNION
+  {?person skos:altLabel "Rafael Nadal"@en}
+
+  ?person wdt:P106 wd:Q10833314 ;
+          rdfs:label ?playerName ;
+          wdt:P569 ?dateOfBirth;
+          wdt:P27 [ rdfs:label ?countryName ] ;
+          skos:altLabel ?alternateName
+
+  filter(lang(?alternateName) = "en")
+  filter(lang(?countryName) = "en")
+  filter(lang(?playerName) = "en")
+}
+----
+
+.Results
+[opts="header"]
+|===
+|person|playerName|dateOfBirth|countryName|alternateName
+|http://www.wikidata.org/entity/Q10132|Rafael Nadal|1986-06-03T00:00:00Z|Spain|Rafa
+|http://www.wikidata.org/entity/Q10132|Rafael Nadal|1986-06-03T00:00:00Z|Spain|Rafa Nadal
+|http://www.wikidata.org/entity/Q10132|Rafael Nadal|1986-06-03T00:00:00Z|Spain|Rafael Nadal Parera
+|===
+
+But let's go back to Federer.
+We're going to update the query to make the alternate name predicate optional, as shown below:
+
+
+.https://query.wikidata.org/#SELECT%20%2a%0AWHERE%20%7B%0A%20%20%7B%20%3Fperson%20rdfs%3Alabel%20%22Roger%20Federer%22%40en%20%7D%0A%20%20UNION%0A%20%20%7B%3Fperson%20skos%3AaltLabel%20%22Roger%20Federer%22%40en%7D%0A%0A%20%20%3Fperson%20wdt%3AP106%20wd%3AQ10833314%20%3B%0A%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FplayerName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP569%20%3FdateOfBirth%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP27%20%5B%20rdfs%3Alabel%20%3FcountryName%20%5D%20.%0A%0A%20%20OPTIONAL%20%7B%0A%20%20%20%20%3Fperson%20skos%3AaltLabel%20%3FalternateName%0A%20%20%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FalternateName%29%20%3D%20%22en%22%29%0A%20%20%7D%0A%0A%20%20filter%28lang%28%3FcountryName%29%20%3D%20%22en%22%29%0A%20%20filter%28lang%28%3FplayerName%29%20%3D%20%22en%22%29%0A%0A%7D[Run this query on Wikidata^]
+[source,sparql]
+----
+SELECT *
+WHERE {
+  { ?person rdfs:label "Roger Federer"@en }
+  UNION
+  {?person skos:altLabel "Roger Federer"@en}
+
+  ?person wdt:P106 wd:Q10833314 ;
+          rdfs:label ?playerName ;
+          wdt:P569 ?dateOfBirth;
+          wdt:P27 [ rdfs:label ?countryName ] .
+
+  OPTIONAL {
+    ?person skos:altLabel ?alternateName
+            filter(lang(?alternateName) = "en")
+  }
+
+  filter(lang(?countryName) = "en")
+  filter(lang(?playerName) = "en")
+}
+----
+
+.Results
+[opts="header"]
+|===
+|person|playerName|dateOfBirth|countryName|alternateName
+|http://www.wikidata.org/entity/Q1426|Roger Federer|1981-08-08T00:00:00Z|Switzerland|
+|===
+
+Sweet!
+And if we run this query for 'Nicolas Escude' or 'Rafael Nadal' we get the same results as before - good times!
