@@ -5,7 +5,7 @@ title="SPARQL: OR conditions in a WHERE clause using the UNION clause"
 tag=['wikidata', 'sparql']
 category=['Wikidata']
 description="Learn how to use SPARQL's UNION clause to handle OR conditions in a WHERE clause."
-image="uploads/2020/02/wiki-enrich-banner.png"
+image="uploads/2020/02/sparql-or-conditions.png"
 +++
 
 This is part 4 of my series of posts about querying the Wikidata API, in which I learn how to use SPARQL's `UNION` clause to handle an OR condition in a `WHERE` clause.
@@ -14,10 +14,11 @@ image::{{<siteurl>}}/uploads/2020/02/sparql-or-conditions.png[title="Using SPARQ
 
 
 But first, some context!
+
 After https://markhneedham.com/blog/2020/02/04/neo4j-enriching-existing-graph-wikidata-sparql-api/[running queries against the Wikidata SPARQL API to pull the date of birth and nationality of tennis players into the Australian Open Graph^], I noticed that several players hadn't actually been updated.
 I ran some exploratory queries to work out why, and realised that the problem was that some players had anglicised names in my dataset, whereas Wikidata uses their real name.
 
-For example in my dataset we have 'Nicolas Escude', whereas in Wikidata we have Nicolas Escudé.
+For example in my dataset we have 'Nicolas Escude', whereas in Wikidata we have 'Nicolas Escudé'.
 
 I wanted to figure out if there was a way to find players by an alternate name, or another name that they were known by, and found https://stackoverflow.com/questions/46850562/how-to-query-wikidata-for-also-known-as[a StackOverflow answer^] that suggested using the `skos.altLabel` predicate.
 If we wanted to return the date of birth and nationality for the alternate name 'Nicolas Escude', we can write the following query:
@@ -148,7 +149,7 @@ WHERE {
 |===
 
 D'oh, still no good.
-The problem this time is that we the statement `?player skos:altLabel ?alternateLabel` in our `WHERE` clause, which means we'll only get back results where the player has an alternate name.
+The problem this time is that we have the statement `?player skos:altLabel ?alternateLabel` in our `WHERE` clause, which means we'll only get back results where the player has an alternate name.
 So if we ran this query for 'Rafael Nadal', it would actually work because he has several alternate names:
 
 .https://query.wikidata.org/#SELECT%20%2a%0AWHERE%20%7B%0A%20%20%7B%20%3Fperson%20rdfs%3Alabel%20%22Rafael%20Nadal%22%40en%20%7D%0A%20%20UNION%0A%20%20%7B%3Fperson%20skos%3AaltLabel%20%22Rafael%20Nadal%22%40en%7D%0A%0A%20%20%3Fperson%20wdt%3AP106%20wd%3AQ10833314%20%3B%0A%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FplayerName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP569%20%3FdateOfBirth%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP27%20%5B%20rdfs%3Alabel%20%3FcountryName%20%5D%20%3B%0A%20%20%20%20%20%20%20%20%20%20skos%3AaltLabel%20%3FalternateName%0A%20%20%20%20%20%20%20%20%20%20%0A%20%20filter%28lang%28%3FalternateName%29%20%3D%20%22en%22%29%0A%20%20filter%28lang%28%3FcountryName%29%20%3D%20%22en%22%29%0A%20%20filter%28lang%28%3FplayerName%29%20%3D%20%22en%22%29%0A%7D[Run this query on Wikidata^]
