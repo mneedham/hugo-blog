@@ -1,0 +1,90 @@
++++
+draft = false
+date="2020-03-31 00:21:00"
+title="Streamlit: multiselect - AttributeError: 'numpy.ndarray' object has no attribute 'index'"
+tag=['streamlit']
+category=['Streamlit']
+description="Learn how to overcome a problem specifying default values with Streamlit's multiselect widget."
++++
+
+In this post we'll learn how to overcome a problem I encountered while building a small https://www.streamlit.io/[Streamlit^] application to analyse https://github.com/CSSEGISandData/COVID-19[John Hopkin's data on the COVID-19 disease^].
+The examples in this post use https://github.com/CSSEGISandData/COVID-19/blob/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv[a CSV file that contains time series data of deaths in each country^].
+
+I started with the following code to create https://docs.streamlit.io/api.html#streamlit.multiselect[a multiselect widget^] that lists all countries and selected the `United Kingdom` by default:
+
+[source,python]
+----
+import streamlit as st
+import pandas as pd
+
+default_countries = ["United Kingdom"]
+url="https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv"
+
+df=pd.read_csv(url)
+
+countries = st.sidebar.multiselect(
+    'Select countries',
+     options=df["Country/Region"].unique(),
+     default=default_countries
+)
+----
+
+We can run our application by running the following command:
+
+[source,bash]
+----
+$ streamlit run app.py
+
+  You can now view your Streamlit app in your browser.
+
+  Local URL: http://localhost:8501
+  Network URL: http://192.168.1.192:8501
+----
+
+And if we view that page in our web browser we'll see the following:
+
+[source, text]
+----
+AttributeError: 'numpy.ndarray' object has no attribute 'index'
+Traceback:
+File "/home/markhneedham/.local/share/virtualenvs/covid-19-r91ZMWVf/lib/python3.7/site-packages/streamlit/ScriptRunner.py", line 322, in _run_script
+    exec(code, module.__dict__)
+File "/home/markhneedham/projects/covid-19/app.py", line 55, in <module>
+    default=default_countries
+File "/home/markhneedham/.local/share/virtualenvs/covid-19-r91ZMWVf/lib/python3.7/site-packages/streamlit/DeltaGenerator.py", line 121, in wrapped_method
+    return dg._enqueue_new_element_delta(marshall_element, delta_type, last_index)
+File "/home/markhneedham/.local/share/virtualenvs/covid-19-r91ZMWVf/lib/python3.7/site-packages/streamlit/DeltaGenerator.py", line 342, in _enqueue_new_element_delta
+    rv = marshall_element(msg.delta.new_element)
+File "/home/markhneedham/.local/share/virtualenvs/covid-19-r91ZMWVf/lib/python3.7/site-packages/streamlit/DeltaGenerator.py", line 119, in marshall_element
+    return method(dg, element, *args, **kwargs)
+File "/home/markhneedham/.local/share/virtualenvs/covid-19-r91ZMWVf/lib/python3.7/site-packages/streamlit/DeltaGenerator.py", line 1693, in multiselect
+    indices = _check_and_convert_to_indices(options, default)
+File "/home/markhneedham/.local/share/virtualenvs/covid-19-r91ZMWVf/lib/python3.7/site-packages/streamlit/DeltaGenerator.py", line 1691, in _check_and_convert_to_indices
+    return [options.index(value) for value in default_values]
+File "/home/markhneedham/.local/share/virtualenvs/covid-19-r91ZMWVf/lib/python3.7/site-packages/streamlit/DeltaGenerator.py", line 1691, in <listcomp>
+    return [options.index(value) for value in default_values]
+----
+
+I tried changing the type of the collection passed to `default`, but kept getting the same error, until I eventually converted `options` to a Python list.
+This resulted in the following code:
+
+[source,python]
+----
+import streamlit as st
+import pandas as pd
+
+default_countries = ["United Kingdom"]
+url="https://github.com/CSSEGISandData/COVID-19/raw/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv"
+
+df=pd.read_csv(url)
+
+countries = st.sidebar.multiselect(
+    'Select countries',
+     options=list(df["Country/Region"].unique()),
+     default=default_countries
+)
+----
+
+And now if we run the application we'll see the following output:
+
+image::{{<siteurl>}}/uploads/2020/03/streamlit-multiselect.png[title="Streamlit multiselect widget"]
