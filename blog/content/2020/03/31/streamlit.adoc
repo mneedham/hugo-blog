@@ -29,7 +29,7 @@ countries = st.sidebar.multiselect(
 )
 ----
 
-We can run our application by running the following command:
+We can run our application by executing the following command:
 
 [source,bash]
 ----
@@ -88,3 +88,5 @@ countries = st.sidebar.multiselect(
 And now if we run the application we'll see the following output:
 
 image::{{<siteurl>}}/uploads/2020/03/streamlit-multiselect.png[title="Streamlit multiselect widget"]
+
+Job done!
