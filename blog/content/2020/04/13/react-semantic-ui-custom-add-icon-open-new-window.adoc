@@ -1,0 +1,50 @@
++++
+draft = false
+date="2020-04-13 00:21:00"
+title="React Semantic-UI: Adding a custom icon to open link in a new window"
+tag=['react', 'semantic-ui']
+category=['react']
+description="Learn how to render a custom icon when using React Semantic-UI."
++++
+
+I've been building a little React app that uses the https://react.semantic-ui.com/[Semantic UI^] library and found myself wanting to render a custom icon.
+
+Semantic UI describes an https://react.semantic-ui.com/elements/icon/[icon^] as "a glyph used to represent something else", and there are a big list of in built icons.
+For example, the following code renders a thumbs up icon:
+
+[source,javascript]
+----
+import {Icon} from "semantic-ui-react";
+
+<Icon name="thumbs up outline icon green large" style={{margin: 0}}/>
+----
+
+image::{{<siteurl>}}/uploads/2020/04/thumbs-up.png[title="Thumbs Up Icon"]
+
+I wanted to add an icon to indicate that a link would open in a new window, and came across this https://github.com/Semantic-Org/Semantic-UI-React/issues/931[GitHub issue^] that explains how to add a custom icon.
+Instead of using the `name` property, we can use the `className` property to have a icon render based on our own CSS.
+
+Ruard van Elburg explained how to render an open in new window icon in https://stackoverflow.com/a/61104675/1093511[this StackOverflow answer^].
+
+We'll first add the following CSS:
+
+[source,css]
+----
+i.icon.open-new-window:after {
+  content: "\f35d";
+}
+----
+
+And then can use the `open-new-window` class to render our icon:
+
+
+[source,javascript]
+----
+<a href="https://www.neo4j.com" target="_blank">
+  <Icon className="open-new-window black"/>
+</a>
+----
+
+image::{{<siteurl>}}/uploads/2020/04/open-window.png[title="Open Window Icon"]
+
+And we're done!
