@@ -1,0 +1,142 @@
++++
+draft = false
+date="2020-04-18 00:21:00"
+title="Python: Find the starting Sunday for all the weeks in a month"
+tag=['python']
+category=['python']
+description="Learn how to find the Sundays in a given month."
++++
+
+In this post we're going to learn how to find the dates of all the Sundays in a given month, as well as the Sunday immediately preceding the 1st day in the month, assuming that day isn't a Sunday.
+
+Let's start by importing some libraries that we're going to use in this blog post:
+
+[source, python]
+----
+from dateutil import parser
+import datetime
+import calendar
+----
+
+Next we need to find the first day of the current month, which we can do with the following code:
+
+[source,python]
+----
+today = datetime.date.today()
+start = today.replace(day=1)
+
+>>> start
+datetime.date(2020, 4, 1)
+----
+
+Now we need to find the last day of the month.
+I found a cool https://stackoverflow.com/questions/42950/how-to-get-the-last-day-of-the-month[StackOverflow thread^] that suggested lots of different approaches.
+I liked the following one best:
+
+[source,python]
+----
+weekday, last_day = calendar.monthrange(now.year, now.month)
+>>> last_day
+30
+----
+
+We can now create a new date by updating the day to be `last_day`:
+
+[source,python]
+----
+end = today.replace(day=last_day)
+----
+
+And now let's output the `start` and `end` variables:
+
+[source,python]
+----
+>>> start
+datetime.date(2020, 4, 1)
+>>> end
+datetime.date(2020, 4, 30)
+----
+
+So far so good!
+
+Our next task is to create a collection containing all the days between these dates.
+One way to do this is to iterate over a range of the number of days between these dates, and then add the https://docs.python.org/3/library/datetime.html#datetime.timedelta[timedelta^] of the increasing number of days to the start date.
+We can compute the number of days between these two dates by using a subtraction operation, which will return a `timedelta` object.
+We'll then call the `days` property on that:
+
+[source,python]
+----
+>>> end - start
+datetime.timedelta(days=29)
+
+>>> (end - start).days
+29
+----
+
+Now let's create a range from 0 to that number of days and create a list containing the dates between these two dates:
+
+[source,python]
+----
+>>> [start + datetime.timedelta(day) for day in range(0, (end - start).days + 1)]
+[datetime.date(2020, 4, 1), datetime.date(2020, 4, 2), datetime.date(2020, 4, 3), datetime.date(2020, 4, 4), datetime.date(2020, 4, 5), datetime.date(2020, 4, 6), datetime.date(2020, 4, 7), datetime.date(2020, 4, 8), datetime.date(2020, 4, 9), datetime.date(2020, 4, 10), datetime.date(2020, 4, 11), datetime.date(2020, 4, 12), datetime.date(2020, 4, 13), datetime.date(2020, 4, 14), datetime.date(2020, 4, 15), datetime.date(2020, 4, 16), datetime.date(2020, 4, 17), datetime.date(2020, 4, 18), datetime.date(2020, 4, 19), datetime.date(2020, 4, 20), datetime.date(2020, 4, 21), datetime.date(2020, 4, 22), datetime.date(2020, 4, 23), datetime.date(2020, 4, 24), datetime.date(2020, 4, 25), datetime.date(2020, 4, 26), datetime.date(2020, 4, 27), datetime.date(2020, 4, 28), datetime.date(2020, 4, 29), datetime.date(2020, 4, 30)]
+----
+
+NOTE: The `range` function doesn't include the upper bound, so we had to add 1 so that the end date is included.
+
+
+So far so good.
+Now we want to filter the list to only return Sundays.
+We can use the `isoweekday` function to do this.
+Sundays are represented by a value of 7, which gives us the following code:
+
+[source,python]
+----
+>>> [date for date in [start + datetime.timedelta(day) for day in range(0, (end - start).days + 1)] if date.isoweekday() == 7]
+[datetime.date(2020, 4, 5), datetime.date(2020, 4, 12), datetime.date(2020, 4, 19), datetime.date(2020, 4, 26)]
+----
+
+We've now got all the Sundays in April.
+
+And our final step is get the Sunday preceding April 1st.
+We can work this out by https://stackoverflow.com/questions/19216334/python-give-start-and-end-of-week-data-from-a-given-date[subtracting the `isoweekday`^] of our `start` variable:
+
+[source,python]
+----
+>>> start.isoweekday()
+3
+>>> start - datetime.timedelta(days = start.isoweekday())
+datetime.date(2020, 3, 29)
+----
+
+We can now update our `start` date.
+This leads to the following code to compute start and end dates:
+
+[source,python]
+----
+today = datetime.date.today()
+weekday, last_day = calendar.monthrange(now.year, now.month)
+
+start = today.replace(day=1)
+start =  start - datetime.timedelta(days = start.isoweekday())
+end = today.replace(day=last_day)
+----
+
+Let's quickly check those dates:
+
+[source,python]
+----
+>>> start
+datetime.date(2020, 3, 29)
+>>> end
+datetime.date(2020, 4, 30)
+----
+
+And now we can find all the Sundays between these dates:
+
+[source,python]
+----
+>>> [date for date in [start + datetime.timedelta(day) for day in range(0, (end - start).days + 1)] if date.isoweekday() == 7]
+[datetime.date(2020, 3, 29), datetime.date(2020, 4, 5), datetime.date(2020, 4, 12), datetime.date(2020, 4, 19), datetime.date(2020, 4, 26)]
+----
+
+And we're done!
