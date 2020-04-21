@@ -86,7 +86,7 @@ covid-graph | 2020-04-20 19:57:05.324+0000 INFO  Remote interface available at h
 == Configuring n10s
 
 Let's now configure n10s so that it's ready to import some data.
-We need to create a unique constraint on `:Resouce(uri)` and then call the `n10s.graphconfig.init` procedure to configure the library:
+We need to create a unique constraint on `:Resource(uri)` and then call the `n10s.graphconfig.init` procedure to configure the library:
 
 
 [source, cypher]
@@ -187,7 +187,7 @@ Now let's import this data into Neo4j so we can explore it further.
 
 We're going to import the data into the following Neo4j graph model:
 
-image::{{<siteurl>}}/uploads/2020/04/taxonomy-graph.svg[title="Virus Taxonomy Graph"]
+image::{{<siteurl>}}/uploads/2020/04/taxonomy-graph.png[title="Virus Taxonomy Graph"]
 
 Our SPARQL query returns triples with the predicates `http://www.wikidata.org/prop/direct/P171` and `http://www.w3.org/2000/01/rdf-schema#label`.
 We'll need to convert those to `CHILD_OF` and `name` respectively, which we can do by executing the following procedures:
@@ -270,12 +270,26 @@ RETURN triplesLoaded;
 |748
 |===
 
-And before we explore the graph, let's add the `Virus` label to each of our nodes:
+Let's now add the `Virus` label to each of our nodes:
 
 [source,cypher]
 ----
 MATCH (n:Resource)
 SET n:Virus;
+----
+
+Before we continue, let's do a bit of cleanup.
+Wikidata's taxonomy has some unnecessary shortcuts that make the graph harder to understand.
+For example in the following visualisation we can remove a couple of extraneous `CHILD_OF` relationships:
+
+image::{{<siteurl>}}/uploads/2020/04/shortcuts.png[title="Taxonomy Shortcuts"]
+
+We can remove these shortcut relationships by running the following query:
+
+[source,cypher]
+----
+MATCH (v:Virus)<-[co:CHILD_OF*2..]-(child)-[shortcut:CHILD_OF]->(v)
+DELETE shortcut;
 ----
 
 We're now ready to query the graph.
@@ -316,7 +330,7 @@ And if we run this query, we'll see the Neo4j Browser visualisation below:
 
 image::{{<siteurl>}}/uploads/2020/04/sars-sars-cov2-root.svg[title="SARS and SARS-CoV-2 in the virus taxonomy"]
 
-Both of these coronaviruses are part of the https://en.wikipedia.org/wiki/Betacoronavirus[Betacoronaviruses^] family, and the Wikipedia page we learn that the virus that caused Middle East Respiratory Syndrome:
+Both of these coronaviruses are part of the https://en.wikipedia.org/wiki/Betacoronavirus[Betacoronaviruses^] family, and from its Wikipedia page we learn that the virus that caused Middle East Respiratory Syndrome:
 
 [quote, https://en.wikipedia.org/wiki/Betacoronavirus]
 ____
@@ -363,6 +377,10 @@ image::{{<siteurl>}}/uploads/2020/04/beta-coronavirus.svg[title="Betacoronavirus
 Now we're going to add some more data to our graph.
 It'd be good to know which hosts each virus can infect, the diseases caused by these viruses, events associated with each disease, and the locations affected.
 
+We're eventually going to have the following graph model:
+
+image::{{<siteurl>}}/uploads/2020/04/taxonomy-graph-enriched.png[title="Virus Graph"]
+
 Let's start by adding the hosts.
 In Wikidata, the host statement is https://www.wikidata.org/wiki/Property:P2975[P2975^], so we'll need to create an n10s mapping to translate this to the `HOST` relationship type:
 
@@ -376,7 +394,7 @@ We can then write the following query to import the hosts for each virus:
 [source,cypher]
 ----
 MATCH (r:Virus)
-WITH split(r.uri, "/")[-1] AS virus, r
+WITH n10s.rdf.getIRILocalName(r.uri) AS virus, r
 WITH 'prefix schema: <http://schema.org/>
 
 CONSTRUCT {
@@ -423,7 +441,7 @@ Now we're ready to import the data, which we can do by running the following que
 [source,cypher]
 ----
 MATCH (r:Virus)
-WITH split(r.uri, "/")[-1] AS virus, r
+WITH n10s.rdf.getIRILocalName(r.uri) AS virus, r
 WITH 'prefix schema: <http://schema.org/>
 
 CONSTRUCT {
@@ -518,4 +536,6 @@ This QuickGraph has gone on for much longer than I expected, so it's time to wra
 What makes this QuickGraph interesting to me is that the dataset is perfect for writing https://neo4j.com/docs/cypher-manual/current/syntax/patterns/#cypher-pattern-varlength[variable path queries^].
 
 It also gave me an opportunity to use n10s for the first time, which was a good experience.
-And I have to say thanks to https://twitter.com/barrasadv?lang=en[Jesus^] for all his help with the queries in this post.
+I have to say thanks to https://twitter.com/barrasadv?lang=en[Jesus^] for all his help with the queries in this post.
+
+And finally, if you want to build this graph yourself, the code is available in the https://github.com/mneedham/covid-graph[mneedham/covid-graph^] GitHub repository.
