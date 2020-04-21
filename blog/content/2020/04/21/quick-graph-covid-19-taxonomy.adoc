@@ -1,0 +1,521 @@
++++
+draft = false
+date="2020-04-21 00:21:00"
+title="QuickGraph #6: COVID-19 Taxonomy Graph"
+tag=['quickgraph', 'neo4j', 'apoc', 'covid-19']
+category=['QuickGraph']
+description="Learn how to build a graph of the taxonomy around COVID-19."
+image="uploads/2020/04/quick-graph-covid-taxonomy.png"
++++
+
+It's been several months since https://markhneedham.com/blog/2020/01/23/quick-graph-australian-open/[our last QuickGraph^] and the world feels very different than it was back then.
+I've been reading a couple of books about viruses - https://www.amazon.co.uk/Spillover-Animal-Infections-Human-Pandemic-ebook/dp/B009EQG794/[Spillover^] and https://www.amazon.co.uk/Pale-Rider-Spanish-Changed-World-ebook/dp/B01GH07CG6[Pale Rider^] - and am now very curious to learn more about the medical terms reference in the books.
+
+With the https://github.com/neo4j-labs/neosemantics/releases/tag/4.0.0-beta[Pre Release of neosemantics (n10s) for Neo4j 4.0^], I thought it would be interesting to create a graph of the taxonomy of the virus that caused COVID-19, using data extracted from https://markhneedham.com/blog/2020/01/29/newbie-guide-querying-wikidata/[Wikidata's SPARQL API^].
+
+image::{{<siteurl>}}/uploads/2020/04/quick-graph-covid-taxonomy.png[title="The COVID-19 Taxonomy Graph"]
+
+Let's get started!
+
+== Setting up Neo4j
+
+We're going to use the following Docker Compose configuration in this blog post:
+
+.docker-compose.yml
+[source,yaml]
+----
+version: '3.7'
+
+services:
+  neo4j:
+    image: neo4j:4.0-enterprise
+    container_name: "covid-graph"
+    volumes:
+      - ./plugins:/plugins
+      - ./data-4.0:/data
+      - ./import:/var/lib/neo4j/import
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - "NEO4J_ACCEPT_LICENSE_AGREEMENT=yes"
+      - "NEO4J_AUTH=neo4j/neo"
+      - NEO4J_apoc_import_file_enabled=true
+      - NEO4J_apoc_export_file_enabled=true
+      - NEO4J_dbms_directories_import=import
+      - NEO4JLABS_PLUGINS=["apoc"]
+----
+
+We'll manually copy the n10s jar into the `plugins` directory, and then run the following command:
+
+[source,bash]
+----
+docker-compose up
+----
+
+If everything's working properly, we'll see the following:
+
+[source,text]
+----
+Starting covid-graph ... done
+Attaching to covid-graph
+covid-graph | Changed password for user 'neo4j'.
+covid-graph | Fetching versions.json for Plugin 'apoc' from https://neo4j-contrib.github.io/neo4j-apoc-procedures/versions.json
+covid-graph | Installing Plugin 'apoc' from https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/4.0.0.7/apoc-4.0.0.7-all.jar to /plugins/apoc.jar
+covid-graph | Applying default values for plugin apoc to neo4j.conf
+covid-graph | Directories in use:
+covid-graph |   home:         /var/lib/neo4j
+covid-graph |   config:       /var/lib/neo4j/conf
+covid-graph |   logs:         /logs
+covid-graph |   plugins:      /plugins
+covid-graph |   import:       /var/lib/neo4j/import
+covid-graph |   data:         /var/lib/neo4j/data
+covid-graph |   certificates: /var/lib/neo4j/certificates
+covid-graph |   run:          /var/lib/neo4j/run
+covid-graph | Starting Neo4j.
+covid-graph | 2020-04-20 19:56:48.326+0000 INFO  ======== Neo4j 4.0.3 ========
+covid-graph | 2020-04-20 19:56:48.333+0000 INFO  Starting...
+covid-graph | 2020-04-20 19:56:55.257+0000 INFO  Called db.clearQueryCaches(): Query cache already empty.
+covid-graph | 2020-04-20 19:57:04.198+0000 INFO  Sending metrics to CSV file at /var/lib/neo4j/metrics
+covid-graph | 2020-04-20 19:57:04.220+0000 INFO  Bolt enabled on 0.0.0.0:7687.
+covid-graph | 2020-04-20 19:57:04.220+0000 INFO  Started.
+covid-graph | 2020-04-20 19:57:04.370+0000 INFO  Server thread metrics have been registered successfully
+covid-graph | 2020-04-20 19:57:05.324+0000 INFO  Remote interface available at http://0.0.0.0:7474/
+----
+
+== Configuring n10s
+
+Let's now configure n10s so that it's ready to import some data.
+We need to create a unique constraint on `:Resouce(uri)` and then call the `n10s.graphconfig.init` procedure to configure the library:
+
+
+[source, cypher]
+----
+CREATE CONSTRAINT n10s_unique_uri ON (r:Resource)
+ASSERT r.uri IS UNIQUE;
+
+CALL n10s.graphconfig.init({handleVocabUris: "MAP"});
+----
+
+== Virus Taxonomy
+
+We're now ready to start exploring Wikidata.
+The virus behind COVID-19 is called https://www.wikidata.org/wiki/Q82069695[SARS-CoV-2], so we'll start there and then manually follow the `parent taxon` statement as far as we can.
+This eventually leads us to https://www.wikidata.org/wiki/Q62002503[Riboviria^], which is described as follows:
+
+[quote, https://en.wikipedia.org/wiki/Riboviria]
+____
+Riboviria is a realm of viruses that encompasses all RNA viruses and viroids that replicate by means of RNA-dependent RNA polymerases.
+____
+
+Our manual traversal can also be expressed by the following SPARQL query:
+
+.https://query.wikidata.org/#CONSTRUCT%20%7B%0A%20%20%3Fcat%20rdfs%3Alabel%20%3FcatName%20.%0A%20%20%3FsubCat%20rdfs%3Alabel%20%3FsubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3Fcat%20.%0A%20%20%3FsubSubCat%20rdfs%3Alabel%20%3FsubSubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3FsubCat%20.%0A%20%20%3FsubSubSubCat%20rdfs%3Alabel%20%3FsubSubSubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3FsubSubCat%20%20%20.%0A%20%20%3FsubSubSubSubCat%20rdfs%3Alabel%20%3FsubSubSubSubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3FsubSubSubCat%20%20.%0A%20%20%3FsubSubSubSubSubCat%20rdfs%3Alabel%20%3FsubSubSubSubSubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3FsubSubSubSubCat%20.%0A%20%20%3FsubSubSubSubSubSubCat%20rdfs%3Alabel%20%3FsubSubSubSubSubSubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3FsubSubSubSubSubCat%20.%0A%20%20%3FsubSubSubSubSubSubSubCat%20rdfs%3Alabel%20%3FsubSubSubSubSubSubSubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3FsubSubSubSubSubSubCat%20.%0A%20%20%3FsubSubSubSubSubSubSubSubCat%20rdfs%3Alabel%20%3FsubSubSubSubSubSubSubSubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3FsubSubSubSubSubSubSubCat%20.%0A%0A%20%20%7D%20WHERE%20%7B%0A%20%20%3Fcat%20rdfs%3Alabel%20%22Riboviria%22%40en%20.%0A%20%20%3Fcat%20rdfs%3Alabel%20%3FcatName%20.%0A%20%20filter%28lang%28%3FcatName%29%20%3D%20%22en%22%29%20.%0A%20%20optional%20%7B%20%3FsubCat%20wdt%3AP171%20%3Fcat%20%3B%0A%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubCatName%0A%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubCatName%29%20%3D%20%22en%22%29%20.%0A%20%20%3FsubSubCat%20wdt%3AP171%20%3FsubCat%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubSubCatName%0A%20%20%20%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubSubCatName%29%20%3D%20%22en%22%29%20.%0A%20%20%3FsubSubSubCat%20wdt%3AP171%20%3FsubSubCat%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubSubSubCatName%0A%20%20%20%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubSubSubCatName%29%20%3D%20%22en%22%29%20.%0A%20%20%3FsubSubSubSubCat%20wdt%3AP171%20%3FsubSubSubCat%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubSubSubSubCatName%0A%20%20%20%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubSubSubSubCatName%29%20%3D%20%22en%22%29%20.%0A%20%20%3FsubSubSubSubSubCat%20wdt%3AP171%20%3FsubSubSubSubCat%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubSubSubSubSubCatName%0A%20%20%20%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubSubSubSubSubCatName%29%20%3D%20%22en%22%29%20.%0A%20%20%3FsubSubSubSubSubSubCat%20wdt%3AP171%20%3FsubSubSubSubSubCat%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubSubSubSubSubSubCatName%0A%20%20%20%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubSubSubSubSubSubCatName%29%20%3D%20%22en%22%29%20.%0A%20%20%3FsubSubSubSubSubSubSubCat%20wdt%3AP171%20%3FsubSubSubSubSubSubCat%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubSubSubSubSubSubSubCatName%0A%20%20%20%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubSubSubSubSubSubSubCatName%29%20%3D%20%22en%22%29%20.%0A%20%20%3FsubSubSubSubSubSubSubSubCat%20wdt%3AP171%20%3FsubSubSubSubSubSubSubCat%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubSubSubSubSubSubSubSubCatName%0A%20%20%20%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubSubSubSubSubSubSubSubCatName%29%20%3D%20%22en%22%29%20.%0A%20%20%20%20%20%20%20%20%20%20%20%7D%0A%7D[Run query on Wikidata^]
+[source, sparql]
+----
+CONSTRUCT {
+  ?cat rdfs:label ?catName .
+  ?subCat rdfs:label ?subCatName ;
+          wdt:P171 ?cat .
+  ?subSubCat rdfs:label ?subSubCatName ;
+          wdt:P171 ?subCat .
+  ?subSubSubCat rdfs:label ?subSubSubCatName ;
+          wdt:P171 ?subSubCat   .
+  ?subSubSubSubCat rdfs:label ?subSubSubSubCatName ;
+          wdt:P171 ?subSubSubCat  .
+  ?subSubSubSubSubCat rdfs:label ?subSubSubSubSubCatName ;
+          wdt:P171 ?subSubSubSubCat .
+  ?subSubSubSubSubSubCat rdfs:label ?subSubSubSubSubSubCatName ;
+          wdt:P171 ?subSubSubSubSubCat .
+  ?subSubSubSubSubSubSubCat rdfs:label ?subSubSubSubSubSubSubCatName ;
+          wdt:P171 ?subSubSubSubSubSubCat .
+  ?subSubSubSubSubSubSubSubCat rdfs:label ?subSubSubSubSubSubSubSubCatName ;
+          wdt:P171 ?subSubSubSubSubSubSubCat .
+
+  } WHERE {
+  ?cat rdfs:label "Riboviria"@en .
+  ?cat rdfs:label ?catName .
+  filter(lang(?catName) = "en") .
+  optional { ?subCat wdt:P171 ?cat ;
+          rdfs:label ?subCatName
+          filter(lang(?subCatName) = "en") .
+  ?subSubCat wdt:P171 ?subCat ;
+             rdfs:label ?subSubCatName
+             filter(lang(?subSubCatName) = "en") .
+  ?subSubSubCat wdt:P171 ?subSubCat ;
+             rdfs:label ?subSubSubCatName
+             filter(lang(?subSubSubCatName) = "en") .
+  ?subSubSubSubCat wdt:P171 ?subSubSubCat ;
+             rdfs:label ?subSubSubSubCatName
+             filter(lang(?subSubSubSubCatName) = "en") .
+  ?subSubSubSubSubCat wdt:P171 ?subSubSubSubCat ;
+             rdfs:label ?subSubSubSubSubCatName
+             filter(lang(?subSubSubSubSubCatName) = "en") .
+  ?subSubSubSubSubSubCat wdt:P171 ?subSubSubSubSubCat ;
+             rdfs:label ?subSubSubSubSubSubCatName
+             filter(lang(?subSubSubSubSubSubCatName) = "en") .
+  ?subSubSubSubSubSubSubCat wdt:P171 ?subSubSubSubSubSubCat ;
+             rdfs:label ?subSubSubSubSubSubSubCatName
+             filter(lang(?subSubSubSubSubSubSubCatName) = "en") .
+  ?subSubSubSubSubSubSubSubCat wdt:P171 ?subSubSubSubSubSubSubCat ;
+             rdfs:label ?subSubSubSubSubSubSubSubCatName
+             filter(lang(?subSubSubSubSubSubSubSubCatName) = "en") .
+           }
+}
+----
+
+If we execute this query, we'll see the following (truncated) output:
+
+.Results
+[opts="header", separator=","]
+|===
+,subject,predicate,object
+3+,
+,http://www.wikidata.org/entity/Q5331908,http://www.w3.org/2000/01/rdf-schema#label,Ebolavirus
+,http://www.wikidata.org/entity/Q5331908,http://www.wikidata.org/prop/direct/P171,http://www.wikidata.org/entity/Q46305
+3+,
+,http://www.wikidata.org/entity/Q82069695,http://www.w3.org/2000/01/rdf-schema#label,SARS-CoV-2
+,http://www.wikidata.org/entity/Q82069695,http://www.wikidata.org/prop/direct/P171,http://www.wikidata.org/entity/Q278567
+3+,
+,http://www.wikidata.org/entity/Q4902157,http://www.w3.org/2000/01/rdf-schema#label,Middle East respiratory syndrome coronavirus
+,http://www.wikidata.org/entity/Q4902157,http://www.wikidata.org/prop/direct/P171,http://www.wikidata.org/entity/Q57754679
+|===
+
+Now let's import this data into Neo4j so we can explore it further.
+
+== Constructing the Virus Taxonomy Graph
+
+We're going to import the data into the following Neo4j graph model:
+
+image::{{<siteurl>}}/uploads/2020/04/taxonomy-graph.svg[title="Virus Taxonomy Graph"]
+
+Our SPARQL query returns triples with the predicates `http://www.wikidata.org/prop/direct/P171` and `http://www.w3.org/2000/01/rdf-schema#label`.
+We'll need to convert those to `CHILD_OF` and `name` respectively, which we can do by executing the following procedures:
+
+[source,cypher]
+----
+CALL n10s.mapping.addSchema("http://www.wikidata.org/prop/direct/", "wdt");
+CALL n10s.mapping.addMappingToSchema("http://www.wikidata.org/prop/direct/","CHILD_OF","P171");
+
+CALL n10s.mapping.addSchema("http://www.w3.org/2000/01/rdf-schema#", "rdfs");
+CALL n10s.mapping.addMappingToSchema("http://www.w3.org/2000/01/rdf-schema#","name","label");
+----
+
+We can now import the results of our SPARQL query into Neo4j using the `n10s.rdf.import.fetch` procedure:
+
+[source,cypher]
+----
+WITH 'CONSTRUCT {
+  ?cat rdfs:label ?catName .
+  ?subCat rdfs:label ?subCatName ;
+          wdt:P171 ?cat .
+  ?subSubCat rdfs:label ?subSubCatName ;
+          wdt:P171 ?subCat .
+  ?subSubSubCat rdfs:label ?subSubSubCatName ;
+          wdt:P171 ?subSubCat   .
+  ?subSubSubSubCat rdfs:label ?subSubSubSubCatName ;
+          wdt:P171 ?subSubSubCat  .
+  ?subSubSubSubSubCat rdfs:label ?subSubSubSubSubCatName ;
+          wdt:P171 ?subSubSubSubCat .
+  ?subSubSubSubSubSubCat rdfs:label ?subSubSubSubSubSubCatName ;
+          wdt:P171 ?subSubSubSubSubCat .
+  ?subSubSubSubSubSubSubCat rdfs:label ?subSubSubSubSubSubSubCatName ;
+          wdt:P171 ?subSubSubSubSubSubCat .
+  ?subSubSubSubSubSubSubSubCat rdfs:label ?subSubSubSubSubSubSubSubCatName ;
+          wdt:P171 ?subSubSubSubSubSubSubCat .
+
+  } WHERE {
+  ?cat rdfs:label "Riboviria"@en .
+  ?cat rdfs:label ?catName .
+  optional { ?subCat wdt:P171 ?cat ;
+          rdfs:label ?subCatName
+          filter(lang(?subCatName) = "en") .
+  ?subSubCat wdt:P171 ?subCat ;
+             rdfs:label ?subSubCatName
+             filter(lang(?subSubCatName) = "en") .
+  ?subSubSubCat wdt:P171 ?subSubCat ;
+             rdfs:label ?subSubSubCatName
+             filter(lang(?subSubSubCatName) = "en") .
+  ?subSubSubSubCat wdt:P171 ?subSubSubCat ;
+             rdfs:label ?subSubSubSubCatName
+             filter(lang(?subSubSubSubCatName) = "en") .
+  ?subSubSubSubSubCat wdt:P171 ?subSubSubSubCat ;
+             rdfs:label ?subSubSubSubSubCatName
+             filter(lang(?subSubSubSubSubCatName) = "en") .
+  ?subSubSubSubSubSubCat wdt:P171 ?subSubSubSubSubCat ;
+             rdfs:label ?subSubSubSubSubSubCatName
+             filter(lang(?subSubSubSubSubSubCatName) = "en") .
+  ?subSubSubSubSubSubSubCat wdt:P171 ?subSubSubSubSubSubCat ;
+             rdfs:label ?subSubSubSubSubSubSubCatName
+             filter(lang(?subSubSubSubSubSubSubCatName) = "en") .
+  ?subSubSubSubSubSubSubSubCat wdt:P171 ?subSubSubSubSubSubSubCat ;
+             rdfs:label ?subSubSubSubSubSubSubSubCatName
+             filter(lang(?subSubSubSubSubSubSubSubCatName) = "en") .
+           }
+}' AS query
+
+CALL n10s.rdf.import.fetch(
+  "https://query.wikidata.org/sparql?query=" + apoc.text.urlencode(query),
+  "JSON-LD",
+  { headerParams: { Accept: "application/ld+json"}})
+
+YIELD triplesLoaded
+RETURN triplesLoaded;
+----
+
+.Results
+[opts="header"]
+|===
+|triplesLoaded
+|748
+|===
+
+And before we explore the graph, let's add the `Virus` label to each of our nodes:
+
+[source,cypher]
+----
+MATCH (n:Resource)
+SET n:Virus;
+----
+
+We're now ready to query the graph.
+
+== Querying the Virus Taxonomy Graph
+
+Let's start with a query to find out the shortest path from the SARS virus to the SARS-CoV-2 virus:
+
+[source,cypher]
+----
+MATCH (r1:Virus {name: "SARS-CoV-2"})
+MATCH (r2:Virus {name: "severe acute respiratory syndrome coronavirus"})
+MATCH path = shortestpath((r1)-[*]-(r2))
+RETURN path;
+----
+
+If we run this query, we'll see the Neo4j Browser visualisation below:
+
+image::{{<siteurl>}}/uploads/2020/04/sars-sars-cov-2.svg[title="Path between SARS and SARS-CoV-2"]
+
+Both of these viruses have a common parent, https://www.wikidata.org/wiki/Q278567[severe acute respiratory syndrome-related coronavirus^].
+
+Where does the parent category fit in the whole taxonomy?
+We can find out by writing the following query:
+
+[source,cypher]
+----
+MATCH (r1:Virus {name: "SARS-CoV-2"})
+MATCH (r2:Virus {name: "severe acute respiratory syndrome coronavirus"})
+MATCH path1 = (r1)-[:CHILD_OF*]->(r1root)
+WHERE not((r1root)-[:CHILD_OF]->())
+MATCH path2 = (r2)-[:CHILD_OF*]->(r2root)
+WHERE not((r2root)-[:CHILD_OF]->())
+RETURN path1, path2
+----
+
+And if we run this query, we'll see the Neo4j Browser visualisation below:
+
+image::{{<siteurl>}}/uploads/2020/04/sars-sars-cov2-root.svg[title="SARS and SARS-CoV-2 in the virus taxonomy"]
+
+Both of these coronaviruses are part of the https://en.wikipedia.org/wiki/Betacoronavirus[Betacoronaviruses^] family, and the Wikipedia page we learn that the virus that caused Middle East Respiratory Syndrome:
+
+[quote, https://en.wikipedia.org/wiki/Betacoronavirus]
+____
+The Beta-CoVs of the greatest clinical importance concerning humans are OC43 and HKU1 of the A lineage, SARS-CoV and SARS-CoV-2 (which causes the disease COVID-19) of the B lineage, and MERS-CoV of the C lineage. MERS-CoV is the first betacoronavirus belonging to lineage C that is known to infect humans.
+____
+
+[source,cypher]
+----
+WITH ["SARS-CoV-2", "Middle East respiratory syndrome coronavirus", "severe acute respiratory syndrome coronavirus"] AS virus
+UNWIND apoc.coll.combinations(virus, 2, 2) AS pair
+MATCH (r1:Virus {name: pair[0]})
+MATCH (r2:Virus {name: pair[1]})
+MATCH path = shortestpath((r1)-[*]-(r2))
+RETURN path
+----
+
+If we run this query, we'll see the Neo4j Browser visualisation below:
+
+image::{{<siteurl>}}/uploads/2020/04/coronaviruses.svg[title="Paths between SARS, SARS-CoV-2, and MERS"]
+
+MERS comes under https://en.wikipedia.org/wiki/Merbecovirus[Merbecovirus^], which is described below:
+
+[quote, https://en.wikipedia.org/wiki/Merbecovirus]
+____
+Merbecovirus is a subgenus of viruses in the genus Betacoronavirus. The viruses in this subgenus were previously known as group 2c coronaviruses.
+
+The viruses of this subgenus, like other coronaviruses, have a lipid bilayer envelope in which the membrane (M), envelope (E) and spike (S) structural proteins are anchored.
+____
+
+Now I'm curious about the other sub children of Betacoronavirus, which we can explore by writing the following query:
+
+[source, cypher]
+----
+MATCH path = (virus:Virus {name: "Betacoronavirus"})<-[:CHILD_OF*]-(child)
+RETURN path
+----
+
+The Neo4j Browser visualisation below shows the full taxonomy:
+
+image::{{<siteurl>}}/uploads/2020/04/beta-coronavirus.svg[title="Betacoronavirus Taxonomy"]
+
+== Enriching the graph
+
+Now we're going to add some more data to our graph.
+It'd be good to know which hosts each virus can infect, the diseases caused by these viruses, events associated with each disease, and the locations affected.
+
+Let's start by adding the hosts.
+In Wikidata, the host statement is https://www.wikidata.org/wiki/Property:P2975[P2975^], so we'll need to create an n10s mapping to translate this to the `HOST` relationship type:
+
+[source,cypher]
+----
+CALL n10s.mapping.addMappingToSchema("http://www.wikidata.org/prop/direct/","HOST","P2975");
+----
+
+We can then write the following query to import the hosts for each virus:
+
+[source,cypher]
+----
+MATCH (r:Virus)
+WITH split(r.uri, "/")[-1] AS virus, r
+WITH 'prefix schema: <http://schema.org/>
+
+CONSTRUCT {
+  wd:' + virus + ' wdt:P2975 ?host.
+  ?host rdfs:label ?hostName ;
+        rdf:type schema:Host
+
+}
+WHERE {
+  OPTIONAL {
+    wd:' + virus + ' wdt:P2975 ?host.
+    ?host rdfs:label ?hostName.
+    filter(lang(?hostName) = "en")
+  }
+}' AS query, r
+CALL n10s.rdf.import.fetch("https://query.wikidata.org/sparql?query=" + apoc.text.urlencode(query),
+        "JSON-LD",
+        { headerParams: { Accept: "application/ld+json"}})
+
+YIELD triplesLoaded
+RETURN r.name, triplesLoaded;
+----
+
+Now we're going to add the diseases, events, and locations.
+We have a few more Wikidata to n10s mappings to do:
+
+* https://www.wikidata.org/wiki/Property:P828[has cause (P828)^] -> `HAS_CAUSE`
+* https://www.wikidata.org/wiki/Property:P31[instance of (P31)^] -> `INSTANCE_OF`
+* https://www.wikidata.org/wiki/Property:P276[location (P276)^] -> `LOCATION`
+* https://www.wikidata.org/wiki/Property:P793[significant event (P793)^] -> `SIGNIFICANT_EVENT`
+
+We can create these mappings by making the following procedure calls:
+
+[source,cypher]
+----
+CALL n10s.mapping.addMappingToSchema("http://www.wikidata.org/prop/direct/","HAS_CAUSE","P828");
+CALL n10s.mapping.addMappingToSchema("http://www.wikidata.org/prop/direct/","INSTANCE_OF","P31");
+CALL n10s.mapping.addMappingToSchema("http://www.wikidata.org/prop/direct/","LOCATION","P276");
+CALL n10s.mapping.addMappingToSchema("http://www.wikidata.org/prop/direct/","SIGNIFICANT_EVENT","P793");
+----
+
+Now we're ready to import the data, which we can do by running the following query:
+
+[source,cypher]
+----
+MATCH (r:Virus)
+WITH split(r.uri, "/")[-1] AS virus, r
+WITH 'prefix schema: <http://schema.org/>
+
+CONSTRUCT {
+  ?event wdt:P828 wd:' + virus + ';
+         wdt:P31 ?eventType;
+         rdfs:label ?diseaseName;
+         wdt:P276 ?origin ;
+         wdt:P793 ?significantEvent.
+  ?origin rdfs:label ?originName;
+          rdf:type schema:Place .
+  ?eventType rdfs:label ?eventTypeName.
+  ?significantEvent rdfs:label ?significantEventName ;
+                    rdf:type schema:Event.
+}
+WHERE {
+  { ?event wdt:P828 wd:'+ virus + '; }
+  UNION
+  { ?event wdt:P1478 wd:' + virus + '; } .
+  ?event rdfs:label ?diseaseName .
+  filter(lang(?diseaseName) = "en")
+
+  OPTIONAL { ?event wdt:P31 ?eventType.
+           ?eventType rdfs:label ?eventTypeName
+               filter(lang(?eventTypeName) = "en")}
+
+  OPTIONAL {
+    ?event wdt:P276 ?origin .
+    ?origin rdfs:label ?originName .
+    filter(lang(?originName) = "en")
+  }
+
+  OPTIONAL {
+    ?event wdt:P793 ?significantEvent .
+           ?significantEvent rdfs:label ?significantEventName .
+    filter(lang(?significantEventName) = "en")
+    }
+}' AS query, r
+CALL n10s.rdf.import.fetch("https://query.wikidata.org/sparql?query=" + apoc.text.urlencode(query),
+        "JSON-LD",
+        { headerParams: { Accept: "application/ld+json"}})
+
+YIELD triplesLoaded
+RETURN r.name, triplesLoaded
+ORDER BY triplesLoaded DESC;
+----
+
+Once this has finished, we'll run the following query to add the `Disease` label to any nodes that have an `INSTANCE` of relationship to a node that represents an infectious disease:
+
+[source,cypher]
+----
+MATCH (r:Resource)-[:INSTANCE_OF]->(item:Resource)
+WHERE item.name CONTAINS "infectious disease"
+WITH r, collect(item.name) AS items
+SET r:Disease;
+----
+
+== Querying the Enriched Graph
+
+Now that we've got that data loaded, let's start by finding the viruses that affect humans:
+
+[source, cypher]
+----
+MATCH hostPath = (h:Host {name: "Homo sapiens"})<-[:HOST]-(virus)-[:HOST]->(otherHost)
+RETURN hostPath
+----
+
+image::{{<siteurl>}}/uploads/2020/04/corona-hosts.svg[title="Viruses that affect humans"]
+
+We get back the three viruses that we've explored so far: SARS, SARS-CoV-2, and MERS.
+SARS and SARS-CoV-2 also affect bats, and MERS affects camels.
+
+Let's extend our query to return viruses and diseases as well:
+
+[source,cypher]
+----
+MATCH hostPath = (h:Host {name: "Homo sapiens"})<-[:HOST]-(virus)-[:HOST]->(otherHost)
+OPTIONAL MATCH diseasePath = (virus)<-[:CHILD_OF*0..]-(v)<-[:HAS_CAUSE]-(thing)
+OPTIONAL MATCH eventPath = (thing)-[:SIGNIFICANT_EVENT]->(event)
+RETURN hostPath, diseasePath, eventPath
+----
+
+If we run this query, we'll see the Neo4j Browser visualisation below:
+
+image::{{<siteurl>}}/uploads/2020/04/corona-graph.svg[title="Coronavirus Graph - viruses, diseases, events, locations"]
+
+We can now see nodes representing the pandemics in different countries for COVID-19.
+There's also one node representing the SARS outbreak in 2002, and 3 nodes for the MERS outbreaks in 2012, 2015, and 2018.
+
+== What’s interesting about this QuickGraph?
+
+This QuickGraph has gone on for much longer than I expected, so it's time to wrap up.
+What makes this QuickGraph interesting to me is that the dataset is perfect for writing https://neo4j.com/docs/cypher-manual/current/syntax/patterns/#cypher-pattern-varlength[variable path queries^].
+
+It also gave me an opportunity to use n10s for the first time, which was a good experience.
+And I have to say thanks to https://twitter.com/barrasadv?lang=en[Jesus^] for all his help with the queries in this post.
