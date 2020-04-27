@@ -1,0 +1,55 @@
++++
+draft = false
+date="2020-04-27 00:21:00"
+title="Python: Select keys from map/dictionary"
+tag=['python']
+category=['Python']
+description="Learn how to filter a map to select specific keys"
++++
+
+In this post we're going to learn how to filter a Python map/dictionary to return a subset of keys or values.
+I needed to do this recently while logging some maps that had a lot of keys that I wasn't interested in. 
+
+We'll start with the following map:
+
+[source, python]
+----
+x = {"a": 1, "b": 2, "c": 3, "d": 4}
+{'a': 1, 'b': 2, 'c': 3, 'd': 4}
+----
+
+We want to filter this map so that we only have the keys `a` and `c`.
+If we just want the values, we can create a list comprehension to do this:
+
+[source,python]
+----
+>>> [x[key] for key in ["a", "b"]]
+[1, 2]
+----
+
+But what if we want to return the values as well?
+This is where https://markhneedham.com/blog/2013/08/13/python-forlist-comprehensions-and-dictionaries/[dictionary comprehensions^] come in handy.
+We can tweak our code as follows:
+
+[source,python]
+----
+>>> {key: x[key] for key in ["a", "b"]}
+{'a': 1, 'b': 2}
+----
+
+Or we can iterate over all the entries in the map and filter it that way:
+
+[source,python]
+----
+>>> {key:value for key,value in x.items() if key in ["a", "b"]}
+{'a': 1, 'b': 2}
+----
+
+This approach is longer but more flexible.
+For example, we could find the keys and values for all entries with a value great than 2 with the following code:
+
+[source,python]
+----
+>>> {key:value for key,value in x.items() if value > 2}
+{'c': 3, 'd': 4}
+----

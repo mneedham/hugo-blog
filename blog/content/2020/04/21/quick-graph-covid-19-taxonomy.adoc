@@ -110,57 +110,22 @@ ____
 
 Our manual traversal can also be expressed by the following SPARQL query:
 
-.https://query.wikidata.org/#CONSTRUCT%20%7B%0A%20%20%3Fcat%20rdfs%3Alabel%20%3FcatName%20.%0A%20%20%3FsubCat%20rdfs%3Alabel%20%3FsubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3Fcat%20.%0A%20%20%3FsubSubCat%20rdfs%3Alabel%20%3FsubSubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3FsubCat%20.%0A%20%20%3FsubSubSubCat%20rdfs%3Alabel%20%3FsubSubSubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3FsubSubCat%20%20%20.%0A%20%20%3FsubSubSubSubCat%20rdfs%3Alabel%20%3FsubSubSubSubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3FsubSubSubCat%20%20.%0A%20%20%3FsubSubSubSubSubCat%20rdfs%3Alabel%20%3FsubSubSubSubSubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3FsubSubSubSubCat%20.%0A%20%20%3FsubSubSubSubSubSubCat%20rdfs%3Alabel%20%3FsubSubSubSubSubSubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3FsubSubSubSubSubCat%20.%0A%20%20%3FsubSubSubSubSubSubSubCat%20rdfs%3Alabel%20%3FsubSubSubSubSubSubSubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3FsubSubSubSubSubSubCat%20.%0A%20%20%3FsubSubSubSubSubSubSubSubCat%20rdfs%3Alabel%20%3FsubSubSubSubSubSubSubSubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3FsubSubSubSubSubSubSubCat%20.%0A%0A%20%20%7D%20WHERE%20%7B%0A%20%20%3Fcat%20rdfs%3Alabel%20%22Riboviria%22%40en%20.%0A%20%20%3Fcat%20rdfs%3Alabel%20%3FcatName%20.%0A%20%20filter%28lang%28%3FcatName%29%20%3D%20%22en%22%29%20.%0A%20%20optional%20%7B%20%3FsubCat%20wdt%3AP171%20%3Fcat%20%3B%0A%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubCatName%0A%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubCatName%29%20%3D%20%22en%22%29%20.%0A%20%20%3FsubSubCat%20wdt%3AP171%20%3FsubCat%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubSubCatName%0A%20%20%20%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubSubCatName%29%20%3D%20%22en%22%29%20.%0A%20%20%3FsubSubSubCat%20wdt%3AP171%20%3FsubSubCat%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubSubSubCatName%0A%20%20%20%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubSubSubCatName%29%20%3D%20%22en%22%29%20.%0A%20%20%3FsubSubSubSubCat%20wdt%3AP171%20%3FsubSubSubCat%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubSubSubSubCatName%0A%20%20%20%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubSubSubSubCatName%29%20%3D%20%22en%22%29%20.%0A%20%20%3FsubSubSubSubSubCat%20wdt%3AP171%20%3FsubSubSubSubCat%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubSubSubSubSubCatName%0A%20%20%20%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubSubSubSubSubCatName%29%20%3D%20%22en%22%29%20.%0A%20%20%3FsubSubSubSubSubSubCat%20wdt%3AP171%20%3FsubSubSubSubSubCat%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubSubSubSubSubSubCatName%0A%20%20%20%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubSubSubSubSubSubCatName%29%20%3D%20%22en%22%29%20.%0A%20%20%3FsubSubSubSubSubSubSubCat%20wdt%3AP171%20%3FsubSubSubSubSubSubCat%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubSubSubSubSubSubSubCatName%0A%20%20%20%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubSubSubSubSubSubSubCatName%29%20%3D%20%22en%22%29%20.%0A%20%20%3FsubSubSubSubSubSubSubSubCat%20wdt%3AP171%20%3FsubSubSubSubSubSubSubCat%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubSubSubSubSubSubSubSubCatName%0A%20%20%20%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubSubSubSubSubSubSubSubCatName%29%20%3D%20%22en%22%29%20.%0A%20%20%20%20%20%20%20%20%20%20%20%7D%0A%7D[Run query on Wikidata^]
+.https://query.wikidata.org/#CONSTRUCT%20%7B%0A%20%20%3Fcat%20rdfs%3Alabel%20%3FcatName%20.%0A%20%20%3FsubCat%20rdfs%3Alabel%20%3FsubCatName%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3FparentCat%20.%0A%20%20%7D%20%0AWHERE%20%7B%0A%20%20%3Fcat%20rdfs%3Alabel%20%22Riboviria%22%40en%20.%0A%20%20%3Fcat%20rdfs%3Alabel%20%3FcatName%20.%0A%20%20filter%28lang%28%3FcatName%29%20%3D%20%22en%22%29%20.%0A%20%20%3FsubCat%20wdt%3AP171%2B%20%3Fcat%20%3B%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP171%20%3FparentCat%3B%0A%20%20%20%20%20%20%20%20%20%20rdfs%3Alabel%20%3FsubCatName%0A%20%20%20%20%20%20%20%20%20%20filter%28lang%28%3FsubCatName%29%20%3D%20%22en%22%29%20.%0A%7D[Run query on Wikidata^]
 [source, sparql]
 ----
 CONSTRUCT {
   ?cat rdfs:label ?catName .
   ?subCat rdfs:label ?subCatName ;
-          wdt:P171 ?cat .
-  ?subSubCat rdfs:label ?subSubCatName ;
-          wdt:P171 ?subCat .
-  ?subSubSubCat rdfs:label ?subSubSubCatName ;
-          wdt:P171 ?subSubCat   .
-  ?subSubSubSubCat rdfs:label ?subSubSubSubCatName ;
-          wdt:P171 ?subSubSubCat  .
-  ?subSubSubSubSubCat rdfs:label ?subSubSubSubSubCatName ;
-          wdt:P171 ?subSubSubSubCat .
-  ?subSubSubSubSubSubCat rdfs:label ?subSubSubSubSubSubCatName ;
-          wdt:P171 ?subSubSubSubSubCat .
-  ?subSubSubSubSubSubSubCat rdfs:label ?subSubSubSubSubSubSubCatName ;
-          wdt:P171 ?subSubSubSubSubSubCat .
-  ?subSubSubSubSubSubSubSubCat rdfs:label ?subSubSubSubSubSubSubSubCatName ;
-          wdt:P171 ?subSubSubSubSubSubSubCat .
-
-  } WHERE {
+          wdt:P171 ?parentCat .
+  }
+WHERE {
   ?cat rdfs:label "Riboviria"@en .
   ?cat rdfs:label ?catName .
   filter(lang(?catName) = "en") .
-  optional { ?subCat wdt:P171 ?cat ;
+  ?subCat wdt:P171+ ?cat ;
+          wdt:P171 ?parentCat;
           rdfs:label ?subCatName
           filter(lang(?subCatName) = "en") .
-  ?subSubCat wdt:P171 ?subCat ;
-             rdfs:label ?subSubCatName
-             filter(lang(?subSubCatName) = "en") .
-  ?subSubSubCat wdt:P171 ?subSubCat ;
-             rdfs:label ?subSubSubCatName
-             filter(lang(?subSubSubCatName) = "en") .
-  ?subSubSubSubCat wdt:P171 ?subSubSubCat ;
-             rdfs:label ?subSubSubSubCatName
-             filter(lang(?subSubSubSubCatName) = "en") .
-  ?subSubSubSubSubCat wdt:P171 ?subSubSubSubCat ;
-             rdfs:label ?subSubSubSubSubCatName
-             filter(lang(?subSubSubSubSubCatName) = "en") .
-  ?subSubSubSubSubSubCat wdt:P171 ?subSubSubSubSubCat ;
-             rdfs:label ?subSubSubSubSubSubCatName
-             filter(lang(?subSubSubSubSubSubCatName) = "en") .
-  ?subSubSubSubSubSubSubCat wdt:P171 ?subSubSubSubSubSubCat ;
-             rdfs:label ?subSubSubSubSubSubSubCatName
-             filter(lang(?subSubSubSubSubSubSubCatName) = "en") .
-  ?subSubSubSubSubSubSubSubCat wdt:P171 ?subSubSubSubSubSubSubCat ;
-             rdfs:label ?subSubSubSubSubSubSubSubCatName
-             filter(lang(?subSubSubSubSubSubSubSubCatName) = "en") .
-           }
 }
 ----
 
@@ -205,60 +170,26 @@ We can now import the results of our SPARQL query into Neo4j using the `n10s.rdf
 
 [source,cypher]
 ----
-WITH 'CONSTRUCT {
+WITH '
+CONSTRUCT {
   ?cat rdfs:label ?catName .
   ?subCat rdfs:label ?subCatName ;
-          wdt:P171 ?cat .
-  ?subSubCat rdfs:label ?subSubCatName ;
-          wdt:P171 ?subCat .
-  ?subSubSubCat rdfs:label ?subSubSubCatName ;
-          wdt:P171 ?subSubCat   .
-  ?subSubSubSubCat rdfs:label ?subSubSubSubCatName ;
-          wdt:P171 ?subSubSubCat  .
-  ?subSubSubSubSubCat rdfs:label ?subSubSubSubSubCatName ;
-          wdt:P171 ?subSubSubSubCat .
-  ?subSubSubSubSubSubCat rdfs:label ?subSubSubSubSubSubCatName ;
-          wdt:P171 ?subSubSubSubSubCat .
-  ?subSubSubSubSubSubSubCat rdfs:label ?subSubSubSubSubSubSubCatName ;
-          wdt:P171 ?subSubSubSubSubSubCat .
-  ?subSubSubSubSubSubSubSubCat rdfs:label ?subSubSubSubSubSubSubSubCatName ;
-          wdt:P171 ?subSubSubSubSubSubSubCat .
-
-  } WHERE {
+          wdt:P171 ?parentCat .
+  }
+WHERE {
   ?cat rdfs:label "Riboviria"@en .
   ?cat rdfs:label ?catName .
-  optional { ?subCat wdt:P171 ?cat ;
+  filter(lang(?catName) = "en") .
+  ?subCat wdt:P171+ ?cat ;
+          wdt:P171 ?parentCat;
           rdfs:label ?subCatName
           filter(lang(?subCatName) = "en") .
-  ?subSubCat wdt:P171 ?subCat ;
-             rdfs:label ?subSubCatName
-             filter(lang(?subSubCatName) = "en") .
-  ?subSubSubCat wdt:P171 ?subSubCat ;
-             rdfs:label ?subSubSubCatName
-             filter(lang(?subSubSubCatName) = "en") .
-  ?subSubSubSubCat wdt:P171 ?subSubSubCat ;
-             rdfs:label ?subSubSubSubCatName
-             filter(lang(?subSubSubSubCatName) = "en") .
-  ?subSubSubSubSubCat wdt:P171 ?subSubSubSubCat ;
-             rdfs:label ?subSubSubSubSubCatName
-             filter(lang(?subSubSubSubSubCatName) = "en") .
-  ?subSubSubSubSubSubCat wdt:P171 ?subSubSubSubSubCat ;
-             rdfs:label ?subSubSubSubSubSubCatName
-             filter(lang(?subSubSubSubSubSubCatName) = "en") .
-  ?subSubSubSubSubSubSubCat wdt:P171 ?subSubSubSubSubSubCat ;
-             rdfs:label ?subSubSubSubSubSubSubCatName
-             filter(lang(?subSubSubSubSubSubSubCatName) = "en") .
-  ?subSubSubSubSubSubSubSubCat wdt:P171 ?subSubSubSubSubSubSubCat ;
-             rdfs:label ?subSubSubSubSubSubSubSubCatName
-             filter(lang(?subSubSubSubSubSubSubSubCatName) = "en") .
-           }
-}' AS query
-
+}
+' AS query
 CALL n10s.rdf.import.fetch(
   "https://query.wikidata.org/sparql?query=" + apoc.text.urlencode(query),
   "JSON-LD",
   { headerParams: { Accept: "application/ld+json"}})
-
 YIELD triplesLoaded
 RETURN triplesLoaded;
 ----
@@ -267,7 +198,7 @@ RETURN triplesLoaded;
 [opts="header"]
 |===
 |triplesLoaded
-|748
+|3259
 |===
 
 Let's now add the `Virus` label to each of our nodes:
@@ -519,7 +450,7 @@ Let's extend our query to return viruses and diseases as well:
 ----
 MATCH hostPath = (h:Host {name: "Homo sapiens"})<-[:HOST]-(virus)-[:HOST]->(otherHost)
 OPTIONAL MATCH diseasePath = (virus)<-[:CHILD_OF*0..]-(v)<-[:HAS_CAUSE]-(thing)
-OPTIONAL MATCH eventPath = (thing)-[:SIGNIFICANT_EVENT]->(event)
+OPTIONAL MATCH eventPath = (thing)-[:LOCATION|:SIGNIFICANT_EVENT]->(event)
 RETURN hostPath, diseasePath, eventPath
 ----
 
