@@ -1,0 +1,534 @@
++++
+draft = false
+date="2020-05-05 00:21:00"
+title="QuickGraph #7: An entity graph of TWIN4j using APOC NLP"
+tag=['quickgraph', 'nlp', 'apoc', 'twin4j']
+category=['Neo4j']
+description="Learn how to use the APOC Library to add NLP functionality to your graph applications."
+image="uploads/2020/05/apoc-nlp.png"
+
++++
+
+One of the most popular use cases for Neo4j is knowledge graphs, and part of that process involves using NLP to create a graph structure from raw text.
+If we were doing a serious NLP project we'd want to use something like https://graphaware.com/products/hume/[GraphAware Hume^], but in this blog post we're going to learn how to add basic NLP functionality to our graph applications.
+
+image::{{<siteurl>}}/uploads/2020/05/apoc-nlp.png[title="Building an entity graph of TWIN4j using APOC NLP"]
+
+
+== APOC NLP
+
+The big cloud providers (AWS, GCP, and Azure) all have Natural Language Processing APIs and, although their APIs aren't identical, they all let us extract entities, key phrases, and sentiment from text documents.
+
+image::{{<siteurl>}}/uploads/2020/05/1_go7sTFOGN2fJGgYrI3E-FA.png[title="AWS, GCP, Azure"]
+
+While these APIs are easy to enough to use via client drivers, we thought it'd be fun to make them even more accessible by adding https://neo4j.com/docs/labs/apoc/current/nlp/[adding procedures that call these APIs to the popular APOC Library^]
+Each procedure has two modes:
+
+* Stream - returns a map constructed from the JSON returned from the API
+* Graph - creates a graph or virtual graph based on the values returned by the API
+
+At the moment we've got procedures covering some of the https://neo4j.com/docs/labs/apoc/current/nlp/aws/[AWS^] and https://neo4j.com/docs/labs/apoc/current/nlp/gcp/[GCP^] endpoints, but we'll be adding more over time.
+In this blog post we're going to learn how to use the AWS procedures.
+
+== The Problem
+
+We're going to use the procedures to build a mini recommendation engine for https://neo4j.com/tag/twin4j[This Week in Neo4j (TWIN4j)^], Neo4j's weekly newsletter.
+The newsletter covers wide ranging topics, which means that if you like one version of the newsletter, it doesn't necessarily mean that you'll like the next one!
+
+The NLP procedures let us build a graph of entities in each newsletter, which we can use to recommend other newsletters that a user might like to read.
+
+== Importing TWIN4j blog posts
+
+Before we do any NLP work, we need to load the TWIN4j blog posts into Neo4j.
+We can get a list of all those posts from the Wordpress JSON API.
+We'll process the resulting documents using APOC's Load JSON procedure.
+
+We can see the available keys/properties on each document by running the following query:
+
+[source,cypher]
+----
+CALL apoc.load.json("https://neo4j.com/wp-json/wp/v2/posts?tags=3201")
+YIELD value
+RETURN keys(value)
+LIMIT 1
+----
+
+.Results
+[opts="header"]
+|===
+| keys(value)
+| ["date", "template", "_links", "link", "type", "title", "content", "featured_media", "modified", "id", "categories", "date_gmt", "slug", "modified_gmt", "author", "yst_prominent_words", "format", "comment_status", "yoast_head", "tags", "ping_status", "meta", "sticky", "guid", "excerpt", "status"]
+|===
+
+We're interested in the `title`, `date`, and `link` properties.
+Let's create nodes with the `Article` label by running the following query:
+
+[source, cypher]
+----
+CALL apoc.load.json("https://neo4j.com/wp-json/wp/v2/posts?tags=3201")
+YIELD value
+MERGE (a:Article {id: value.id})
+SET a.title = value.title.rendered,
+    a.date = datetime(value.date),
+    a.link = value.link;
+----
+
+By default the WordPress API returns 10 items per page, which means that this query will create nodes for 10 TWIN4j entries.
+We'll use APOC's Periodic Iterate procedure to loop over the pages in the API:
+
+[source,cypher]
+----
+CALL apoc.periodic.iterate(
+  "UNWIND range(1,16) AS page RETURN page",
+  "CALL apoc.load.json('https://neo4j.com/wp-json/wp/v2/posts?tags=3201&page=' + page)
+   YIELD value
+   MERGE (a:Article {id: value.id})
+   SET a.title = value.title.rendered,
+       a.date = datetime(value.date)
+       a.link = value.link;
+  ",
+  {}
+);
+----
+
+We are cheating a bit here by hard coding the highest page to 16.
+Ideally we'd have a more flexible approach, but we'll leave that for another day/blog post.
+
+Once that query has finished, we can check how many articles have been created by running the following query:
+
+[source, cypher]
+----
+MATCH (:Article)
+RETURN count(*);
+----
+
+.Results
+[opts="header"]
+|===
+| count(*)
+| 159
+|===
+
+All good so far.
+And finally we're going to use APOC's https://neo4j.com/docs/labs/apoc/current/import/html/[Load HTML^] to scrape those pages and store the content in the `body` property of each node:
+
+[source,cypher]
+----
+CALL apoc.periodic.iterate(
+  "MATCH (a:Article) WHERE not(exists(a.body)) RETURN a",
+  "CALL apoc.load.html(a.link, {body: 'div.entry-content'})
+   YIELD value
+   SET a.body = value.body[0].text",
+  {batchSize: 10 });
+----
+
+== Enabling APOC NLP procedures
+
+By default the NLP procedures aren't enabled once we've installed APOC.
+We'll need to add the NLP dependencies jar that is published https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/[with each release].
+
+At the time of writing, the latest release is 4.0.0.10 and the dependencies jar can be downloaded from https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/4.0.0.10/apoc-nlp-dependencies-4.0.0.10.jar[apoc-nlp-dependencies-4.0.0.10.jar^].
+
+Add that file to your `plugins` directory, restart the database, and then check that the procedures are available by running the following query:
+
+[source,cypher]
+----
+CALL apoc.help("nlp.aws");
+----
+
+If everything's working as it should, we'll see the following output:
+
+.Results
+[opts="header"]
+|===
+| type        | name                             | text                                                      | signature                                                                                                              | roles | writes
+| "procedure" | "apoc.nlp.aws.entities.graph"    | "Creates a (virtual) entity graph for provided text"      | "apoc.nlp.aws.entities.graph(source :: ANY?, config = {} :: MAP?) :: (graph :: MAP?)"                                  | NULL  | NULL
+| "procedure" | "apoc.nlp.aws.entities.stream"   | "Returns a stream of entities for provided text"          | "apoc.nlp.aws.entities.stream(source :: ANY?, config = {} :: MAP?) :: (node :: NODE?, value :: MAP?, error :: MAP?)"   | NULL  | NULL
+| "procedure" | "apoc.nlp.aws.keyPhrases.graph"  | "Creates a (virtual) key phrases graph for provided text" | "apoc.nlp.aws.keyPhrases.graph(source :: ANY?, config = {} :: MAP?) :: (graph :: MAP?)"                                | NULL  | NULL
+| "procedure" | "apoc.nlp.aws.keyPhrases.stream" | "Returns a stream of key phrases for provided text"       | "apoc.nlp.aws.keyPhrases.stream(source :: ANY?, config = {} :: MAP?) :: (node :: NODE?, value :: MAP?, error :: MAP?)" | NULL  | NULL
+| "procedure" | "apoc.nlp.aws.sentiment.graph"   | "Creates a (virtual) sentiment graph for provided text"   | "apoc.nlp.aws.sentiment.graph(source :: ANY?, config = {} :: MAP?) :: (graph :: MAP?)"                                 | NULL  | NULL
+| "procedure" | "apoc.nlp.aws.sentiment.stream"  | "Returns stream of sentiment for items in provided text"  | "apoc.nlp.aws.sentiment.stream(source :: ANY?, config = {} :: MAP?) :: (node :: NODE?, value :: MAP?, error :: MAP?)"  | NULL  | NULL
+|===
+
+It's NLP time!
+
+== Entity Extraction using APOC NLP procedures
+
+To run the AWS procedures we'll need to have our AWS access key ID and secret access key available.
+We'll set them as parameters by running the following commands:s
+
+[source,cypher]
+----
+:param apiKey => ("<api-key-here>");
+:param apiSecret => ("<api-secret-here>");
+----
+
+Now let's extract the entities for one of our articles.
+
+By default AWS's NLP API has a https://docs.aws.amazon.com/comprehend/latest/dg/guidelines-and-limits.html#limits-all[maximum size of 5,000 bytes^] per document, so we'll need to find an article that's shorter than that in length.
+We can  which articles are applicable using the `size` function on the `body` property of our articles:
+
+[source,cypher]
+----
+MATCH (n:Article)
+WHERE size(n.body) <= 5000
+RETURN n.link, size(n.body) AS sizeInBytes, n.date
+ORDER BY n.date DESC
+LIMIT 5;
+----
+
+.Results
+[opts="header"]
+|===
+| n.link                                                                                                                                                                               | sizeInBytes | n.date
+| "https://neo4j.com/blog/this-week-in-neo4j-covid-19-contact-tracing-de-duplicating-the-bbc-goodfood-graph-stored-procedures-in-neo4j-4-0-sars-cov-2-taxonomy/"                       | 4326        | 2020-04-25T00:00:05Z
+| "https://neo4j.com/blog/this-week-in-neo4j-spring-data-neo4j%e2%9a%a1rx-released-graphs4good-graphhack-covid-19-special-multi-level-marketing-with-graphs/"                          | 4331        | 2020-04-18T00:00:28Z
+| "https://neo4j.com/blog/this-week-in-neo4j-graph-data-science-library-announced-neo4j-reactive-drivers-scm-analytics-sao-paulos-subway-system/"                                      | 4711        | 2020-04-11T00:00:20Z
+| "https://neo4j.com/blog/this-week-in-neo4j-covid-19-contact-tracing-supply-chain-management-whats-new-in-neo4j-desktop/"                                                             | 4746        | 2020-04-04T00:00:26Z
+| "https://neo4j.com/blog/this-week-in-neo4j-neo4j-bi-connector-covid-19-supply-chain-management/"                                                                                     | 4929        | 2020-03-28T00:00:47Z
+|===
+
+The blog post from a couple of weeks ago looks like a good candidate.
+We can return a stream of the entities in that article by running the following query:
+
+[source,cypher]
+----
+MATCH (n:Article)
+WHERE size(n.body) <= 5000
+WITH n
+ORDER BY n.date DESC
+LIMIT 1
+CALL apoc.nlp.aws.entities.stream(n, {
+  key: $apiKey,
+  secret: $apiSecret,
+  nodeProperty: "body"
+})
+YIELD value
+UNWIND value.entities AS entity
+RETURN DISTINCT entity.text, entity.type
+LIMIT 10;
+----
+
+If we run this query, we'll see the following output:
+
+.Results
+[opts="header"]
+|===
+| entity.text                        | entity.type
+| "this week"                        | "DATE"
+| "Lju"                              | "ORGANIZATION"
+| "BBC"                              | "ORGANIZATION"
+| "Rik Van Bruggen"                  | "PERSON"
+| "COVID-19"                         | "OTHER"
+| "SARS-Cov-2"                       | "OTHER"
+| "Martin Preusse"                   | "PERSON"
+| "Max De Marzi"                     | "PERSON"
+| "Neo4j"                            | "TITLE"
+| "Mark"                             | "PERSON"
+|===
+
+This query actually returns 63 entities, but we're only showing the top 10 for brevity.
+The full set of entities is better visualised using the graph variant of the procedure, shown below:
+
+[source,cypher]
+----
+MATCH (n:Article)
+WHERE size(n.body) <= 5000
+WITH n
+ORDER BY n.date DESC
+LIMIT 1
+CALL apoc.nlp.aws.entities.graph(n, {
+  key: $apiKey,
+  secret: $apiSecret,
+  nodeProperty: "body",
+  write: false
+})
+YIELD graph AS g
+RETURN g;
+----
+
+We've set `write: false`, which means a virtual graph is being returned.
+If we want to persist the graph we can run the query again with `write: true`.
+
+Running this query will result in the following Neo4j Browser visualisation:
+
+image::{{<siteurl>}}/uploads/2020/05/entities-graph.csv[title="TWIN4j Entities Graph"]
+
+Some of the entities that have been extracted make sense, like the nodes for the people and projects mentioned.
+Others are less useful - the node representing the `@` symbol and `-19` value for example.
+
+Let's now compute and store the entities for all applicable articles, by running the following query:
+
+[source,cypher]
+----
+MATCH (n:Article)
+WHERE size(n.body) <= 5000
+WITH collect(n) AS articles
+CALL apoc.nlp.aws.entities.graph(articles, {
+  key: $apiKey,
+  secret: $apiSecret,
+  nodeProperty: "body",
+  relationshipType: "ENTITY",
+  write: true
+})
+YIELD graph AS g
+RETURN g;
+----
+
+This query creates relationships of type `ENTITY` from the article nodes to each of the entity nodes created.
+The entity nodes have an `Entity` label, as well as a label based on their type.
+
+== Querying the Entity Graph
+
+Let's explore the entity graph that we've just created.
+
+=== What are the most common entities?
+
+[source, cypher]
+----
+MATCH (e:Entity)<-[:ENTITY]-()
+RETURN e.text, labels(e) AS labels, count(*) AS occurrences
+ORDER BY occurrences DESC
+LIMIT 10;
+----
+
+.Results
+[opts="header"]
+|===
+| e.text         | labels                     | occurrences
+| "Neo4j"        | ["Entity", "Title"]        | 96
+| "this week"    | ["Date", "Entity"]         | 95
+| "This week"    | ["Date", "Entity"]         | 93
+| "This Week"    | ["Date", "Entity"]         | 87
+| "Mark"         | ["Entity", "Person"]       | 78
+| "neo4j"        | ["Entity", "Person"]       | 43
+| "Cypher"       | ["Entity", "Title"]        | 38
+| "GraphConnect" | ["Entity", "Organization"] | 37
+| "next week"    | ["Date", "Entity"]         | 37
+| "Graph"        | ["Entity", "Title"]        | 37
+|===
+
+Not particularly revealing!
+We have several variants of the phrase 'this week', and it looks like Neo4j is sometimes a `Title`, but sometimes a `Person`.
+
+=== Which people are mentioned most often?
+
+[source, cypher]
+----
+MATCH (e:Entity:Person)<-[:ENTITY]-(article)
+RETURN e.text, count(*) AS occurrences, date(max(article.date)) AS lastMention
+ORDER BY occurrences DESC
+LIMIT 10;
+----
+
+.Results
+[opts="header"]
+|===
+| e.text           | occurrences | lastMention
+| "Mark"           | 78          | 2020-04-25
+| "neo4j"          | 43          | 2020-01-18
+| "Max De Marzi"   | 29          | 2020-04-25
+| "@"              | 28          | 2020-04-25
+| "Michael Hunger" | 28          | 2019-10-12
+| "Rik"            | 27          | 2020-04-25
+| "Will Lyon"      | 27          | 2019-11-09
+| "Michael"        | 27          | 2020-04-11
+| "Jennifer Reif"  | 23          | 2020-02-15
+| "David Allen"    | 23          | 2020-03-28
+|===
+
+Max De Marzi is a prolific blogger, so it's not surprising to see him right up there at the top.
+There are three members of the Neo4j DevRel team in the top 10: Michael Hunger, Will Lyon, and Jennifer Reif.
+I would imagine that _Michael_ is also Michael Hunger, so he's actually in there twice.
+
+=== When did Jennifer and Max both appear in TWIN4j?
+
+I quite like reading articles written by Jennifer and Max.
+How many versions of TWIN4j feature both of them?
+
+[source,cypher]
+----
+WITH ["Max De Marzi", "Jennifer Reif"] AS people
+MATCH (a:Article)
+WHERE all(person IN people WHERE exists((:Entity {text: person})<-[:ENTITY]-(a)))
+RETURN a.link, a.title, date(a.date)
+ORDER BY a.date DESC;
+----
+
+.Results
+[opts="header"]
+|===
+| a.link                                                                                                                                                                                 | a.title                                                                                                                                                                   | date(a.date)
+| "https://neo4j.com/blog/this-week-in-neo4j-nodes-keynote-cypher-eager-operator-releases-of-neo4j-ogm-and-jqassistant/"                                                                 | "This Week in Neo4j &#8211; NODES Keynote, Cypher Eager Operator, Releases of Neo4j OGM and jQAssistant"                                                                  | 2019-10-12
+| "https://neo4j.com/blog/this-week-in-neo4j-nodes-2019-preview-grandstack-building-a-data-warehouse-with-neo4j-scale-up-your-d3-graph-visualisation/"                                   | "This Week in Neo4j &#8211; NODES 2019 Preview: GRANDstack, Building a Data Warehouse with Neo4j,<br /> Scale up your D3 graph visualisation"                             | 2019-09-14
+| "https://neo4j.com/blog/this-week-in-neo4j-explore-public-contracting-data-with-neo4j-rdbms-to-graph-page-overhaul-filtering-connected-dynamic-forms-graph-based-real-time-inventory/" | "This Week in Neo4j &#8211; Explore public contracting data with Neo4j, RDBMS to Graph Page Overhaul, Filtering Connected Dynamic Forms, Graph-Based Real Time Inventory" | 2019-05-11
+| "https://neo4j.com/blog/this-week-in-neo4j-time-based-graph-versioning-pearson-coefficient-neo4j-multi-dc/"                                                                            | "This Week in Neo4j &#8211; Time Based Graph Versioning, Pearson Coefficient, Neo4j Multi DC, Modeling Provenance"                                                        | 2019-02-16
+|===
+
+Just the 4, and we have to go back to https://neo4j.com/blog/this-week-in-neo4j-nodes-keynote-cypher-eager-operator-releases-of-neo4j-ogm-and-jqassistant/[October 2019^] to find the last time they both featured in TWIN4j.
+Jennifer was exploring Cypher's eager operator and Max was building a chat bot.
+
+== Finding the most relevant entities per article
+
+If we want to get a quick summary of the most important things in each TWIN4j article, we can use a technique called https://en.wikipedia.org/wiki/Tf%E2%80%93idf[tf-idf^].
+This is a technique that I first learnt about 5 years ago when https://markhneedham.com/blog/2015/02/15/pythonscikit-learn-calculating-tfidf-on-how-i-met-your-mother-transcripts/[exploring How I met your mother transcripts^].
+Let's refresh ourselves on the definition of tf-idf:
+
+[quote,https://en.wikipedia.org/wiki/Tf%E2%80%93idf]
+____
+tf–idf, short for term frequency–inverse document frequency, is a numerical statistic that is intended to reflect how important a word is to a document in a collection or corpus. It is often used as a weighting factor in information retrieval and text mining. The tf-idf value increases proportionally to the number of times a word appears in the document, but is offset by the frequency of the word in the corpus, which helps to adjust for the fact that some words appear more frequently in general.
+____
+
+Adam Cowley recently wrote a blog post https://adamcowley.co.uk/neo4j/calculating-tf-idf-score-cypher/[explaining how to calculate tf-idf scores using Cypher^], and we can use his query to compute scores on our entity graph.
+
+We'll have to tweak Adam's query to replace `Document` with `Article` and `Term` with `Entity`.
+Everything else remains the same.
+We can compute the tf-idf scores for the entities in one article by writing the following query:
+
+[source, cypher]
+----
+// Total number of articles
+MATCH (:Article) WITH count(*) AS totalArticles
+
+// Find article and all its entities
+MATCH (a:Article {id: 119258})-[entityRel:ENTITY]-(e:Entity)
+
+// Get Statistics on Article and Entity
+WITH a, e,
+    totalArticles,
+    size((a)-[:ENTITY]->(e)) AS occurrencesInArticle,
+    size((a)-[:ENTITY]->()) AS entitiesInArticle,
+    size(()-[:ENTITY]->(e)) AS articlesWithEntity
+
+// Calculate TF and IDF
+WITH a, e,
+    totalArticles,
+    1.0 * occurrencesInArticle / entitiesInArticle AS tf,
+    log10( totalArticles / articlesWithEntity ) AS idf,
+    occurrencesInArticle,
+    entitiesInArticle,
+    articlesWithEntity
+
+// Combine together to return a result
+RETURN a.id, e.text, tf * idf as tfIdf
+ORDER BY tfIdf DESC
+LIMIT 10;
+----
+
+.Results
+[opts="header"]
+|===
+| a.id   | e.text                             | tfIdf
+| 119258 | "Neo4j 3.x"                        | 0.037311815666448325
+| 119258 | "Yorghos Voutos"                   | 0.037311815666448325
+| 119258 | "4.x"                              | 0.037311815666448325
+| 119258 | "Neo4j Graph Data Science Library" | 0.037311815666448325
+| 119258 | "April 20, 2020"                   | 0.037311815666448325
+| 119258 | "Lambert Hogenhout"                | 0.037311815666448325
+| 119258 | "#graphtour 2020"                  | 0.037311815666448325
+| 119258 | "pygds"                            | 0.037311815666448325
+| 119258 | "7.1.0.M1"                         | 0.037311815666448325
+| 119258 | "Groovy 3"                         | 0.037311815666448325
+|===
+
+This article was likely the first time that the https://neo4j.com/docs/graph-data-science/current/[Neo4j Graph Data Science Library^] was mentioned, as well as the related https://pypi.org/project/pygds/[pygds^] library.
+Let's apply these scores to the whole entity graph.
+We'll add the tf-idf score to the `score` property of each `ENTITY` relationship.
+The following query does this:
+
+[source, cypher]
+----
+CALL apoc.periodic.iterate(
+  "MATCH (:Article)
+   WITH count(*) AS totalArticles
+   MATCH (a:Article)
+   RETURN a, totalArticles",
+  "MATCH (a)-[entityRel:ENTITY]-(e:Entity)
+   WITH a, e, entityRel,
+        totalArticles,
+        size((a)-[:ENTITY]->(e)) AS occurrencesInArticle,
+        size((a)-[:ENTITY]->()) AS entitiesInArticle,
+        size(()-[:ENTITY]->(e)) AS articlesWithEntity
+
+   WITH a, e, entityRel,
+        totalArticles,
+        1.0 * occurrencesInArticle / entitiesInArticle AS tf,
+        log10( totalArticles / articlesWithEntity ) AS idf,
+        occurrencesInArticle,
+        entitiesInArticle,
+        articlesWithEntity
+
+   SET entityRel.score = tf * idf",
+  {}
+);
+----
+
+Once this query has finished, we can find the highest ranking entities for each article by writing the following query:
+
+[source,cypher]
+----
+MATCH (a:Article)-[rel:ENTITY]->(e)
+WITH a, e, rel
+ORDER BY a.date DESC, rel.score DESC
+RETURN date(a.date),  collect(e.text)[..10] AS entities
+ORDER BY date(a.date) DESC
+LIMIT 10;
+----
+
+.Results
+[opts="header"]
+|===
+| date(a.date) | entities
+| 2020-04-25   | ["pygds", "April 20, 2020", "Lambert Hogenhout", "#graphtour 2020", "Yorghos Voutos", "4.x", "Neo4j Graph Data Science Library", "Neo4j 3.x", "Groovy 3", "7.1.0.M1"]
+| 2020-04-18   | ["(@Astayonix", "Last night", "Bloom Inzamam ul Haque", "Connected Components", "Spring Data Neo4j⚡", "Epidemic Simulator", "RX", "This Year", "Spring Data Neo4j RX 1.0 GA", ") April 16"]
+| 2020-04-11   | ["OGA", "Lucas Moda", "Library", "one of the organizers", "World Factbook", "Greg Woods’", "Markus Günther", "Michael Simons’", "Graph Data Science", "Neo4j Tech"]
+| 2020-04-04   | ["Ubuntu 18.0.4 LTE", "f4bl", "pic.twitter.com/8fMYAmS6Js", "Neo4j Dev Tools", "JiliJeanlouis", "Epimitheus", "JUnit Jupiter Causal Cluster Testcontainer", "March 29, 2020", "1.2.6", "Germany"]
+| 2020-03-28   | ["Logan Smith", "each one", "Nerd’s Lab", "March 24, 2020", "PAF-Karachi Institute of Economics & Technology", "Lynn Chiu", "CDC", "late last year", "WirvsVirusHackathon", "TIBCO"]
+| 2020-02-15   | ["Flights", "De Marzi", "#GraphTour Madrid", "Golven Leroy", "Arrows Hacks", "February 13, 2020", "grapheverywhere", "Eva Delier", "SPARQL API", "Global Graph Celebration Day 2020"]
+| 2020-02-08   | ["SDN", "GGCD 2020", "Australian Open Finals", "third beta", "IFCA MSC BHD", "about 30 minutes", "Malaysia", "Sinisa Drpa", "emileifrem", "8th year"]
+| 2020-01-25   | ["Personal Genome Project", "to Dine: Building Possibility Spaces", "Ten", "Melbourne", "Halfdan Rump", "Paul Drangeid", "ReactJS", "Kelson Smith", "January 22, 2020", "Tom Cruise"]
+| 2020-01-18   | ["Pablo José", "Daniel Murillo", "@mckenzma", "Flask Login", "Karim Shehadeh", "Laboratorio Internacional Web", "Oscar Arcia", "Vue.js", "Donald Knuth", "Atakan Güney"]
+| 2020-01-11   | ["100 Male", "NLTK", "QuickGraph: Christmas Messages Graph", "Footballers", "TriGraph", "Daniel Wilms", "2.4 miles", "Ben Albritton", "January 9, 2020", "Louise Söderström…"]
+|===
+
+Or we could write a version of the query that only includes certain entities:
+
+[source,cypher]
+----
+MATCH (a:Article)-[rel:ENTITY]->(e)
+WHERE e:Title or e:Organization
+WITH a, e, rel
+ORDER BY a.date DESC, rel.score DESC
+RETURN date(a.date),  collect(e.text)[..10] AS entities
+ORDER BY date(a.date) DESC
+LIMIT 10;
+----
+
+.Results
+[opts="header"]
+|===
+| date(a.date) | entities
+| 2020-04-25   | ["Covid Graph Knowledge Graph", "Neo4j 3.x", "7.1.0.M1", "Grails", "Groovy 3", "pygds", "Neo4j Graph Data Science Library", "United Nations", "Goals", "-19"]
+| 2020-04-18   | ["Spring Data Neo4j⚡RX", "Inzamam", "Graphs4Good GraphHack", "Spring Data Neo4j RX 1.0 GA", "Connected Components", "Spring Data Neo4j⚡", "Spring Data Neo4j + Neo4j-OGM", "CypherDSL", "Exposure Tracker", "Project Domino"]
+| 2020-04-11   | ["Library", "Graph Data Science", "World Factbook", "SDN RX", "JDK 14", "Query Neo4j", "JShell", "OGA", "Mentum Systems Australia", "Neo4j Tech"]
+| 2020-04-04   | ["Sysmon Visualization", "Epimitheus", "BloodHound 3.0", "Graphlytic for Fraud", "Graphlytic", "JUnit Jupiter Causal Cluster Testcontainer", "Ubuntu 18.0.4 LTE", "Neo4j Dev Tools", "1.2.6", "f4bl"]
+| 2020-03-28   | ["Neo4j BI Connector", "Graph to the Rescue", "BI Connector", "Tableau", "Looker", "Spotfire Server", "PAF-Karachi Institute of Economics & Technology", "Nerd’s Lab", "WirvsVirusHackathon", "Upcode Academy"]
+| 2020-02-15   | ["SPARQL API", "Arrows Hacks", "Flights", "Cypher Shell", "Wikidata SPARQL API", "Django Software Foundation", "grapheverywhere", "3.5", "Arrows", "Wikidata"]
+| 2020-02-08   | ["Streamlit", "Lisk", "Ansible", "SDN", "IFCA MSC BHD", "Spring Data Neo4j RX", "Neo4j Graph", "QuickGraph", "Neo4j 4.0", "Lju"]
+| 2020-01-25   | ["to Dine: Building Possibility Spaces", "Personal Genome Project", "vCenter", "GCP", "ReactJS", "WordPress", "QuickGraph", "Javascript", "AWS", "Google"]
+| 2020-01-18   | ["Vue.js", "Monific", "Mitzu", "Algorithm X", "Flask Login", "Kafka Taiwo", "Graphistania 2.0", "Under Armour", "Laboratorio Internacional Web", "CMDX"]
+| 2020-01-11   | ["Ninja", "Heathers and Label", "TriGraph", "100 Male", "QuickGraph: Christmas Messages Graph", "F#", "Guardian", "Islamic Scientific Manuscripts Initiative", "Neo4j Ninja", "Sudoku"]
+|===
+
+== What’s interesting about this QuickGraph?
+
+In this QuickGraph we've learnt how to build a graph based on content that initially didn't have any structure.
+There's a lot more data around that doesn't have structure than that with structure, so techniques that help make sense of unstructured data are very useful.
+
+This is not a new technique, in fact there are many videos explaining the value of this approach:
+
+* https://www.youtube.com/watch?v=k8Gu6GMbBtQ[Knowledge Graph Search with Elasticsearch — L. Misquitta and A. Negro, GraphAware^]
+* https://www.youtube.com/watch?v=BVMx24dtko0[Natural Language Processing with Graphs^]
+* https://www.youtube.com/watch?v=ySxgzBdM2jM[Content-Based Recommendations using Knowledge Graphs (Neo4j Online Meetup #59)^]
+
+The procedures described in this post aim to make the technique more easily accessible to graph practitioners.
