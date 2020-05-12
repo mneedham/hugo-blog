@@ -1,0 +1,69 @@
++++
+draft = false
+date="2020-05-12 00:21:00"
+title="Google Docs: "
+tag=['google-docs']
+category=['Google Docs']
+description="Learn how to write a script to run find and replace on a Google Doc"
++++
+
+I keep track of the podcasts that I've listened to in a Google Doc, having pasted the episode title and podcast name from Player.FM.
+The format isn't exactly what I want so I've been running the `Find and Replace` command to update each entry.
+This is obviously a very boring task, so I wanted to see if I could automate it.
+
+An example entry in the Google Doc reads like this:
+
+[source, text]
+----
+* Listened to Worst of the Big 3 by The Tennis Podcast
+https://player.fm/1BBKmKQ #nowplaying
+----
+
+And I want it to read like this:
+
+[source, text]
+----
+* Listened to Worst of the Big 3 by The Tennis Podcast - https://player.fm/1BBKmKQ
+----
+
+We can do this by doing by replacing:
+
+* `\nht` with `&nbsp;- ht&nbsp;`
+* `#nowplaying` with nothing
+
+We can create a Google script by clicking `Tools` > `Script editor`, which will take us to an editor with the following text:
+
+[source,javascript]
+----
+function myFunction() {
+
+}
+----
+
+We can write the following code to update our Google Doc:
+
+[source,javascript]
+----
+function myFunction() {
+  // https://docs.google.com/document/d/<document-id>/edit
+  let documentId = "<document-id>"
+  let document = DocumentApp.openById(documentId);
+  let body = document.getBody().getText()
+  document.getBody().setText(body.replace(/#nowplaying/g, "").replace(/\nht/g, " - ht"))
+}
+----
+
+I tried using the `replaceText` function that can be run against the body of the document, but I couldn't figure out how to get that to work with the new line character.
+
+We can then run that manually to update our document, but we can go one better and setup a trigger.
+We can setup a trigger via the `Edit` menu:
+
+image::{{<siteurl>}}/uploads/2020/05/triggers.png[title="Triggers"]
+
+Once the next screen loads, we can then click on `Add Trigger` to set everything up:
+
+image::{{<siteurl>}}/uploads/2020/05/add-trigger.png[title="Add Trigger"]
+
+This trigger will run our script once an hour, removing new lines and the `#nowplaying` phrase.
+
+Boredom removed!

@@ -6,7 +6,6 @@ tag=['quickgraph', 'nlp', 'apoc', 'twin4j']
 category=['Neo4j']
 description="Learn how to use the APOC Library to add NLP functionality to your graph applications."
 image="uploads/2020/05/apoc-nlp.png"
-
 +++
 
 One of the most popular use cases for Neo4j is knowledge graphs, and part of that process involves using NLP to create a graph structure from raw text.
@@ -21,7 +20,7 @@ The big cloud providers (AWS, GCP, and Azure) all have Natural Language Processi
 
 image::{{<siteurl>}}/uploads/2020/05/1_go7sTFOGN2fJGgYrI3E-FA.png[title="AWS, GCP, Azure"]
 
-While these APIs are easy to enough to use via client drivers, we thought it'd be fun to make them even more accessible by adding https://neo4j.com/docs/labs/apoc/current/nlp/[adding procedures that call these APIs to the popular APOC Library^]
+While these APIs are easy to enough to use via client drivers, we thought it'd be fun to make them even more accessible by https://neo4j.com/docs/labs/apoc/current/nlp/[adding procedures that call these APIs to the popular APOC Library^]
 Each procedure has two modes:
 
 * Stream - returns a map constructed from the JSON returned from the API
@@ -252,7 +251,7 @@ If we want to persist the graph we can run the query again with `write: true`.
 
 Running this query will result in the following Neo4j Browser visualisation:
 
-image::{{<siteurl>}}/uploads/2020/05/entities-graph.csv[title="TWIN4j Entities Graph"]
+image::{{<siteurl>}}/uploads/2020/05/entities-graph.svg[title="TWIN4j Entities Graph"]
 
 Some of the entities that have been extracted make sense, like the nodes for the people and projects mentioned.
 Others are less useful - the node representing the `@` symbol and `-19` value for example.
