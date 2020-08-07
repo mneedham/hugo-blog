@@ -1,0 +1,119 @@
++++
+draft = false
+date="2020-08-07 00:21:00"
+title="pipenv: ImportError: No module named 'virtualenv.seed.via_app_data'"
+tag=['pipenv', "python"]
+category=['Python']
+description="Learn how to fix an error when using pipenv"
++++
+
+I've been trying to install https://pipenv-fork.readthedocs.io/en/latest/[pipenv^] on a new computer and ran into a frustrating issue.
+After installing pipenv using pip, I tried to run the command below:
+
+
+[source, bash]
+----
+$ /home/markhneedham/.local/bin/pipenv shell
+Creating a virtualenv for this project…
+Pipfile: /tmp/Pipfile
+Using /usr/bin/python3.8 (3.8.2) to create virtualenv…
+⠙ Creating virtual environment...ModuleNotFoundError: No module named 'virtualenv.seed.via_app_data'
+
+✘ Failed creating virtual environment
+
+[pipenv.exceptions.VirtualenvCreationException]:
+Failed to create virtual environment.
+----
+
+Hmmm, for some reason it's unable to find one of the virtualenv modules.
+I found a https://github.com/pypa/virtualenv/issues/1875[GitHub issue on the virtualenv^] repository, which suggested the following:
+
+> It's a conflict between two existing virtualenv installation. You might have installed latest version, however if in the same python you also have an old version installed this error will pop up. Maybe you have a user and system installation in parallel.
+
+I uninstalled pipenv:
+
+[source, bash]
+----
+$ pip3 uninstall pipenv
+Found existing installation: pipenv 2020.6.2
+Uninstalling pipenv-2020.6.2:
+  Would remove:
+    /home/markhneedham/.local/bin/pipenv
+    /home/markhneedham/.local/bin/pipenv-resolver
+    /home/markhneedham/.local/lib/python3.8/site-packages/pipenv-2020.6.2.dist-info/*
+    /home/markhneedham/.local/lib/python3.8/site-packages/pipenv/*
+Proceed (y/n)? y
+  Successfully uninstalled pipenv-2020.6.2
+----
+
+And then thought I should check if there was anything left in the `~/.local/bin` directory:
+
+[source,bash]
+----
+$ ls -alh /home/markhneedham/.local/bin/
+total 16K
+drwxrwxr-x 2 markhneedham markhneedham 4.0K Aug  7 11:27 .
+drwxr-xr-x 5 markhneedham markhneedham 4.0K Aug  7 11:19 ..
+-rwxrwxr-x 1 markhneedham markhneedham  238 Aug  7 11:19 virtualenv
+-rwxrwxr-x 1 markhneedham markhneedham  214 Aug  7 11:19 virtualenv-clone
+----
+
+virtualenv is still there!
+I thought it would have been removed when I uninstalled pipenv, but perhaps it was installed separately when I installed something else, I'm not sure.
+
+Anyway, let's get rid of virtualenv:
+
+[source,bash]
+----
+$ pip3 uninstall virtualenv
+Found existing installation: virtualenv 20.0.30
+Uninstalling virtualenv-20.0.30:
+  Would remove:
+    /home/markhneedham/.local/bin/virtualenv
+    /home/markhneedham/.local/lib/python3.8/site-packages/virtualenv-20.0.30.dist-info/*
+    /home/markhneedham/.local/lib/python3.8/site-packages/virtualenv/*
+Proceed (y/n)? y
+  Successfully uninstalled virtualenv-20.0.30
+----
+
+And now we'll install pipenv again:
+
+[source,bash]
+----
+$ pip3 install pipenv
+Collecting pipenv
+  Using cached pipenv-2020.6.2-py2.py3-none-any.whl (3.9 MB)
+Requirement already satisfied: setuptools>=36.2.1 in /usr/lib/python3/dist-packages (from pipenv) (45.2.0)
+Requirement already satisfied: pip>=18.0 in /usr/lib/python3/dist-packages (from pipenv) (20.0.2)
+Requirement already satisfied: virtualenv-clone>=0.2.5 in /home/markhneedham/.local/lib/python3.8/site-packages (from pipenv) (0.5.4)
+Requirement already satisfied: virtualenv in /usr/lib/python3/dist-packages (from pipenv) (20.0.17)
+Requirement already satisfied: certifi in /usr/lib/python3/dist-packages (from pipenv) (2019.11.28)
+Installing collected packages: pipenv
+  WARNING: The scripts pipenv and pipenv-resolver are installed in '/home/markhneedham/.local/bin' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+Successfully installed pipenv-2020.6.2
+----
+
+And now let's try to create a virtual environment:
+
+[source, bash]
+----
+$ pipenv shell
+Creating a virtualenv for this project…
+Pipfile: /tmp/Pipfile
+Using /usr/bin/python3.8 (3.8.2) to create virtualenv…
+⠹ Creating virtual environment...created virtual environment CPython3.8.2.final.0-64 in 161ms
+  creator CPython3Posix(dest=/home/markhneedham/.local/share/virtualenvs/tmp-XVr6zr33, clear=False, global=False)
+  seeder FromAppData(download=False, pkg_resources=latest, idna=latest, distlib=latest, contextlib2=latest, requests=latest, distro=latest, retrying=latest, certifi=latest, urllib3=latest, ipaddr=latest, webencodings=latest, pip=latest, wheel=latest, setuptools=latest, pep517=latest, colorama=latest, html5lib=latest, msgpack=latest, six=latest, packaging=latest, lockfile=latest, pyparsing=latest, progress=latest, chardet=latest, CacheControl=latest, appdirs=latest, pytoml=latest, via=copy, app_data_dir=/home/markhneedham/.local/share/virtualenv/seed-app-data/v1.0.1.debian)
+  activators BashActivator,CShellActivator,FishActivator,PowerShellActivator,PythonActivator,XonshActivator
+
+✔ Successfully created virtual environment!
+Virtualenv location: /home/markhneedham/.local/share/virtualenvs/tmp-XVr6zr33
+Creating a Pipfile for this project…
+Launching subshell in virtual environment…
+ . /home/markhneedham/.local/share/virtualenvs/tmp-XVr6zr33/bin/activate
+markhneedham@markhneedham-Precision-5550:/tmp$  . /home/markhneedham/.local/share/virtualenvs/tmp-XVr6zr33/bin/activate
+
+----
+
+Success!
