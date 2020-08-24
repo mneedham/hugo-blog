@@ -1,0 +1,106 @@
++++
+draft = false
+date="2020-08-24 00:21:00"
+title="Unix: Get file name without extension from file path"
+tag=['unix', 'bash']
+category=['Unix']
+description="Learn how to extract the file name without extension from a file path using Unix command line tools."
++++
+
+I recently found myself needing to extract the file name but not file extension from a bunch of file paths and wanted to share a neat technique that I learnt to do it.
+
+I started with a bunch of Jupyter notebook files, which I listed usign the following command;
+
+[source,bash]
+----
+$ find notebooks/ -maxdepth 1 -iname *ipynb
+
+notebooks/09_Predictions_sagemaker.ipynb
+notebooks/00_Environment.ipynb
+notebooks/05_Train_Evaluate_Model.ipynb
+notebooks/01_DataLoading.ipynb
+notebooks/05_SageMaker.ipynb
+notebooks/09_Predictions_sagemaker-Copy2.ipynb
+notebooks/09_Predictions_sagemaker-Copy1.ipynb
+notebooks/02_Co-Author_Graph.ipynb
+notebooks/04_Model_Feature_Engineering.ipynb
+notebooks/09_Predictions_scikit.ipynb
+notebooks/03_Train_Test_Split.ipynb
+----
+
+If we pick one of those files:
+
+[source,bash]
+----
+file="notebooks/05_Train_Evaluate_Model.ipynb"
+----
+
+I want to extract the file name from this file path, which would give us `05_Train_Evaluate_Model`.
+We can extract the file name using the `basename` function:
+
+[source,bash]
+----
+$ basename ${file}
+
+05_Train_Evaluate_Model.ipynb
+----
+
+StackOverflow has https://stackoverflow.com/questions/12152626/how-can-i-remove-the-extension-of-a-filename-in-a-shell-script[many suggestions^] for stripping out the file extension, but my favourite is one that https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html[uses parameter expansion^].
+
+[quote]
+_____
+**${parameter#word}**
+
+**${parameter##word}**
+
+The word is expanded to produce a pattern and matched according to the rules described below (see Pattern Matching).
+If the pattern matches the beginning of the expanded value of parameter, then the result of the expansion is the expanded value of parameter with the shortest matching pattern (the ‘#’ case) or the longest matching pattern (the ‘##’ case) deleted.
+If parameter is '@' or '*', the pattern removal operation is applied to each positional parameter in turn, and the expansion is the resultant list.
+If parameter is an array variable subscripted with ‘@’ or ‘*’, the pattern removal operation is applied to each member of the array in turn, and the expansion is the resultant list.
+_____
+
+We can use it like this:
+
+[source, bash]
+----
+$ basename ${file%.*}
+
+05_Train_Evaluate_Model
+----
+
+Because we've used the `%` variant, this will delete the shortest matching pattern.
+i.e. only one file extension
+
+If we had a file that ends with multiple file extensions, we'd need to use the `%%` variant instead:
+
+[source,bash]
+----
+$ filename="notebooks/05_Train_Evaluate_Model.ipynb.bak"
+$ echo ${filename%%.*}
+
+notebooks/05_Train_Evaluate_Model
+----
+
+Going back to our original problem, we can extract the file names for all of our Jupyter notebooks by running the following:
+
+[source, bash]
+----
+for file in `find notebooks -maxdepth 1 -iname *.ipynb`; do
+  echo $(basename ${file%.*})
+done
+----
+
+[source, text]
+----
+09_Predictions_sagemaker
+00_Environment
+05_Train_Evaluate_Model
+01_DataLoading
+05_SageMaker
+09_Predictions_sagemaker-Copy2
+09_Predictions_sagemaker-Copy1
+02_Co-Author_Graph
+04_Model_Feature_Engineering
+09_Predictions_scikit
+03_Train_Test_Split
+----

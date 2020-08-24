@@ -1,0 +1,19 @@
++++
+draft = true
+date="2020-08-24 00:21:00"
+title="Unix: Get file name without extension from file path"
+tag=['unix', 'bash']
+category=['Unix']
+description="Learn how to extract the file name without extension from a file path using Unix command line tools."
++++
+
+
+conda create -n "sm" python=3.7
+conda activate sm
+conda install -c mlio -c conda-forge mlio-py
+pip install sklearn psutil pandas
+
+
+import joblib
+
+m = joblib.load("/home/markhneedham/Downloads/model.joblib")
