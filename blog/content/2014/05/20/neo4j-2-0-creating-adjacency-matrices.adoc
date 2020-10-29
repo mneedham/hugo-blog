@@ -21,7 +21,7 @@ RETURN g1.name, g2.name
 LIMIT 10
 ----
 
-
+.Results
 [source,bash]
 ----
 +-------------------------------------------------------------------------------------+
@@ -52,7 +52,7 @@ OPTIONAL MATCH (g1)<-[:MEMBER_OF]-()-[:MEMBER_OF]->(g2)
 RETURN g1.name, g2.name, COUNT(*) AS overlap
 ----
 
-
+.Results
 [source,bash]
 ----
 +----------------------------------------------------------------------------------------------+
@@ -84,6 +84,7 @@ RETURN g1.name, g2.name, COUNT(*) AS overlap
 ORDER BY g1.name, g2.name
 ----
 
+.Results
 [source,bash]
 ----
 +-------------------------------------------------------------------------------------------------------------+
@@ -118,7 +119,7 @@ ORDER BY g1.name, g2.name
 LIMIT 10
 ----
 
-
+.Results
 [source,bash]
 ----
 +-------------------------------------------------------------------------------------------------------------+
@@ -157,7 +158,7 @@ RETURN g1.name, COLLECT(overlap)
 ORDER BY g1.name
 ----
 
-
+.Results
 [source,bash]
 ----
 +-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -220,6 +221,7 @@ ORDER BY g.name
 LIMIT 5
 ----
 
+.Results
 [source,bash]
 ----
 
@@ -253,6 +255,7 @@ RETURN g1.name, g2.name
 ORDER BY g1.name, g2.name
 ----
 
+.Results
 [source,bash]
 ----
 
@@ -318,7 +321,7 @@ RETURN g1.name, COLLECT(overlap)
 ORDER BY g1.name
 ----
 
-
+.Results
 [source,cypher]
 ----
 

@@ -6,31 +6,28 @@ tag=['neo4j', 'cypher']
 category=['neo4j']
 +++
 
-<p>
+
 A common problem that people have when using Neo4j for social network applications is updating a person with their newly imported friends.
-</p>
+
+We'll have an array of friends that we want to connect to a single Person node. Assuming the following schema...
 
 
-<p>
-We'll have an array of friends that we want to connect to a single Person node. Assuming the following schema...</p>
- 
 
-
-~~~cypher
+[source,cypher]
+----
 
 $ schema
 Indexes
   ON :Person(id) ONLINE
 
 No constraints
-~~~
+----
 
-<p>...a simplified version would look like this:
-</p>
-
+...a simplified version would look like this:
 
 
-~~~cypher
+[source,cypher]
+----
 
 WITH range (2,1002) AS friends
 MERGE (p:Person {id: 1})
@@ -38,15 +35,16 @@ MERGE (p:Person {id: 1})
 FOREACH(f IN friends |
   MERGE (friend:Person {id: f})
   MERGE (friend)-[:FRIENDS]->p);
-~~~
+----
 
-<p>
+
 If we execute that on an empty database we'll see something like this:
-</p>
 
 
 
-~~~text
+
+[source,text]
+----
 
 +-------------------+
 | No data returned. |
@@ -56,15 +54,16 @@ Relationships created: 1001
 Properties set: 1002
 Labels added: 1002
 19173 ms
-~~~
+----
 
-<p>
+
 This took much longer than we'd expect so let's have a look at the PROFILE output:
-</p>
 
 
 
-~~~text
+
+[source,text]
+----
 
 EmptyResult
   |
@@ -88,20 +87,20 @@ EmptyResult
 |        Extract |    1 |       0 |             |                              friends |
 |           Null |    ? |       ? |             |                                      |
 +----------------+------+---------+-------------+--------------------------------------+
-~~~
+----
 
-<p>
+
 The <cite>DbHits</cite> value on the 2nd row seems suspiciously high suggesting that FOREACH might not be making use of the <cite>Person#id</cite> index and is instead scanning all <cite>Person</cite> nodes each time.
-</p>
 
 
-<p>
+
+
 I'm not sure how to drill into that further but an alternative approach is to try out the same query but using UNWIND instead and checking the profile output of that:
-</p>
 
 
 
-~~~cypher
+
+[source,cypher]
 
 WITH range (2,1002) AS friends
 MERGE (p:Person {id: 1})
@@ -109,10 +108,11 @@ WITH p, friends
 UNWIND friends AS f
 MERGE (friend:Person {id: f})
 MERGE (friend)-[:FRIENDS]->p;
-~~~
+----
 
 
-~~~text
+[source,text]
+----
 
 +-------------------+
 | No data returned. |
@@ -122,10 +122,11 @@ Relationships created: 1001
 Properties set: 1002
 Labels added: 1002
 343 ms
-~~~
+----
 
 
-~~~text
+[source,text]
+----
 
 EmptyResult
   |
@@ -158,9 +159,7 @@ EmptyResult
 |        Extract |    1 |      0 |                         |                              friends |
 |           Null |    ? |      ? |                         |                                      |
 +----------------+------+--------+-------------------------+--------------------------------------+
-~~~
+----
 
-<p>
+
 That's much quicker and doesn't touch as many nodes as FOREACH was. I expect the index issue will be sorted out in future but until then UNWIND is our friend.
-</p>
-
