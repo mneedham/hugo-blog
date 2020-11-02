@@ -7,7 +7,7 @@ category=['Neo4j']
 description="Learn how to use the CALL {} subquery syntax to create data in a graph."
 +++
 
-I recently wanted to create a graph based on an adjacency list, and in this post we'll learn how to do that using the FOREACH[https://neo4j.com/docs/cypher-manual/current/clauses/foreach/^] clause and then with the new https://neo4j.com/docs/cypher-manual/current/clauses/call-subquery/#subquery-aggregation[CALL {}^] subquery clause.
+I recently wanted to create a graph based on an adjacency list, and in this post we'll learn how to do that using the https://neo4j.com/docs/cypher-manual/current/clauses/foreach/[FOREACH^] clause and then with the new https://neo4j.com/docs/cypher-manual/current/clauses/call-subquery/#subquery-aggregation[CALL {}^] subquery clause.
 
 We'll start with the following map of ids -> arrays of ids:
 
