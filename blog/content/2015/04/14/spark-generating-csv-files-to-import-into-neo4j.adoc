@@ -6,23 +6,15 @@ tag=['neo4j', 'spark-2']
 category=['Spark']
 +++
 
-<p>
-About a year ago <a href="http://twitter.com/iansrobinson">Ian</a> pointed me at a <a href="https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-present/ijzp-q8t2">Chicago Crime</a> data set which seemed like a good fit for Neo4j and after much procrastination I've finally got around to importing it.
-</p>
 
+About a year ago http://twitter.com/iansrobinson[Ian] pointed me at a https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-present/ijzp-q8t2[Chicago Crime] data set which seemed like a good fit for Neo4j and after much procrastination I've finally got around to importing it.
 
-<p>
 The data set covers crimes committed from 2001 until now. It contains around 4 million crimes and meta data around those crimes such as the location, type of crime and year to name a few.
-</p>
 
-
-<p>
 The contents of the file follow this structure:
-</p>
 
-
-
-~~~bash
+[source,bash]
+----
 
 $ head -n 10 ~/Downloads/Crimes_-_2001_to_present.csv
 ID,Case Number,Date,Block,IUCR,Primary Type,Description,Location Description,Arrest,Domestic,Beat,District,Ward,Community Area,FBI Code,X Coordinate,Y Coordinate,Year,Updated On,Latitude,Longitude,Location
@@ -35,54 +27,37 @@ ID,Case Number,Date,Block,IUCR,Primary Type,Description,Location Description,Arr
 9460361,HX113731,01/14/2014 03:12:00 AM,022XX S WENTWORTH AVE,0820,THEFT,$500 AND UNDER,CTA TRAIN,false,false,0914,009,25,34,06,1175363,1889525,2014,01/20/2014 12:40:05 AM,41.85223460427207,-87.63185047834335,"(41.85223460427207, -87.63185047834335)"
 9461691,HX114506,01/14/2014 03:00:00 AM,087XX S COLFAX AVE,0650,BURGLARY,HOME INVASION,RESIDENCE,false,false,0423,004,7,46,05,1195052,1847362,2014,01/17/2014 12:40:17 AM,41.73607283858007,-87.56097809501115,"(41.73607283858007, -87.56097809501115)"
 9461792,HX114824,01/14/2014 03:00:00 AM,012XX S CALIFORNIA BLVD,0810,THEFT,OVER $500,STREET,false,false,1023,010,28,29,06,1157929,1894034,2014,01/17/2014 12:40:17 AM,41.86498077118534,-87.69571529596696,"(41.86498077118534, -87.69571529596696)"
-~~~
+----
 
-<p>
-Since I wanted to import this into Neo4j I needed to do some massaging of the data since the <a href="http://neo4j.com/docs/2.2.0/import-tool.html">neo4j-import tool</a> expects to receive CSV files containing the nodes and relationships we want to create. 
+Since I wanted to import this into Neo4j I needed to do some massaging of the data since the http://neo4j.com/docs/2.2.0/import-tool.html[neo4j-import tool] expects to receive CSV files containing the nodes and relationships we want to create.
 
-<div style="float:right">
+image::{{<siteurl>}}/uploads/2015/04/Spark-logo-192x100px.png[Spark logo 192x100px,96]
 
-<img src="{{<siteurl>}}/uploads/2015/04/Spark-logo-192x100px.png" alt="Spark logo 192x100px" title="Spark-logo-192x100px.png" border="0" width="96" height="50" /></div>
+I'd been looking at https://spark.apache.org/[Spark] towards the end of last year and the pre-processing of the big initial file into smaller CSV files containing nodes and relationships seemed like a good fit.
 
-<p>
-I'd been looking at <a href="https://spark.apache.org/">Spark</a> towards the end of last year and the pre-processing of the big initial file into smaller CSV files containing nodes and relationships seemed like a good fit.
-</p>
-
-
-<p>
 I therefore needed to create a Spark job to do this. We'll then pass this job to a Spark executor running locally and it will spit out CSV files.
-</p>
 
+image::{{<siteurl>}}/uploads/2015/04/2015-04-15_00-51-42.png[2015 04 15 00 51 42,400]
 
-<div>
-
-<img src="{{<siteurl>}}/uploads/2015/04/2015-04-15_00-51-42.png" alt="2015 04 15 00 51 42" title="2015-04-15_00-51-42.png" border="0" width="400"  /></div>
-
-<p>
 We start by creating a Scala object with a main method that will contain our processing code. Inside that main method we'll instantiate a Spark context:
-</p>
 
-
-
-~~~scala
+[source,scala]
+----
 
 import org.apache.spark.{SparkConf, SparkContext}
 
-object GenerateCSVFiles {  
-    def main(args: Array[String]) {    
-        val conf = new SparkConf().setAppName("Chicago Crime Dataset")    
-        val sc = new SparkContext(conf)  
+object GenerateCSVFiles {
+    def main(args: Array[String]) {
+        val conf = new SparkConf().setAppName("Chicago Crime Dataset")
+        val sc = new SparkContext(conf)
     }
 }
-~~~
+----
 
-<p>
 Easy enough. Next we'll read in the CSV file. I found the easiest way to reference this was with an environment variable but perhaps there's a more idiomatic way:
-</p>
 
-
-
-~~~scala
+[source,scala]
+----
 
 import java.io.File
 import org.apache.spark.{SparkConf, SparkContext}
@@ -102,13 +77,12 @@ object GenerateCSVFiles {
     val sc = new SparkContext(conf)
     val crimeData = sc.textFile(crimeFile).cache()
 }
-~~~
+----
 
-<p>The type of <cite>crimeData</cite> is <cite>RDD[String]</cite> - Spark's way of representing the (lazily evaluated) lines of the CSV file. This also includes the header of the file so let's write a function to get rid of that since we'll be generating our own headers for the different files:</p>
+The type of +++<cite>+++crimeData+++</cite>+++ is +++<cite>+++RDD[String]+++</cite>+++ - Spark's way of representing the (lazily evaluated) lines of the CSV file. This also includes the header of the file so let's write a function to get rid of that since we'll be generating our own headers for the different files:
 
-
-
-~~~scala
+[source,scala]
+----
 
 import org.apache.spark.rdd.RDD
 
@@ -121,15 +95,12 @@ def dropHeader(data: RDD[String]): RDD[String] = {
     lines
   })
 }
-~~~
+----
 
-<p>
 Now we're ready to start generating our new CSV files so we'll write a function which parses each line and extracts the appropriate columns. I'm using Open CSV for this:
-</p>
 
-
-
-~~~scala
+[source,scala]
+----
 
 import au.com.bytecode.opencsv.CSVParser
 
@@ -147,52 +118,37 @@ def generateFile(file: String, withoutHeader: RDD[String], fn: Array[String] => 
 
   if (distinct) rows.distinct() saveAsTextFile tmpFile else rows.saveAsTextFile(tmpFile)
 }
-~~~
+----
 
-<p>
 We then call this function like this:
-</p>
 
-
-
-~~~scala
+[source,scala]
+----
 
 generateFile("/tmp/crimes.csv", withoutHeader, columns => Array(columns(0),"Crime", columns(2), columns(6)), "id:ID(Crime),:LABEL,date,description", false)
-~~~
+----
 
-<p>
-The output into 'tmpFile' is actually 32 'part files' but I wanted to be able to <a href="http://www.markhneedham.com/blog/2014/11/30/spark-write-to-csv-file-with-header-using-saveasfile/">merge those together into individual CSV files</a> that were easier to work with. 
-</p>
+The output into 'tmpFile' is actually 32 'part files' but I wanted to be able to http://www.markhneedham.com/blog/2014/11/30/spark-write-to-csv-file-with-header-using-saveasfile/[merge those together into individual CSV files] that were easier to work with.
 
+I won't paste the the full job here but if you want to take a look https://github.com/mneedham/neo4j-spark-chicago/blob/master/src/main/scala/GenerateCSVFiles.scala[it's on github].
 
-<p>
-I won't paste the the full job here but if you want to take a look <a href="https://github.com/mneedham/neo4j-spark-chicago/blob/master/src/main/scala/GenerateCSVFiles.scala">it's on github</a>.
-</p>
+Now we need to submit the job to Spark. I've wrapped this in a https://github.com/mneedham/neo4j-spark-chicago/blob/master/create_files.sh[script] if you want to follow along but these are the contents:
 
-
-<p>
-Now we need to submit the job to Spark. I've wrapped this in a <a href="https://github.com/mneedham/neo4j-spark-chicago/blob/master/create_files.sh">script</a> if you want to follow along but these are the contents:
-</p>
-
-
-
-~~~bash
+[source,bash]
+----
 
 ./spark-1.1.0-bin-hadoop1/bin/spark-submit \
 --driver-memory 5g \
 --class GenerateCSVFiles \
---master local[8] \ 
+--master local[8] \
 target/scala-2.10/playground_2.10-1.0.jar \
 $@
-~~~
+----
 
-<p>
-If we execute that we'll see the following output..." 
-</p>
+If we execute that we'll see the following output..."
 
-
-
-~~~bash
+[source,bash]
+----
 
 Spark assembly has been built with Hive, including Datanucleus jars on classpath
 Using Crimes_-_2001_to_present.csv
@@ -206,14 +162,12 @@ Using Spark's default log4j profile: org/apache/spark/log4j-defaults.properties
 real	0m44.935s
 user	4m2.259s
 sys	0m14.159s
-~~~
+----
 
-<p>and these CSV files will be generated:
-</p>
+and these CSV files will be generated:
 
-
-
-~~~bash
+[source,bash]
+----
 
 $ ls -alh /tmp/*.csv
 -rwxrwxrwx  1 markneedham  wheel   3.0K 14 Apr 07:37 /tmp/beats.csv
@@ -221,13 +175,12 @@ $ ls -alh /tmp/*.csv
 -rwxrwxrwx  1 markneedham  wheel    84M 14 Apr 07:37 /tmp/crimesBeats.csv
 -rwxrwxrwx  1 markneedham  wheel   120M 14 Apr 07:37 /tmp/crimesPrimaryTypes.csv
 -rwxrwxrwx  1 markneedham  wheel   912B 14 Apr 07:37 /tmp/primaryTypes.csv
-~~~
+----
 
-<p>Let's have a quick check what they contain:</p>
+Let's have a quick check what they contain:
 
-
-
-~~~bash
+[source,bash]
+----
 
 $ head -n 10 /tmp/beats.csv
 id:ID(Beat),:LABEL
@@ -240,10 +193,10 @@ id:ID(Beat),:LABEL
 1333,Beat
 2521,Beat
 1652,Beat
-~~~
+----
 
-
-~~~bash
+[source,bash]
+----
 
 $ head -n 10 /tmp/crimes.csv
 id:ID(Crime),:LABEL,date,description
@@ -256,10 +209,10 @@ id:ID(Crime),:LABEL,date,description
 9460361,Crime,01/14/2014 03:12:00 AM,$500 AND UNDER
 9461691,Crime,01/14/2014 03:00:00 AM,HOME INVASION
 9461792,Crime,01/14/2014 03:00:00 AM,OVER $500
-~~~
+----
 
-
-~~~bash
+[source,bash]
+----
 
 $ head -n 10 /tmp/crimesBeats.csv
 :START_ID(Crime),:END_ID(Beat),:TYPE
@@ -272,15 +225,12 @@ $ head -n 10 /tmp/crimesBeats.csv
 7620897,0421,ON_BEAT
 7720402,0321,ON_BEAT
 5053025,1115,ON_BEAT
-~~~
+----
 
-<p>
 Looking good. Let's get them imported into Neo4j:
-</p>
 
-
-
-~~~bash
+[source,bash]
+----
 
 $ ./neo4j-community-2.2.0/bin/neo4j-import --into /tmp/my-neo --nodes /tmp/crimes.csv --nodes /tmp/beats.csv --nodes /tmp/primaryTypes.csv --relationships /tmp/crimesBeats.csv --relationships /tmp/crimesPrimaryTypes.csv
 Nodes
@@ -309,15 +259,12 @@ Relationship counts
 Done in 653ms
 
 IMPORT DONE in 26s 517ms
-~~~
+----
 
-<p>
-Next I updated <cite>conf/neo4j-server.properties</cite> to point to my new database:
-</p>
+Next I updated +++<cite>+++conf/neo4j-server.properties+++</cite>+++ to point to my new database:
 
-
-
-~~~text
+[source,text]
+----
 
 #***************************************************************
 # Server configuration
@@ -326,30 +273,24 @@ Next I updated <cite>conf/neo4j-server.properties</cite> to point to my new data
 # location of the database directory
 #org.neo4j.server.database.location=data/graph.db
 org.neo4j.server.database.location=/tmp/my-neo
-~~~
+----
 
-<p>
 Now I can start up Neo and start exploring the data:
-</p>
 
-
-
-~~~bash
+[source,bash]
+----
 
 $ ./neo4j-community-2.2.0/bin/neo4j start
-~~~
+----
 
+[source,cypher]
+----
 
-~~~cypher
-
-MATCH (:Crime)-[r:CRIME_TYPE]->() 
-RETURN r 
+MATCH (:Crime)-[r:CRIME_TYPE]->()
+RETURN r
 LIMIT 10
-~~~
+----
 
-<div>
-<img src="{{<siteurl>}}/uploads/2015/04/graph-15.png" alt="Graph  15" title="graph (15).png" border="0" width="600"  />
-</div>
+image::{{<siteurl>}}/uploads/2015/04/graph-15.png[Graph  15,600]
 
-<p>There's lots more relationships and entities that we could pull out of this data set - what I've done is just a start. So if you're up for some more Chicago crime exploration the <a href="https://github.com/mneedham/neo4j-spark-chicago">code and instructions explaining how to run it are on github</a>.</p>
-
+There's lots more relationships and entities that we could pull out of this data set - what I've done is just a start. So if you're up for some more Chicago crime exploration the https://github.com/mneedham/neo4j-spark-chicago[code and instructions explaining how to run it are on github].
