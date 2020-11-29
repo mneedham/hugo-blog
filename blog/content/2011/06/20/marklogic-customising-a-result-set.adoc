@@ -12,7 +12,8 @@ We started off with this:
 
 search.xqy
 
-~~~text
+[source,text]
+----
 
 xquery version "1.0-ml";
 import module namespace search = "http://marklogic.com/appservices/search" at "/MarkLogic/appservices/search/search.xqy";
@@ -20,17 +21,18 @@ import module namespace search = "http://marklogic.com/appservices/search" at "/
 declare variable $term as xs:string := xdmp:get-request-field("query", "");
 
 search:search($term)
-~~~
+----
 
 Which gives us back a list of results showing where in the documents the search term appeared.
 
-We wanted to be able to get the title of the document and some other meta data about it though so we needed to make use of the <cite><a href="http://developer.marklogic.com/pubs/4.1/apidocs/SearchAPI.html">transform-results</a></cite> option to do this.
+We wanted to be able to get the title of the document and some other meta data about it though so we needed to make use of the +++<cite>+++http://developer.marklogic.com/pubs/4.1/apidocs/SearchAPI.html[transform-results]+++</cite>+++ option to do this.
 
 The original query changes to look like this:
 
 search.xqy
 
-~~~text
+[source,text]
+----
 
 xquery version "1.0-ml";
 import module namespace search = "http://marklogic.com/appservices/search" at "/MarkLogic/appservices/search/search.xqy";
@@ -41,13 +43,14 @@ search:search($term,
    <options xmlns="http://marklogic.com/appservices/search">
      <transform-results apply="transformed-result" ns="http://www.markhneedham.com/search" at="transform.xqy" />
    </options>)
-~~~
+----
 
-And then we have another xquery file which we use to do the transformation: 
+And then we have another xquery file which we use to do the transformation:
 
 transfom.xqy
 
-~~~text
+[source,text]
+----
 
 xquery version "1.0-ml";
 module namespace custom-search = "http://markhneedham.com/search";
@@ -68,8 +71,8 @@ declare function custom-search:transformed-result(
 }
 </search:snippet>
 };
-~~~
+----
 
-We put the extra elements that we wanted to include in our search result in the <cite><extra></cite> tag but we can name that anything we want.
+We put the extra elements that we wanted to include in our search result in the +++<cite>++++++<extra>+++</cite> tag but we can name that anything we want.+++</extra>++++++</cite>+++
 
-The code snippets assume that both <cite>search.xqy</cite> and <cite>transform.xqy</cite> are both at the top level of the documents database.
+The code snippets assume that both +++<cite>+++search.xqy+++</cite>+++ and +++<cite>+++transform.xqy+++</cite>+++ are both at the top level of the documents database.

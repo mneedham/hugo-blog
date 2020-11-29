@@ -6,18 +6,18 @@ tag=['scala']
 category=['Scala']
 +++
 
-A few days ago I <a href="http://twitter.com/markhneedham/status/84025938903437312">tweeted that I didn't really see the point in structured types in Scala</a>...
+A few days ago I http://twitter.com/markhneedham/status/84025938903437312[tweeted that I didn't really see the point in structured types in Scala]...
 
-<blockquote>
-Not sure I understand where you would use structural types in #scala instead of defining a method on a trait <a href="http://bit.ly/jgiW7b">http://bit.ly/jgiW7b</a>
-</blockquote>
+____
+Not sure I understand where you would use structural types in #scala instead of defining a method on a trait http://bit.ly/jgiW7b
+____
 
-...but today my colleague Uday came up with a cool way of combining <a href="http://programming-scala.labs.oreilly.com/ch12.html#SelfTypeAnnotations">self type annotations</a> with structured types inside a trait we defined.
+...but today my colleague Uday came up with a cool way of combining http://programming-scala.labs.oreilly.com/ch12.html#SelfTypeAnnotations[self type annotations] with structured types inside a trait we defined.
 
 We had some code duplicated across two classes which looked roughly like this:
 
-
-~~~scala
+[source,scala]
+----
 
 class OnePageType {
   lazy val peopleNodes = root \\ "SomeNode" \ "SomeSubNode" \ "People" \ "Person"
@@ -25,10 +25,10 @@ class OnePageType {
 
   lazy val people: String = peopleNodes.map(fullName).mkString(", ")
 }
-~~~
+----
 
-
-~~~scala
+[source,scala]
+----
 
 class AnotherPageType {
   lazy val peopleNodes = root \\ "OtherNode" \ "OtherSubNode" \ "People" \ "Person"
@@ -36,7 +36,7 @@ class AnotherPageType {
 
   lazy val people: String = peopleNodes.map(fullName).mkString(", ")
 }
-~~~
+----
 
 The first line is different but the other two are identical because the data is stored in exactly the same format once we get down to that level.
 
@@ -44,8 +44,8 @@ Since We want to keep the XPathish queries as descriptive as possible so that we
 
 Instead we pulled out a trait like so:
 
-
-~~~scala
+[source,scala]
+----
 
 trait People {
   self: {val peopleNodes: NodeSeq} =>
@@ -54,19 +54,19 @@ trait People {
 
   lazy val people: String = peopleNodes.map(fullName).mkString(", ")
 }
-~~~
+----
 
 Which we include in the classes like this:
 
-
-~~~scala
+[source,scala]
+----
 
 class OnePageType extends People {}
 class AnotherPageType extends People {}
-~~~
+----
 
-What we're done on line 2 of the <cite>People</cite> trait is to define a self annotation which says that we need a val of <cite>peopleNodes</cite> to be present on the classes in which the trait is mixed.
+What we're done on line 2 of the +++<cite>+++People+++</cite>+++ trait is to define a self annotation which says that we need a val of +++<cite>+++peopleNodes+++</cite>+++ to be present on the classes in which the trait is mixed.
 
-If a val of <cite>peopleNodes</cite> doesn't exist then the class won't compile!
+If a val of +++<cite>+++peopleNodes+++</cite>+++ doesn't exist then the class won't compile!
 
-In this case the structure type works quite well because we wouldn't really want to pull out <cite>peopleNodes</cite> into a trait just to reference it as a self type annotation.
+In this case the structure type works quite well because we wouldn't really want to pull out +++<cite>+++peopleNodes+++</cite>+++ into a trait just to reference it as a self type annotation.

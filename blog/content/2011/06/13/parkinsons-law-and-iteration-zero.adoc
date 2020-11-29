@@ -6,15 +6,13 @@ tag=['software-development']
 category=['Agile']
 +++
 
-I've been thinking a bit about <a href="http://en.wikipedia.org/wiki/Parkinson's_Law">Parkinson's Law</a> recently and its' applicability in software development.
+I've been thinking a bit about http://en.wikipedia.org/wiki/Parkinson's_Law[Parkinson's Law] recently and its' applicability in software development.
 
 Parkinson's law is defined as follows:
 
-<blockquote>
-Parkinson's Law is the adage first articulated by Cyril Northcote Parkinson as the first sentence of a humorous essay published in The Economist in 1955:
-
-“Work expands so as to fill the time available for its completion”
-</blockquote>
+____
+Parkinson's Law is the adage first articulated by Cyril Northcote Parkinson as the first sentence of a humorous essay published in The Economist in 1955: "`Work expands so as to fill the time available for its completion`"
+____
 
 My colleagues quite frequently reference this law with respect to stories taking the amount of time that reflects the story point estimate assigned to them.
 

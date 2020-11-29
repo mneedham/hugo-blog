@@ -6,7 +6,7 @@ tag=['tech-leading']
 category=['Software Development']
 +++
 
-As I <a href="http://www.markhneedham.com/blog/2011/04/17/tech-leading-initial-thoughts/">mentioned a couple of months ago</a>, while I was in India I was acting as the Tech Lead on the project the TWU grads were working on and one thing I learnt from doing that is the importance of trying to keep the passion of the developers on the team.
+As I http://www.markhneedham.com/blog/2011/04/17/tech-leading-initial-thoughts/[mentioned a couple of months ago], while I was in India I was acting as the Tech Lead on the project the TWU grads were working on and one thing I learnt from doing that is the importance of trying to keep the passion of the developers on the team.
 
 When we started off I was more focused on trying to encourage the team to try and develop as many of the stories as possible.
 
