@@ -14,6 +14,6 @@ In Fedora that seems to switch into a different X Server session and you just se
 
 Pressing 'Ctrl-Alt-F1' helps us get back to our original session again.
 
----
+'''
 
 I'm no expert of all things Unix so if I've described anything incorrectly feel free to point it out in the comments.
