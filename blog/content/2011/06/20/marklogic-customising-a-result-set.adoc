@@ -29,11 +29,9 @@ We wanted to be able to get the title of the document and some other meta data a
 
 The original query changes to look like this:
 
-search.xqy
-
+.search.xqy
 [source,text]
 ----
-
 xquery version "1.0-ml";
 import module namespace search = "http://marklogic.com/appservices/search" at "/MarkLogic/appservices/search/search.xqy";
 
@@ -47,8 +45,7 @@ search:search($term,
 
 And then we have another xquery file which we use to do the transformation:
 
-transfom.xqy
-
+.transfom.xqy
 [source,text]
 ----
 

@@ -21,7 +21,7 @@ for $doc in doc() return $doc
 We wanted to make use of the +++<cite>+++http://docs.marklogic.com/4.2doc/docapp.xqy#search.xqy?start=1&cat=all&query=xdmp:document-delete&button=search[xdmp:document-delete]+++</cite>+++ function to tear down all of the modules but that needs a uri representing the location of the document in the database which isn't available in +++<cite>+++$doc+++</cite>+++:
 
 ____
-== xdmp:document-delete
+.xdmp:document-delete
 
 *xdmp:document-delete*( $uri as xs:string ) as empty-sequence() Summary: Deletes a document from the database.
 ____
