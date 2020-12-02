@@ -1,0 +1,41 @@
++++
+draft = false
+date="2008-12-09 21:13:21"
+title="Javascript: Creating quick feedback loops"
+tag=['javascript', 'feedback-loops', 'jquery']
+category=['Software Development', 'jQuery']
++++
+
+I've been working quite a lot with Javascript and in particular http://jquery.com/[jQuery] recently and since I haven't done much in this area before all the tips and tricks are new to me.
+
+One thing which is always useful no matter the programming language is to use it in a way that you can get rapid feedback on what you are doing.
+
+Fortunately there are quite a few tools that allow us to do this with Javascript:
+
+== Firebug
+
+The http://getfirebug.com/[Firefox plugin] is perhaps the quickest way of getting feedback on anything Javascript and indeed CSS related.
+
+The ability to see which HTTP calls have been made on a page is invaluable for checking whether AJAX functionality is working correctly and DOM manipulation can be executed and tested on the fly.
+
+Including jQuery in a page effectively makes Firebug the jQuery Interactive Console, allowing us to try out the different functions and see their effects immediately.
+
+== Unit Testing Frameworks
+
+There are several javascript unit testing frameworks around at the moment which run in the browser and provide the ability to write assertions on our code.
+
+I have been using http://docs.jquery.com/QUnit[QUnit] and http://github.com/nkallen/screw-unit/tree/master[screw-unit] and while they work reasonably well for simple tests, neither seems to be at the level of JUnit or NUnit for example. I'm sure this will come as they mature.
+
+Other frameworks I've heard about but not tried: http://code.google.com/p/rhinounit/[RhinoUnit], http://www.valleyhighlands.com/testingframeworks/[JSNUnit], http://www.jsunit.net/[JSUnit], no doubt there are others I haven't heard about yet.
+
+== Selenium IDE
+
+The http://seleniumhq.org/projects/ide/[sometimes forgotten Firefox plugin] is very useful for quickly creating repeatable scenarios to see the impact that code changes have had.
+
+The beauty of this approach is that it takes out the manual steps in the process, so we can just make our changes and then re-run the test. The runner lights up green or red, taking out the need to manually verify the correctness of our assertions. +
+
+== Alert
+
+The http://www.mediacollege.com/internet/javascript/basic/alert.html['alert'] function is perhaps most useful when we want to quickly verify the path being taken through a piece of code without having to step through it using the Firebug debugger.
+
+It's probably more useful for proving our assumptions than actual debugging and it's certainly quick and easy to set up.

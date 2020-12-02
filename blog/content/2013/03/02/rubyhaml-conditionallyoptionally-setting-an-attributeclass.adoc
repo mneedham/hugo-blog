@@ -1,0 +1,45 @@
++++
+draft = false
+date="2013-03-02 23:22:50"
+title="Ruby/Haml: Conditionally/Optionally setting an attribute/class"
+tag=['ruby', 'haml']
+category=['Ruby']
++++
+
+One of the things that we want to do reasonably frequently is set an attribute (most often a class) on a HTML element depending on the value of a variable.
+
+I always forget how to do this in Haml so I thought I better write it down so I'll remember next time!
+
+Let's say we want to add a +++<cite>+++success+++</cite>+++ class to a paragraph if the variable +++<cite>+++correct+++</cite>+++ is true and not have any value if it's false.
+
+The following code does what we want:
+
+[source,haml]
+----
+
+- correct = true
+%p{:class => (correct ? "success" : nil) }
+  important text
+----
+
+This generates the following HTML is +++<cite>+++correct+++</cite>+++ is true:
+
+[source,html4strict]
+----
+
+<p class="success">
+  important text
+</p>
+----
+
+And the following HTML if it's false
+
+[source,html4strict]
+----
+
+<p>
+  important text
+</p>
+----
+
+To summarise, http://stackoverflow.com/questions/3841116/conditionally-set-html-element-id-with-haml[if we set an attribute to nil in Haml it just won't be rendered at all] which is exactly what we want in this situation.

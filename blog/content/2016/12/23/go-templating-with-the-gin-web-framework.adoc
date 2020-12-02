@@ -1,0 +1,276 @@
++++
+draft = false
+date="2016-12-23 14:30:09"
+title="Go: Templating with the Gin Web Framework"
+tag=['go', 'golang']
+category=['Go']
++++
+
+I spent a bit of time over the last week building a little internal web application using Go and the https://github.com/gin-gonic/gin[Gin Web Framework] and it took me a while to get the hang of the templating language so I thought I'd write up some examples.
+
+Before we get started, I've got my GOPATH set to the following path:
+
+[source,bash]
+----
+
+$ echo $GOPATH
+/Users/markneedham/projects/gocode
+----
+
+And the project containing the examples sits inside the src directory:
+
+[source,bash]
+----
+
+$ pwd
+/Users/markneedham/projects/gocode/src/github.com/mneedham/golang-gin-templating-demo
+----
+
+Let's first install Gin:
+
+[source,bash]
+----
+
+$ go get gopkg.in/gin-gonic/gin.v1
+----
+
+It gets installed here:
+
+[source,bash]
+----
+
+$ ls -lh $GOPATH/src/gopkg.in
+total 0
+drwxr-xr-x   3 markneedham  staff   102B 23 Dec 10:55 gin-gonic
+----
+
+Now let's create a main function to launch our web application:
+
++++<cite>+++demo.go+++</cite>+++
+
+[source,go]
+----
+
+package main
+
+import (
+	"github.com/gin-gonic/gin"
+	"net/http"
+)
+
+func main() {
+	router := gin.Default()
+	router.LoadHTMLGlob("templates/*")
+
+	// our handlers will go here
+
+	router.Run("0.0.0.0:9090")
+}
+----
+
+We're launching our application on port 9090 and the templates live in the +++<cite>+++templates+++</cite>+++ directory which is located relative to the file containing the main function:
+
+[source,bash]
+----
+
+$ ls -lh
+total 8
+-rw-r--r--  1 markneedham  staff   570B 23 Dec 13:34 demo.go
+drwxr-xr-x  4 markneedham  staff   136B 23 Dec 13:34 templates
+----
+
+== Arrays
+
+Let's create a route which will display the values of an array in an unordered list:
+
+[source,go]
+----
+
+	router.GET("/array", func(c *gin.Context) {
+		var values []int
+		for i := 0; i < 5; i++ {
+			values = append(values, i)
+		}
+
+		c.HTML(http.StatusOK, "array.tmpl", gin.H{"values": values})
+	})
+----
+
+[source,html]
+----
+
+<ul>
+  {{ range .values }}
+  <li>{{ . }}</li>
+  {{ end }}
+</ul>
+----
+
+And now we'll cURL our application to see what we get back:
+
+[source,bash]
+----
+
+$ curl http://localhost:9090/array
+<ul>
+  <li>0</li>
+  <li>1</li>
+  <li>2</li>
+  <li>3</li>
+  <li>4</li>
+</ul>
+----
+
+What about if we have an array of structs instead of just strings?
+
+[source,go]
+----
+
+import "strconv"
+
+type Foo struct {
+	value1 int
+	value2 string
+}
+
+	router.GET("/arrayStruct", func(c *gin.Context) {
+		var values []Foo
+		for i := 0; i < 5; i++ {
+			values = append(values, Foo{Value1: i, Value2: "value " + strconv.Itoa(i)})
+		}
+
+		c.HTML(http.StatusOK, "arrayStruct.tmpl", gin.H{"values": values})
+	})
+----
+
+[source,html]
+----
+
+<ul>
+  {{ range .values }}
+  <li>{{ .Value1 }} -> {{ .Value2 }}</li>
+  {{ end }}
+</ul>
+----
+
+cURL time:
+
+[source,bash]
+----
+
+$ curl http://localhost:9090/arrayStruct
+<ul>
+  <li>0 -> value 0</li>
+  <li>1 -> value 1</li>
+  <li>2 -> value 2</li>
+  <li>3 -> value 3</li>
+  <li>4 -> value 4</li>
+</ul>
+----
+
+== Maps
+
+Now let's do the same for maps.
+
+[source,go]
+----
+
+	router.GET("/map", func(c *gin.Context) {
+		values := make(map[string]string)
+		values["language"] = "Go"
+		values["version"] = "1.7.4"
+
+		c.HTML(http.StatusOK, "map.tmpl", gin.H{"myMap": values})
+	})
+----
+
+[source,html]
+----
+
+<ul>
+  {{ range .myMap }}
+  <li>{{ . }}</li>
+  {{ end }}
+</ul>
+----
+
+And cURL it:
+
+[source,bash]
+----
+
+$ curl http://localhost:9090/map
+<ul>
+  <li>Go</li>
+  <li>1.7.4</li>
+</ul>
+----
+
+What if we want to see the keys as well?
+
+[source,go]
+----
+
+	router.GET("/mapKeys", func(c *gin.Context) {
+		values := make(map[string]string)
+		values["language"] = "Go"
+		values["version"] = "1.7.4"
+
+		c.HTML(http.StatusOK, "mapKeys.tmpl", gin.H{"myMap": values})
+	})
+----
+
+[source,html]
+----
+
+<ul>
+  {{ range $key, $value := .myMap }}
+  <li>{{ $key }} -> {{ $value }}</li>
+  {{ end }}
+</ul>
+----
+
+[source,bash]
+----
+
+$ curl http://localhost:9090/mapKeys
+<ul>
+  <li>language -> Go</li>
+  <li>version -> 1.7.4</li>
+</ul>
+----
+
+And finally, what if we want to select specific values from the map?
+
+[source,go]
+----
+
+	router.GET("/mapSelectKeys", func(c *gin.Context) {
+		values := make(map[string]string)
+		values["language"] = "Go"
+		values["version"] = "1.7.4"
+
+		c.HTML(http.StatusOK, "mapSelectKeys.tmpl", gin.H{"myMap": values})
+	})
+----
+
+[source,html]
+----
+
+<ul>
+  <li>Language: {{ .myMap.language }}</li>
+  <li>Version: {{ .myMap.version }}</li>
+</ul>
+----
+
+[source,bash]
+----
+
+$ curl http://localhost:9090/mapSelectKeys
+<ul>
+  <li>Language: Go</li>
+  <li>Version: 1.7.4</li>
+</ul>
+----
+
+I've found the https://gohugo.io/templates/go-templates/[Hugo Go Template Primer] helpful for figuring this out so that's a good reference if you get stuck. You can find a https://github.com/mneedham/golang-gin-templating-demo/blob/master/demo.go[go file containing all the examples on github] if you want to use that as a starting point.

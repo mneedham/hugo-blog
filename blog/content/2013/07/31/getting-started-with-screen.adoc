@@ -1,0 +1,104 @@
++++
+draft = false
+date="2013-07-31 05:41:12"
+title="Getting started with screen"
+tag=['screen']
+category=['Software Development']
++++
+
+Last week I had a ~10GB file I wanted to download to my machine but Chrome's initial estimate was that it would take 10+ hours to do so which meant I'd have probably shutdown my machine before it had completed.
+
+It seemed to make more sense to spin up an EC2 instance and download it onto there instead but I didn't want to have to keep an SSH session open to that machine either.
+
+I've previously come across http://www.gnu.org/software/screen/[screen] and http://tmux.sourceforge.net/[tmux] which allow you to create a session in which you can do some work even if you aren't currently connected to it which was perfect for my use case.
+
+screen was a bit more familiar so I decided to use that and I thought I should make a quick note of some of its basic flags for future me.
+
+== Starting a new session
+
+Starting a new screen session is as simple as typing the following command:
+
+[source,bash]
+----
+
+$ screen
+----
+
+which leads to the following output:
+
+[source,bash]
+----
+
+Screen version 4.00.03jw4 (FAU) 2-May-06
+
+Copyright (c) 1993-2002 Juergen Weigert, Michael Schroeder
+Copyright (c) 1987 Oliver Laumann
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2, or (at your option) any later
+version.
+...
+----
+
+We can now start downloading our file using cURL, wget or a download accelerator like http://freecode.com/projects/axel[axel] which is my personal favourite.
+
+== Detaching/Exiting from a session without it dying
+
+Once I'd got the download running I wanted to close my SSH session to the AWS instance but first I wanted to detach from my screen session without killing it.
+
+My first attempt was to use +++<cite>+++Ctrl + D+++</cite>+++ but that actually results in the session being terminated and our download is therefore stopped as well which isn't quite what we wanted.
+
+Instead what we want to do is http://www.gnu.org/software/screen/manual/screen.html#Detach[detach] from the session which allows us to http://stackoverflow.com/questions/4847691/how-do-i-get-out-of-a-screen-without-typing-exit[leave it but keep it running]. To do that we type +++<cite>+++Ctrl + A+++</cite>+++ followed by +++<cite>+++Ctrl + D+++</cite>+++.
+
+== Reattaching to a session
+
+After about an hour I wanted to checkup on my download and I assumed just typing +++<cite>+++screen+++</cite>+++ would take me back to my session but instead it created a new one.
+
+http://www.apcjones.com/blog/[Alistair] pointed out that I could get a listing of all the open screen sessions by typing the following command:
+
+[source,bash]
+----
+
+$ screen -ls
+There are screens on:
+	23397.pts-0.ip-10-243-5-102	(07/31/2013 05:25:30 AM)	(Detached)
+	3981.pts-0.ip-10-243-5-102	(07/26/2013 07:59:28 AM)	(Detached)
+	3910.pts-0.ip-10-243-5-102	(07/26/2013 07:58:42 AM)	(Detached)
+	1094.pts-0.ip-10-243-5-102	(07/26/2013 07:49:31 AM)	(Detached)
+4 Sockets in /var/run/screen/S-ubuntu.
+----
+
+As you can see, I'd created a bunch of extra sessions by mistake.
+
+The one I had the download running on was '1094.pts-0.ip-10-243-5-102' and we can reattach to that one like this:
+
+[source,bash]
+----
+
+$ screen -x 1094.pts-0.ip-10-243-5-102
+----
+
+We can also attach using the '-r' flag:
+
+[source,bash]
+----
+
+$ screen -r 1094.pts-0.ip-10-243-5-102
+----
+
+I'm not quite sure what the difference is between '-r' and '-x', they both seem to behave in the same way in this scenario.
+
+The manual suggests that '-x' is for attaching to a 'not detached screen session' which suggests to me that it shouldn't have worked since I wanted to connect to a detached session.
+
+Hopefully someone with more knowledge of how these things work can explain what's going on!
+
+== Attach to an existing session or start a new one if none exists
+
+I http://serverfault.com/questions/38417/reattach-or-create-a-named-screen-session-or-persistent-screen-sessions[later learnt] that had I not accidentally created all those extra sessions the following command would have been quite useful for finding the first screen session available and connecting to it:
+
+[source,bash]
+----
+
+$ screen -x -R
+----
+
+If there aren't any existing screen sessions available then it will create a new one which means that in my particular situation this would have been a more appropriate command to start with.

@@ -1,0 +1,46 @@
++++
+draft = false
+date="2013-03-02 22:19:11"
+title="Ruby/Haml: Maintaining white space/indentation in a <pre> tag"
+tag=['ruby', 'haml']
+category=['Ruby']
++++
+
+I've been writing a little web app in which I wanted to display cypher queries inside a
+
+....
+ tag which was then prettified using SyntaxHighlighter but I was having problems with how code on new lines was being displayed.</p>
+
+
+I had the following Haml code to display a query looking up Gareth Bale in a graph:
+
+
+
+~~~haml
+
+%pre{ :class => "brush: cypher; gutter: false; toolbar: false;"}
+  START player = node:players('name:"Gareth Bale"')
+  RETURN player.name
+~~~
+
+When I rendered the page it looked like this:
+
+
+
+
+
+
+After a bit of googling I ended up on this Stack Overflow post which described the preserve helper which seems to do the job:
+
+
+
+~~~haml
+
+%pre{ :class => "brush: cypher; gutter: false; toolbar: false;"}
+  = preserve do
+    START player = node:players('name:"Gareth Bale"')
+    RETURN player.name
+~~~
+
+That part of the page now looks much better:
+....

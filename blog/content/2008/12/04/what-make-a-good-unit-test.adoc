@@ -1,0 +1,55 @@
++++
+draft = false
+date="2008-12-04 00:31:29"
+title="What makes a good unit test?"
+tag=['tdd', 'testing', 'unit-test']
+category=['Testing']
++++
+
+Following on from my post around the http://www.markhneedham.com/blog/2008/10/10/what-is-a-unit-test/[definition of a unit test], a recent discussion on the http://www.nabble.com/Test-Driven-Development-f17142.html[Test Driven Development mailing list] led me to question what my own approach is for writing unit tests.
+
+To self quote from my previous post:
+
+____
+A well written unit test in my book should be simple to understand and run quickly.
+____
+
+Quite simple in theory but as I have learnt (and am still learning) the hard way, much harder to do in practice. Breaking that down further what does it actually mean?
+
+== Intention revealing name
+
+There was some discussion a few months ago with regards to whether test names were actual valuable, but as the majority of my work has been in Java or C# I think it is very important.
+
+I favour http://www.markhneedham.com/blog/2008/10/10/what-is-a-unit-test/[BDD style test names] which describe the behaviour of what we are testing rather than the implementation details. For me naming the tests in this way allows people who look at the test in future to question whether it is a valid test as well as whether it is actually doing what it claims to be doing.
+
+== No clutter
+
+If we can keep tests short and to the point they are much easier for the next person to read.
+
+To achieve this we need to ensure that we keep the code in the test method to the minimum, including putting object setup code into another method so that it doesn't clutter the test and only setting the expectations that we care about if we are using a mocking framework.
+
+This is made much easier by the http://ayende.com/Blog/archive/2008/05/16/Rhino-Mocks--Arrange-Act-Assert-Syntax.aspx[Arrange-Act-Assert] approach being followed by mocking frameworks nowadays. I think this approach maps quite nicely to the Given-When-Then BDD syntax as a nice way of defining our tests or examples in BDD land.
+
+== Don't remove all duplication
+
+While removing duplication from code is generally a good thing I don't think we should apply the DRY principle too judiciously on test code.
+
+As http://fragmental.tw/2008/07/02/domain-driven-tests/[Phil points out] this can make tests very difficult to read and understand. I tend to favour test expressiveness over removing all duplication.
+
+== One behaviour per test
+
+I used to try and follow the idea of having only one assertion per test but Sczcepan's idea of http://monkeyisland.pl/2008/01/31/10rules/[testing one behaviour per class] is much better.
+
+This is one part of writing tests where we should stick to the http://en.wikipedia.org/wiki/Single_responsibility_principle[Single Responsibility Principle] in as far as not overloading the test with assertions which then make it more difficult to work out where the code failed if a test fails.
+
+== Expressive failure messages
+
+When using JUnit or NUnit for assertions in the IDE the assertion failure messages don't really make much difference because we have the code fresh in our mind and it's only one click to get to the failure.
+
+If an assertion with either of these frameworks fails on the build on the other hand it's much harder at a glance to tell exactly why it failed. This is why I favour http://code.google.com/p/hamcrest/[Hamcrest] which tells you precisely why your test failed.
+
+== In Summary
+
+For me the key with unit tests is to make sure that other people in the team can read and understand them easily.
+
+No doubt there are other ways of ensuring our unit tests are well written but these are the ways that I consider the most important at the moment.

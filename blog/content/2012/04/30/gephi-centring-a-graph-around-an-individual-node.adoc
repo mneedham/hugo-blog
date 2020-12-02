@@ -1,0 +1,37 @@
++++
+draft = false
+date="2012-04-30 22:20:45"
+title="gephi: Centring a graph around an individual node"
+tag=['neo4j', 'graphs', 'gephi']
+category=['Software Development', 'neo4j']
++++
+
+I spent some time recently playing around with http://gephi.org/[gephi] - an open source platform for creating visualisations of graphs - to get a bit more insight into the ThoughtWorks graph which I've created in neo4j.
+
+I http://maxdemarzi.com/2012/04/12/using-sigma-js-with-neo4j/[followed Max De Marxi's blog post] to create a GEFX (Graph Exchange XML Format) file to use in gephi although I later learned that you can import directly from neo4j into gephi which I haven't tried yet.
+
+I loaded it into gephi and this is what it looks like:
+
+image::{{<siteurl>}}/uploads/2012/04/full-graph.jpg[Full graph,600]
+
+image::{{<siteurl>}}/uploads/2012/04/filter-menu-top.jpg[Filter menu top,270]
+
+There are massive numbers of connections between almost every node so it's pretty hard to see what's going on.
+
+I wanted to be able to centre the graph around an individual person and see just the links related to them.
+
+To do that we need to make use of an 'http://forum.gephi.org/viewtopic.php?t=286[ego] http://blog.ouseful.info/2010/05/10/getting-started-with-gephi-network-visualisation-app-%E2%80%93-my-facebook-network-part-iii-ego-filters-and-simple-network-stats/[filter]' so the first step is to make the filters menu visible by clicking 'Window > Filters'.
+
+We can then choose the ego filter which sits under 'Library > Topology' and fill in the ID of the node that we want to centre the graph around as well as choose the depth of the traversal.
+
+image::{{<siteurl>}}/uploads/2012/04/filter-menu-bottom.jpg[Filter menu bottom,257]
+
+In this case any traversal above 1 will end up traversing the majority of the graph since the average distance between nodes in this graph is just above 2.5.
+
+I run the 'Force Atlas' layout algorithm over it and this is what we end up with:
+
+image::{{<siteurl>}}/uploads/2012/04/my-graph.jpg[My graph,545]
+
+My graph shows some interesting clustering of nodes where the ones on the right are people I worked with in India, top left are people I worked with in Australia, bottom left people in the UK and the ones towards the lower middle are people I went to ThoughtWorks University with.
+
+There are a load of other filters to choose from but the ego filter is pretty cool!

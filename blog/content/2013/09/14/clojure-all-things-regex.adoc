@@ -1,0 +1,182 @@
++++
+draft = false
+date="2013-09-14 01:24:51"
+title="Clojure: All things regex"
+tag=['clojure']
+category=['Clojure']
++++
+
+I've been doing some http://www.markhneedham.com/blog/2013/08/26/clojureenlive-screen-scraping-a-html-file-from-disk/[scrapping of web pages recently using Clojure and Enlive] and as part of that I've had to write regular expressions to extract the data I'm interested in.
+
+On my travels I've come across a few different functions and I'm never sure which is the right one to use so I thought I'd document what I've tried for future me.
+
+== Check if regex matches
+
+The first regex I wrote was while scrapping the http://www.rsssf.com/ec/ec200203det.html[Champions League results] from the Rec.Sport.Soccer Statistics Foundation and I wanted to determine which spans contained the match result and which didn't.
+
+A matching line would look like this:
+
+[source,text]
+----
+
+Real Madrid-Juventus Turijn 2 - 1
+----
+
+And a non matching one like this:
+
+[source,text]
+----
+
+53’Nedved 0-1, 66'Xavi Hernández 1-1, 114’Zalayeta 1-2
+----
+
+I wrote the following regex to detect match results:
+
+[source,text]
+----
+
+[a-zA-Z\s]+-[a-zA-Z\s]+ [0-9][\s]?.[\s]?[0-9]
+----
+
+I then wrote the following function using +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/re-matches[re-matches]+++</cite>+++ which would return true or false depending on the input:
+
+[source,lisp]
+----
+
+(defn recognise-match? [row]
+  (not (clojure.string/blank? (re-matches #"[a-zA-Z\s]+-[a-zA-Z\s]+ [0-9][\s]?.[\s]?[0-9]" row))))
+----
+
+[source,lisp]
+----
+
+> (recognise-match? "Real Madrid-Juventus Turijn 2 - 1")
+true
+> (recognise-match? "53’Nedved 0-1, 66'Xavi Hernández 1-1, 114’Zalayeta 1-2")
+false
+----
+
++++<cite>+++re-matches+++</cite>+++ only returns matches if the whole string matches the pattern which means if we had a line with some spurious text after the score it wouldn't match:
+
+[source,lisp]
+----
+
+> (recognise-match? "Real Madrid-Juventus Turijn 2 - 1 abc")
+false
+----
+
+If we don't mind that and we just want some part of the string to match our pattern then we can use +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/re-find[re-find]+++</cite>+++ instead:
+
+[source,lisp]
+----
+
+(defn recognise-match? [row]
+  (not (clojure.string/blank? (re-find #"[a-zA-Z\s]+-[a-zA-Z\s]+ [0-9][\s]?.[\s]?[0-9]" row))))
+----
+
+[source,lisp]
+----
+
+> (recognise-match? "Real Madrid-Juventus Turijn 2 - 1 abc")
+true
+----
+
+== Extract capture groups
+
+The next thing I wanted to do was to capture the teams and the score of the match which I initially did using +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/re-seq[re-seq]+++</cite>+++:
+
+[source,lisp]
+----
+
+> (first (re-seq #"([a-zA-Z\s]+)-([a-zA-Z\s]+) ([0-9])[\s]?.[\s]?([0-9])" "FC Valencia-Internazionale Milaan 2 - 1"))
+["FC Valencia-Internazionale Milaan 2 - 1" "FC Valencia" "Internazionale Milaan" "2" "1"]
+----
+
+I then extracted the various parts like so:
+
+[source,lisp]
+----
+
+> (def result (first (re-seq #"([a-zA-Z\s]+)-([a-zA-Z\s]+) ([0-9])[\s]?.[\s]?([0-9])" "FC Valencia-Internazionale Milaan 2 - 1")))
+
+> result
+["FC Valencia-Internazionale Milaan 2 - 1" "FC Valencia" "Internazionale Milaan" "2" "1"]
+
+
+> (nth result 1)
+"FC Valencia"
+
+> (nth result 2)
+"Internazionale Milaan"
+----
+
++++<cite>+++re-seq+++</cite>+++ returns a list which contains consecutive matches of the regex. The list will either contain strings if we don't specify capture groups or a vector containing the pattern matched and each of the capture groups.
+
+For example if we now match only sequences of A-Z or spaces and remove the rest of the pattern from above we'd get the following results:
+
+[source,lisp]
+----
+
+> (re-seq #"([a-zA-Z\s]+)" "FC Valencia-Internazionale Milaan 2 - 1")
+(["FC Valencia" "FC Valencia"] ["Internazionale Milaan " "Internazionale Milaan "] [" " " "] [" " " "])
+
+> (re-seq #"[a-zA-Z\s]+" "FC Valencia-Internazionale Milaan 2 - 1")
+("FC Valencia" "Internazionale Milaan " " " " ")
+----
+
+In our case +++<cite>+++re-find+++</cite>+++ or +++<cite>+++re-matches+++</cite>+++ actually makes more sense since we only want to match the pattern once. If there are further matches after this those aren't included in the results. e.g.
+
+[source,lisp]
+----
+
+> (re-find #"[a-zA-Z\s]+" "FC Valencia-Internazionale Milaan 2 - 1")
+"FC Valencia"
+
+> (re-matches #"[a-zA-Z\s]*" "FC Valencia-Internazionale Milaan 2 - 1")
+nil
+----
+
++++<cite>+++re-matches+++</cite>+++ returns nil here because there are characters in the string which don't match the pattern i.e. the hyphen between the two scores.
+
+If we tie that in with our capture groups we end up with the following:
+
+[source,lisp]
+----
+
+> (def result
+    (re-find #"([a-zA-Z\s]+)-([a-zA-Z\s]+) ([0-9])[\s]?.[\s]?([0-9])" "FC Valencia-Internazionale Milaan 2 - 1"))
+
+> result
+["FC Valencia-Internazionale Milaan 2 - 1" "FC Valencia" "Internazionale Milaan" "2" "1"]
+
+> (nth result 1)
+"FC Valencia"
+
+> (nth result 2)
+"Internazionale Milaan"
+----
+
+I also came across the +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/re-pattern[re-pattern]+++</cite>+++ function which provides a more verbose way of creating a pattern and then evaluating it with +++<cite>+++re-find+++</cite>+++:
+
+[source,lisp]
+----
+
+> (re-find (re-pattern "([a-zA-Z\\s]+)-([a-zA-Z\\s]+) ([0-9])[\\s]?.[\\s]?([0-9])") "FC Valencia-Internazionale Milaan 2 - 1")
+["FC Valencia-Internazionale Milaan 2 - 1" "FC Valencia" "Internazionale Milaan" "2" "1"]
+----
+
+One difference here is that I had to escape the special sequence '\s' otherwise I was getting the following exception:
+
+[source,lisp]
+----
+
+RuntimeException Unsupported escape character: \s  clojure.lang.Util.runtimeException (Util.java:170)
+----
+
+I wanted to play around with +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/re-groups[re-groups]+++</cite>+++ as well but that seemed to throw an exception reasonably frequently when I expected it to work.</cite>
+
+The last function I looked at was +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/re-matcher[re-matcher]+++</cite>+++ which seemed to be a long-hand for the '#""' syntax used earlier in the post to define matchers: ~~~lisp > (re-find (re-matcher #"([a-zA-Z\s]+)-([a-zA-Z\s]+) ([0-9])[\s]?.[\s]?([0-9])" "FC Valencia-Internazionale Milaan 2 - 1")) ["FC Valencia-Internazionale Milaan 2 - 1" "FC Valencia" "Internazionale Milaan" "2" "1"] ~~~
+
+== In summary
+
+So in summary I think most use cases are covered by +++<cite>+++re-find+++</cite>+++ and +++<cite>+++re-matches+++</cite>+++ and maybe +++<cite>+++re-seq+++</cite>+++ on special occasions. I couldn't see where I'd use the other functions but I'm happy to be proved wrong.

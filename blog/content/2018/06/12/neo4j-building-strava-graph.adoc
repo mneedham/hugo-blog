@@ -288,7 +288,7 @@ CALL apoc.periodic.iterate(
 
 Now that we've got the data imported let's write a few queries to check how much data we've imported.
 
-=== How many runs are there?
+== How many runs are there?
 
 [source, cypher]
 ----
@@ -305,7 +305,7 @@ RETURN count(*)
 └──────────┘
 ----
 
-=== How many segments?
+== How many segments?
 
 [source, cypher]
 ----
@@ -322,7 +322,7 @@ RETURN count(*)
 └──────────┘
 ----
 
-=== How many efforts on those segments?
+== How many efforts on those segments?
 
 [source, cypher]
 ----
@@ -339,7 +339,7 @@ RETURN count(*)
 └──────────┘
 ----
 
-=== Which segment has the most efforts?
+== Which segment has the most efforts?
 
 [source, cypher]
 ----

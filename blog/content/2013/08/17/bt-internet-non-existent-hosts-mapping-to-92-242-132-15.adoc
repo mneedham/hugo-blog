@@ -1,0 +1,69 @@
++++
+draft = false
+date="2013-08-17 21:13:27"
+title="BT Internet: Non existent hosts mapping to 92.242.132.15"
+tag=['software-development']
+category=['Software Development']
++++
+
+We have a test in our code which checks for unresolvable hosts and it started failing for me because instead of throwing an UnknownHostException from the following call:
+
+[source,java]
+----
+
+InetAddress.getByName( "host.that.is.invalid" )
+----
+
+I was getting back a valid although unreachable host. When I called ping it was easier to see what was going on:
+
+[source,bash]
+----
+
+$ ping host.that.is.invalid
+PING host.that.is.invalid (92.242.132.15): 56 data bytes
+Request timeout for icmp_seq 0
+Request timeout for icmp_seq 1
+Request timeout for icmp_seq 2
+----
+
+As you can see, that hostname is resolving to '92.242.132.15' which I thought was a bit weird but dig confirmed that this was happening:
+
+[source,bash]
+----
+
+$ dig host.that.is.invalid
+
+; <<>> DiG 9.8.3-P1 <<>> host.that.is.invalid
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 30043
+;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0
+
+;; QUESTION SECTION:
+;host.that.is.invalid.		IN	A
+
+;; ANSWER SECTION:
+host.that.is.invalid.	300	IN	A	92.242.132.15
+----
+
+It turns out that http://community.bt.com/t5/BB-Speed-Connection-Issues/DNS-oddity/td-p/49653[BT have plugged into DNS searches] and if one fails it redirects you to one of their pages instead - something I hadn't noticed before.
+
+The site they direct you to is www.webaddresshelp.bt.com which contains a list of sponsored results for the search term 'host.that.is.invalid' in this case.
+
+[source,bash]
+----
+
+$ ping www.webaddresshelp.bt.com
+PING www.webaddresshelp.bt.com (92.242.134.15): 56 data bytes
+----
+
+Luckily this can be disabled by going to link:[BT Web Address Help] and then choosing to http://preferences.webaddresshelp.bt.com/selfcare/preferences.cgi[disable BT Web Address Help].
+
+If we then wait a little bit for our DNS cache to clear the ping works as expected:
+
+[source,bash]
+----
+
+$ ping host.that.is.invalid
+ping: cannot resolve host.that.is.invalid: Unknown host
+----

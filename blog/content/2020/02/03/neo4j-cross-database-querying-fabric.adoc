@@ -89,7 +89,7 @@ In our case, both these values are the same.
 
 Let's write some queries!
 
-=== Who didn't drop a set in the whole tournament?
+== Who didn't drop a set in the whole tournament?
 
 If we wanted to find out which players didn't drop a set in the whole tournament, we could write the following query:
 
@@ -229,7 +229,7 @@ ORDER BY t.year
 Sweet!
 The data's sorted correctly and we only had to specify the main part of the query once.
 
-==== How long did players wait from their first final defeat until their first win?
+== How long did players wait from their first final defeat until their first win?
 
 Let's use Fabric to look at one more query.
 

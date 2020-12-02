@@ -1,0 +1,121 @@
++++
+draft = false
+date="2013-09-20 21:13:01"
+title="Clojure: Converting an array/set into a hash map"
+tag=['clojure']
+category=['Clojure']
++++
+
+When I was http://www.markhneedham.com/blog/2013/08/31/elo-rating-system-ranking-champions-league-teams-using-clojure/[implementing the Elo Rating algorithm] a few weeks ago one thing I needed to do was come up with a base ranking for each team.
+
+I started out with a set of teams that looked like this:
+
+[source,lisp]
+----
+
+(def teams #{ "Man Utd" "Man City" "Arsenal" "Chelsea"})
+----
+
+and I wanted to transform that into a map from the team to their ranking e.g.
+
+[source,text]
+----
+
+Man Utd -> {:points 1200}
+Man City -> {:points 1200}
+Arsenal -> {:points 1200}
+Chelsea -> {:points 1200}
+----
+
+I had read the documentation of +++<cite>+++http://clojuredocs.org/clojure_core/1.2.0/clojure.core/array-map[array-map]+++</cite>+++, a function which can be used to transform a collection of pairs into a map, and it seemed like it might do the trick.
+
+I started out by building an array of pairs using +++<cite>+++http://clojuredocs.org/clojure_core/1.2.0/clojure.core/mapcat[mapcat]+++</cite>+++:
+
+[source,lisp]
+----
+
+> (mapcat (fn [x] [x {:points 1200}]) teams)
+("Chelsea" {:points 1200} "Man City" {:points 1200} "Arsenal" {:points 1200} "Man Utd" {:points 1200})
+----
+
++++<cite>+++array-map+++</cite>+++ constructs a map from pairs of values e.g.
+
+[source,lisp]
+----
+
+> (array-map "Chelsea" {:points 1200} "Man City" {:points 1200} "Arsenal" {:points 1200} "Man Utd" {:points 1200})
+("Chelsea" {:points 1200} "Man City" {:points 1200} "Arsenal" {:points 1200} "Man Utd" {:points 1200})
+----
+
+Since we have a collection of pairs rather than individual pairs we need to use the +++<cite>+++http://clojuredocs.org/clojure_core/1.2.0/clojure.core/apply[apply]+++</cite>+++ function as well:
+
+[source,lisp]
+----
+
+> (apply array-map ["Chelsea" {:points 1200} "Man City" {:points 1200} "Arsenal" {:points 1200} "Man Utd" {:points 1200}])
+{"Chelsea" {:points 1200}, "Man City" {:points 1200}, "Arsenal" {:points 1200}, "Man Utd" {:points 1200}}
+----
+
+And if we put it all together we end up with the following:
+
+[source,lisp]
+----
+
+> (apply array-map (mapcat (fn [x] [x {:points 1200}]) teams))
+{"Man Utd"  {:points 1200}, "Man City" {:points 1200}, "Arsenal"  {:points 1200}, "Chelsea"  {:points 1200}}
+----
+
+It works but the function we pass to +++<cite>+++mapcat+++</cite>+++ feels a bit clunky. Since we just need to create a collection of team/ranking pairs we can use the +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/vector[vector]+++</cite>+++ and +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/repeat[repeat]+++</cite>+++ functions to build that up instead:
+
+[source,lisp]
+----
+
+> (mapcat vector teams (repeat {:points 1200}))
+("Chelsea" {:points 1200} "Man City" {:points 1200} "Arsenal" {:points 1200} "Man Utd" {:points 1200})
+----
+
+And if we put the +++<cite>+++apply array-map+++</cite>+++ code back in we still get the desired result:
+
+[source,lisp]
+----
+
+> (apply array-map (mapcat vector teams (repeat {:points 1200})))
+{"Chelsea" {:points 1200}, "Man City" {:points 1200}, "Arsenal" {:points 1200}, "Man Utd" {:points 1200}}
+----
+
+Alternatively we could use +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/assoc[assoc]+++</cite>+++ like this:
+
+[source,lisp]
+----
+
+> (apply assoc {} (mapcat vector teams (repeat {:points 1200})))
+{"Man Utd" {:points 1200}, "Arsenal" {:points 1200}, "Man City" {:points 1200}, "Chelsea" {:points 1200}}
+----
+
+I also came across the +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/into[into]+++</cite>+++ function which seemed useful but took in a collection of vectors:
+
+[source,lisp]
+----
+
+> (into {} [["Chelsea" {:points 1200}] ["Man City" {:points 1200}] ["Arsenal" {:points 1200}] ["Man Utd" {:points 1200}] ])
+----
+
+We therefore need to change the code to use +++<cite>+++map+++</cite>+++ instead of +++<cite>+++mapcat+++</cite>+++:
+
+[source,lisp]
+----
+
+> (into {} (map vector teams (repeat {:points 1200})))
+{"Chelsea" {:points 1200}, "Man City" {:points 1200}, "Arsenal" {:points 1200}, "Man Utd" {:points 1200}}
+----
+
+However, my favourite version so far uses the +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/zipmap[zipmap]+++</cite>+++ function like so:
+
+[source,lisp]
+----
+
+> (zipmap teams (repeat {:points 1200}))
+{"Man Utd" {:points 1200}, "Arsenal" {:points 1200}, "Man City" {:points 1200}, "Chelsea" {:points 1200}}
+----
+
+I'm sure there are other ways to do this as well so if you know any let me know in the comments.

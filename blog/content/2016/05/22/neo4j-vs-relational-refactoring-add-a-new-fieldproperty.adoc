@@ -1,0 +1,71 @@
++++
+draft = false
+date="2016-05-22 09:09:27"
+title="Neo4j vs Relational: Refactoring - Add a new field/property"
+tag=['neo4j']
+category=['neo4j']
++++
+
+A couple of months ago I presented http://info.neo4j.com/intro-to-cypher-for-the-sql-developer-lp.html[a webinar comparing how you'd model and evolve a data model using a Postgres SQL database and Neo4j].
+
+This is what the two data models looked like after the initial data import and before any refactoring/migration had been done:
+
++++<cite>+++Relational+++</cite>+++
+
+image::{{<siteurl>}}/uploads/2016/05/2016-05-22_09-49-23.png[2016 05 22 09 49 23,400]
+
++++<cite>+++Graph+++</cite>+++
+
+image::{{<siteurl>}}/uploads/2016/05/2016-05-22_09-52-16.png[2016 05 22 09 52 16,400]
+
+I wanted to add a 'nationality' property to the players table in the SQL schema and to the nodes with the 'Player' label in the graph.
+
+This refactoring is quite easy in both models. In the relational database we first run a query to add the 'nationality' field to the table:
+
+[source,sql]
+----
+
+ALTER TABLE players
+ADD COLUMN nationality varying(30);
+----
+
+And then we need to generate UPDATE statements from our data dump to update all the existing records:
+
+[source,sql]
+----
+
+UPDATE players
+SET nationality = 'Brazil'
+WHERE players.id = '/aldair/profil/spieler/4151';
+
+...
+----
+
+In the graph we can do this in a single step by processing our data dump using the LOAD CSV command and then setting a property on each player:
+
+[source,cypher]
+----
+
+USING PERIODIC COMMIT
+LOAD CSV WITH HEADERS FROM "file:///transfers.csv" AS row
+MATCH (player:Player {id: row.playerUri})
+SET player.nationality = row.playerNationality
+----
+
+If we wanted to make the nationality field non nullable we could go back and run the following queries:
+
+[source,sql]
+----
+
+ALTER TABLE players
+ALTER COLUMN nationality SET NOT NULL
+----
+
+[source,cypher]
+----
+
+CREATE CONSTRAINT ON (player:Player)
+ASSERT exists(player.nationality)
+----
+
+And we're done!

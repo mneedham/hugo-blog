@@ -1,0 +1,19 @@
++++
+draft = false
+date="2008-11-01 01:24:51"
+title="CSS in Internet Explorer - Some lessons learned"
+tag=['css']
+category=['Software Development']
++++
+
+I've spent the last few days working with CSS, and in particular trying to make a layout which works perfectly fine in Firefox work properly in Internet Explorer 6.
+
+I'm far from an expert when it comes to this but I've picked up a few lessons from our attempts to get identical layouts in both browsers.
+
+* Internet Explorer seems to do some crazy stuff when it comes to http://www.webcredible.co.uk/user-friendly-resources/css/internet-explorer.shtml[padding and margins] - we were often ending up with huge margins where we hadn't even specified any. A useful approach pointed out by http://www.workingwithrails.com/person/8781-josh-price[Josh] was *resetting the margin and padding for the whole page* so that IE's default padding was removed. Putting the following code in your style sheet will do this: ~~~css * {padding:0;margin:0} ~~~
+* Despite the fact that we start with IE and Firefox on an even keel, there were still differences in how they rendered some spacings that we tried to apply. I don't think this is necessarily a good long term fix but it seems that *if you start a property name with an underscore IE will respect it but Firefox will ignore it*. This is known as the http://www.wellstyled.com/css-underscore-hack.html[MSIE underscore hack], which describes it fairly accurately! We can therefore set up IE only CSS properties like this: ~~~css _margin: 0 0 2px 0; ~~~
+* One of the other problems we came across was the http://www.positioniseverything.net/explorer/peekaboo.html[hidden text bug] - sometimes when we refreshed the page text inside a floating div would just disappear until you selected it with the mouse when it would reappear. We found a http://www.satzansatz.de/cssd/onhavinglayout.html[couple] of http://plone.org/documentation/how-to/internet-explorer-invisible-text[posts] which explained that the problem was being caused by IE not correctly setting the element size for floating elements on the page. The other posts go into more detail, but the fix that worked for us involved *forcing IE into layout mode* by applying a small height to the element that was being hidden: ~~~css .visualIEFloatFix { height: 0.01%; } ~~~
+
+I'm sure there will be further learnings on my CSS travels - I've been trying to find some resources which describe good patterns to use with CSS but I've only come across a book called http://cssdesignpatterns.com/[Pro CSS and HTML Design Patterns] so far.
+
+Anyone know if this book is any good or if not what a better alternative is?

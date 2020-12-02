@@ -54,9 +54,9 @@ This endpoint expects to receive the `Authorization` header parameter with a val
 Let's create environment variables containing these values, by running the commands below on our terminal window:
 
 [NOTE]
-====
+==
 Don't forget to change the placeholder values to your Client ID and Client Secret.
-====
+==
 
 [source, bash]
 ----

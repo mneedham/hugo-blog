@@ -281,7 +281,7 @@ The entity nodes have an `Entity` label, as well as a label based on their type.
 
 Let's explore the entity graph that we've just created.
 
-=== What are the most common entities?
+== What are the most common entities?
 
 [source, cypher]
 ----
@@ -310,7 +310,7 @@ LIMIT 10;
 Not particularly revealing!
 We have several variants of the phrase 'this week', and it looks like Neo4j is sometimes a `Title`, but sometimes a `Person`.
 
-=== Which people are mentioned most often?
+== Which people are mentioned most often?
 
 [source, cypher]
 ----
@@ -340,7 +340,7 @@ Max De Marzi is a prolific blogger, so it's not surprising to see him right up t
 There are three members of the Neo4j DevRel team in the top 10: Michael Hunger, Will Lyon, and Jennifer Reif.
 I would imagine that _Michael_ is also Michael Hunger, so he's actually in there twice.
 
-=== When did Jennifer and Max both appear in TWIN4j?
+== When did Jennifer and Max both appear in TWIN4j?
 
 I quite like reading articles written by Jennifer and Max.
 How many versions of TWIN4j feature both of them?

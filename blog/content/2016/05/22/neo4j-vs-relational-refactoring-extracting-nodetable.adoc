@@ -1,0 +1,152 @@
++++
+draft = false
+date="2016-05-22 09:58:38"
+title="Neo4j vs Relational: Refactoring - Extracting node/table"
+tag=['neo4j']
+category=['neo4j']
++++
+
+In my http://www.markhneedham.com/blog/2016/05/22/neo4j-vs-relational-refactoring-add-a-new-fieldproperty/[previous blog post] I showed how to add a new property/field to a node with a label/record in a table for a football transfers dataset that I've been playing with.
+
+After introducing this 'nationality' property I realised that I now had some duplication in the model:
+
+</p>
+
+image::{{<siteurl>}}/uploads/2016/05/2016-05-22_10-15-15.png[2016 05 22 10 15 15,401]
+
++++<cite>+++players.nationality+++</cite>+++ and +++<cite>+++clubs.country+++</cite>+++ are referring to the same countries but they've both got them stored as strings so we can't ensure the integrity of our countries and ensure that we're referring to the same country.
+
+We have the same issue in the graph model as well:
+
+image::{{<siteurl>}}/uploads/2016/05/2016-05-22_10-40-40.png[2016 05 22 10 40 40,401]
+
+This time +++<cite>+++Player.nationality+++</cite>+++ and +++<cite>+++Club.country+++</cite>+++ refer to the same countries.
+
+We can solve our problem by introducing a countries table in the relational model and a set of nodes with a 'Country' label in the graph model. Let's start with relational.
+
+This is the model we're driving towards:
+
+image::{{<siteurl>}}/uploads/2016/05/2016-05-22_10-50-43.png[2016 05 22 10 50 43,395]
+
+The first thing we need to do is create a countries table and populate it:
+
+[source,sql]
+----
+
+CREATE TABLE countries (
+    "code" character varying(3) NOT NULL PRIMARY KEY,
+    "name" character varying(50) NOT NULL
+);
+----
+
+[source,sql]
+----
+
+INSERT INTO countries VALUES('MNE', 'Montenegro');
+INSERT INTO countries VALUES('SWZ', 'Swaziland');
+...
+----
+
+Next let's update the clubs table to reference the countries table:
+
+[source,sql]
+----
+
+ALTER TABLE clubs
+ADD COLUMN country_id character varying(3)
+REFERENCES countries(code);
+----
+
+And let's run a query to populate that column:
+
+[source,sql]
+----
+
+UPDATE clubs AS cl
+SET country_id = c.code
+FROM clubs
+INNER JOIN countries AS c
+ON c.name = clubs.country
+WHERE cl.id = clubs.id;
+----
+
+This query iterates over all the clubs, queries the country table to find the country id for that row and then stores it in the 'country_id' field. Finally we can remove the 'country' field:
+
+[source,sql]
+----
+
+ALTER TABLE clubs
+DROP COLUMN country;
+----
+
+Now we do the same drill for the players table:
+
+[source,sql]
+----
+
+ALTER TABLE players
+ADD COLUMN country_id character varying(3)
+REFERENCES countries(code);
+----
+
+[source,sql]
+----
+
+UPDATE players AS p
+SET country_id = c.code
+FROM players
+INNER JOIN countries AS c
+ON c.name = players.nationality
+WHERE p.id = players.id;
+----
+
+[source,sql]
+----
+
+ALTER TABLE players
+DROP COLUMN nationality;
+----
+
+Now it's time for the graph. This is the model we want to get to:
+
+image::{{<siteurl>}}/uploads/2016/05/2016-05-22_10-51-49.png[2016 05 22 10 51 49,334]
+
+First we'll create the countries:
+
+[source,cypher]
+----
+
+CREATE CONSTRAINT ON (c:Country)
+ASSERT c.id IS UNIQUE
+----
+
+[source,cypher]
+----
+
+LOAD CSV WITH HEADERS FROM "file:///countries.csv"
+AS row
+MERGE (country:Country {id: row.countryCode})
+ON CREATE SET country.name = row.country
+----
+
+And now let's get clubs and players to point at those countries nodes and get rid of their respective nationality/country properties:
+
+[source,cypher]
+----
+
+MATCH (club:Club)
+MATCH (country:Country {name: club.country})
+MERGE (club)-[:PART_OF]->(country)
+REMOVE club.country
+----
+
+[source,cypher]
+----
+
+MATCH (player:Player)
+MATCH (country:Country {name: player.nationality})
+MERGE (player)-[:PLAYS_FOR]->(country)
+REMOVE player.nationality
+----
+
+And that's it, we can now write queries against our new model.

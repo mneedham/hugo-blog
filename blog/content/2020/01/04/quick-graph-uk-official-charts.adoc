@@ -46,7 +46,7 @@ We generate one JSON document per chart entry, and below is an example of one of
 For many of the tracks the data scraped from the Official Charts website is sufficient, but for some of them I found it difficult to figure out the names of all the collaborating artists.
 I thought this would be a good opportunity to use the Spotify API to enrich the dataset.
 
-=== Enriching the data with the Spotify API
+== Enriching the data with the Spotify API
 
 We'll use https://developer.spotify.com/documentation/web-api/reference-beta/#category-search[Spotify's Search API^] to retrieve the names of all collaborating artists for a track.
 Instructions explaining how https://github.com/mneedham/uk-charts-neo4j#downloading-and-scraping-charts[how to download and enrich the data^] are described in the https://github.com/mneedham/uk-charts-neo4j[uk-charts-neo4j^] repository.
@@ -199,7 +199,7 @@ image::{{<siteurl>}}/uploads/2020/01/uk-chart-preview.png[title="Sample of the U
 
 Now let's explore the data using Neo4j's https://neo4j.com/developer/cypher-basics-i/[Cypher^] query language.
 
-=== Which song was number 1 for the most weeks?
+== Which song was number 1 for the most weeks?
 
 [source, cypher]
 ----
@@ -238,7 +238,7 @@ ORDER By count DESC;
 The extremely catchy Dance Monkey was number 1 for 11 weeks, or just less than 3 months of the year.
 We can see Ed Sheeran show up in the _artists_ column a few times as well, so let's next see which artist was number 1 for the most weeks.
 
-=== Which artist was number 1 for the most weeks?
+== Which artist was number 1 for the most weeks?
 
 [source,cypher]
 ----
@@ -275,7 +275,7 @@ Ed Sheeran had 3 number 1's last year, giving him a total of 14 weeks at number 
 I was surprised not to see what I thought was his most popular song of the year, South Of The Border.
 Let's see what happened there.
 
-=== How did South Of The Border do on the charts?
+== How did South Of The Border do on the charts?
 
 [source,cypher]
 ----
@@ -306,7 +306,7 @@ ORDER BY position
 Hmmm, it peaked at number 4 back in October and November, before falling down the chart after that.
 I wonder if Ed Sheeran released any other songs last year?
 
-=== How did Ed Sheeran's other songs do?
+== How did Ed Sheeran's other songs do?
 
 [source,cypher]
 ----
@@ -368,7 +368,7 @@ image::{{<siteurl>}}/uploads/2020/01/ed-sheeran-songs.png[title="Ed Sheeran song
 It's interesting that he's had a collaborator on all his other songs in 2019, and all of his songs charted in the top 5.
 Let's explore artist collaborations a bit more.
 
-=== How many collaborators did artists have during the year?
+== How many collaborators did artists have during the year?
 
 The following query computes the number of collaborators each artist had and then creates a histogram of those counts:
 
@@ -391,7 +391,7 @@ In all the queries that we're written so far, we've been looking at the chart po
 We haven't written any queries that look at how a song's chart position changes over the weeks.
 What if we want to do this?
 
-=== Which song had the biggest climb between weeks?
+== Which song had the biggest climb between weeks?
 
 We're going to work out which song had the biggest climb between weeks, but first we'll create relationships between consecutive charts to make it easier to write this query.
 So for example we'll create a `NEXT` relationship between:
@@ -448,7 +448,7 @@ LIMIT 5
 
 There are some big climbers there, but I think it'll be more interesting to look at number 1 songs in this context.
 
-=== Which songs went straight in at number 1?
+== Which songs went straight in at number 1?
 
 Let's start by seeing whether any of our number 1 songs went straight in at number 1.
 The following query will tell us the answer to this question:
@@ -482,7 +482,7 @@ RETURN song.title AS song,
 6 songs went straight in at the top.
 That means we still have 6 songs that came in at a lower position and then climbed to number 1.
 
-=== Which songs didn't go straight to number 1?
+== Which songs didn't go straight to number 1?
 
 The following query will help us figure out what position they charted on their first entry:
 

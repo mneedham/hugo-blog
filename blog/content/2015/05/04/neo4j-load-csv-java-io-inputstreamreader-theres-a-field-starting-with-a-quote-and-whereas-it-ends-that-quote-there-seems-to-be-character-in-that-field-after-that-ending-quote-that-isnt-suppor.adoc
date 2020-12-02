@@ -1,0 +1,75 @@
++++
+draft = false
+date="2015-05-04 09:56:22"
+title="Neo4j: LOAD CSV - java.io.InputStreamReader there's a field starting with a quote and whereas it ends that quote there seems  to be character in that field after that ending quote. That isn't supported."
+tag=['neo4j', 'cypher']
+category=['neo4j']
++++
+
+I recently came across the http://www.dtic.upf.edu/~ocelma/MusicRecommendationDataset/lastfm-360K.html[last.fm dataset] via http://www.benfrederickson.com/distance-metrics/[Ben Frederickson's blog] and thought it'd be an interesting one to load into Neo4j and explore.
+
+I started with a simple query to parse the CSV file and count the number of rows:
+
+[source,cypher]
+----
+
+LOAD CSV FROM "file:///Users/markneedham/projects/neo4j-recommendations/lastfm-dataset-360K/usersha1-artmbid-artname-plays.tsv"
+AS row FIELDTERMINATOR  "\t"
+return COUNT(*)
+
+At java.io.InputStreamReader@4d307fda:6484 there's a field starting with a quote and whereas it ends that quote there seems  to be character in that field after that ending quote. That isn't supported. This is what I read: 'weird al"'
+----
+
+This blows up because (as the message says) we've got a field which uses double quotes but then has other characters either side of the quotes.
+
+A quick search through the file reveals one of the troublesome lines:
+
+[source,bash]
+----
+
+$ grep "\"weird" lastfm-dataset-360K/usersha1-artmbid-artname-plays.tsv  | head -n 1
+0015371426d2cbef354b2f680340de38d0ebd2f0	7746d775-9550-4360-b8d5-c37bd448ce01	"weird al" yankovic	4099
+----
+
+I ran a file containing only that line through http://csvlint.io/validation/55473958637376058f000000[CSV Lint] to see what it thought and indeed it is invalid:
+
+image::{{<siteurl>}}/uploads/2015/05/2015-05-04_10-50-43.png[2015 05 04 10 50 43,597]
+
+Let's clean up our file to use single quotes instead of double quotes and try the query again:
+
+[source,bash]
+----
+
+$ tr "\"" "'" < lastfm-dataset-360K/usersha1-artmbid-artname-plays.tsv > lastfm-dataset-360K/clean.tsv
+----
+
+[source,cypher]
+----
+
+LOAD CSV FROM "file:///Users/markneedham/projects/neo4j-recommendations/lastfm-dataset-360K/clean.tsv" as row FIELDTERMINATOR  "\t"
+return COUNT(*)
+
+17559530
+----
+
+And we're back in business! Interestingly Python's CSV reader chooses to strip out the double quotes rather than throw an exception:
+
+[source,python]
+----
+
+import csv
+with open("smallWeird.tsv", "r") as file:
+    reader = csv.reader(file, delimiter="\t")
+
+    for row in reader:
+        print row
+----
+
+[source,bash]
+----
+
+$ python explore.py
+['0015371426d2cbef354b2f680340de38d0ebd2f0', '7746d775-9550-4360-b8d5-c37bd448ce01', 'weird al yankovic', '4099']
+----
+
+I prefer LOAD CSV's approach but it's an interesting trade off I hadn't considred before.

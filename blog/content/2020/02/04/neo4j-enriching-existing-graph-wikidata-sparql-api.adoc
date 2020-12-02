@@ -344,7 +344,7 @@ And then I re-ran the previous query to import Wikidata.
 
 And now that the graph's been updated, let's write some queries that uses this new data.
 
-=== How many participants did each country have in the Australian Open?
+== How many participants did each country have in the Australian Open?
 
 Let's start simple by running the following query which returns the number of players grouped by country:
 
@@ -374,7 +374,7 @@ LIMIT 10;
 
 Unsurprisingly Australia have the most participants, although the United States aren't far behind.
 
-=== How many finalists did each country have?
+== How many finalists did each country have?
 
 Next, we're going to find out how many times a country had a player in the final:
 
@@ -405,7 +405,7 @@ Their only finalist since 2000 was Lleyton Hewitt in the 2005 final, which he lo
 
 And it's painful to see Andy Murray in there with 5 finals for the United Kingdom, but unfortunately losing all of them.
 
-=== What was the lowest average age of the finalists?
+== What was the lowest average age of the finalists?
 
 Let's finish with a query that uses the date of birth property.
 The following query returns the top 10 finalists ordered by lowest average age:

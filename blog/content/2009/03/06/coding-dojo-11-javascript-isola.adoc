@@ -1,0 +1,28 @@
++++
+draft = false
+date="2009-03-06 06:38:42"
+title="Coding Dojo #11: Javascript Isola"
+tag=['coding-dojo']
+category=['Coding Dojo']
++++
+
+In our latest coding dojo we attempted to code http://en.wikipedia.org/wiki/Isola[Isola] in Javascript but instead of coding from the board inwards we decided to try and take the approach of coding from the cells outwards to keep it interesting.
+
+My colleague brought in his copy of the game and it made it much easier to imagine how we should be modeling it by having the game in front of us.
+
+== The Format
+
+We used the http://codingdojo.org/cgi-bin/wiki.pl?RandoriKata[Randori] approach with four people participating for the whole session.
+
+== What We Learnt
+
+* We tried out a couple of Javascript frameworks during the session - http://www.jsunit.net/[JSUnit] and another one which is the testing framework used by the http://www.prototypejs.org/[Prototype] library. I've been using http://github.com/nkallen/screw-unit/tree/master[screw-unit] on my current project and neither of the frameworks made test writing seem as fluent as it does when using screw-unit.
+* *IntelliJ is a way better editor for writing Javascript than Visual Studio* is at the moment. It was really cool that we got auto completion when writing the code (although the auto complete function does currently give you the opportunity to call any method within the project's Javascript files even if it's not valid!)
+* We had a copy of http://www.amazon.com/exec/obidos/ASIN/0596517742/wrrrldwideweb[Javascript: The Good Parts] with us which proved useful for showing us the right way to go when it comes to coding in javascript. Certainly trying to understand the meaning of the keyword 'this' was something that we didn't find easy and I still don't really understand what the 'http://yuiblog.com/blog/2006/04/11/with-statement-considered-harmful/[with]' keyword does despite reading the definition several times.
+* Modeling wise the approach we took provided a a much more interesting problem to solve - we were keen to avoid ending up doing a lot of string manipulation as we had on our java attempts at solving this problem. We got as far as telling a cell to remove itself from the board and were implementing the functionality for the cell to inform adjacent cells that it no longer existed.
+* I hadn't realised quite how easy http://jquery.com/[jQuery] has made it to do javascript work until this dojo. We were writing pure javascript which proved to be quite arduous although the code did read quite nicely once we got going. We're planning to investigate whether jQuery would be useful for this type of coding or not.
+
+== For next time
+
+* I won't be able to make the next couple of dojos but the plan is to keep working on the Isola problem in the next session.
+* I am also keen to try out Keith Braithwaite's TDD exercise in one of our dojos, an idea which I came across from reading http://gojko.net/2009/02/27/thought-provoking-tdd-exercise-at-the-software-craftsmanship-conference/comment-page-1/#comment-41349[Gojko Adzic's blog entry] about the http://parlezuml.com/softwarecraftsmanship/[Software Craftsmanship Conference] held in London last week. Briefly, the idea is to try to keep things simple - implement everything inside our test and then extract it out into classes and methods when necessary. Small steps is the order of the day.

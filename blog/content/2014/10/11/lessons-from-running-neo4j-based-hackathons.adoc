@@ -1,0 +1,59 @@
++++
+draft = false
+date="2014-10-11 10:52:01"
+title="Lessons from running Neo4j based 'hackathons'"
+tag=['neo4j']
+category=['neo4j']
++++
+
+Over the last 6 months my colleagues and I have been running http://www.meetup.com/graphdb-london/[hands on Neo4j based sessions] every few weeks and I was recently asked if I could write up the lessons we've learned.
+
+So in no particular order here are some of the things that we've learnt:
+
+== Have a plan but don't stick to it rigidly
+
+Something we learnt early on is that it's helpful to have a rough plan of how you're going to spend the session otherwise it can feel quite chaotic for attendees.
+
+We show people that plan at the beginning of the session so that they know what to expect and can plan their time accordingly if the second part doesn't interest them as much.
+
+Having said that, we've often gone off on a tangent and since people have been very interested in that we've just gone with it.
+
+This sometimes means that you don't cover everything you had in mind but the main thing is that people enjoy themselves so it's nothing to worry about.
+
+== Prepare for people to be unprepared
+
+We try to set expectations in advanced of the sessions with respect to what people should prepare or have installed on their machines but despite that you'll have people in varying levels of readiness.
+
+Having noticed this trend over a few months we now allot time in the schedule for getting people up and running and if we're really struggling then we'll ask people to pair with each other.
+
+There will also be experience level differences so we always factor in some time to go over the basics for those who are new. We also encourage experienced people to help the others out - after all http://www.markhneedham.com/blog/2009/04/21/learning-through-teaching/[you only really know if you know something when you try to teach someone else]!
+
+== Don't try to do too much
+
+Our first 'hackathon'-esque event involved an attempt to build a Java application based on a https://github.com/mneedham/neo4j-bl[British Library dataset].
+
+I thought we'd be able to model the data set, import it and then wire up some queries to an application in a few hours.
+
+This proved to be *ever so slightly ambitious*!
+
+It took much longer than anticipated to do those first two steps and we didn't get to build any of the application - teaching people how to model in a graph is probably a session in its own right.
+
+== Show the end state
+
+Feedback we got from attendees to the first few versions was that they'd like to see what the end state should have looked like if they'd completed everything.
+
+In our Clojure Hackathon Rohit got the furthest so we https://github.com/neo4j-meetups/clojure-hackathon/commit/c17e6c9d866b50fd1255b59029bc4f21ea244077[shared his code] with everyone afterwards.
+
+An even better approach is to have the final solution ready in advance and have it checked in on a different branch that you can point people at afterwards.
+
+== Show the intermediate states
+
+Another thing we noticed was that if people got behind in the first part of the session then they'd never be able to catch up.
+
+Nigel therefore came up with the idea of snapshotting intermediate states so that people could reset themselves after each part of the session. This is something that the https://github.com/Polymer/polymer-tutorial[Polymer tutorial] does as well.
+
+We worked out that we have two solid one hour slots before people start getting distracted by their journey home so we came up with two distinct types of tasks for people to do and then https://github.com/neo4j-meetups/python-hackathon/branches[created a branch with the solution at the end of those tasks].
+
+No doubt there will be more lessons to come as we run more sessions but this is where we are at the moment. If you fancy joining in our next session is http://www.meetup.com/graphdb-london/events/212631122/[Java based in a couple of weeks time].
+
+Finally, if you want to see a really slick hands on meetup then you'll want to head over to the http://londonclojurians.org/[London Clojure Dojo] - https://twitter.com/otfrom[Bruce Durling] has even http://otfrom.wordpress.com/2012/07/04/how-to-run-a-london-clojure-dojo-in-20ish-easy-steps/[written up some tips on how you run one yourself].

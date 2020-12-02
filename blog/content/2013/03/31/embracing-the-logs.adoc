@@ -1,0 +1,44 @@
++++
+draft = false
+date="2013-03-31 21:44:19"
+title="Embracing the logs"
+tag=['logs']
+category=['Software Development']
++++
+
+Despite the fact that I've been working full time in software for almost 8 years now every now and then I still need a reminder of how useful reading logs can be in helping solve problems.
+
+I had a couple of such instances recently which I thought I'd document.
+
+The first was a couple of weeks ago when https://twitter.com/timrgoodwin[Tim] and I were pairing on http://www.markhneedham.com/blog/2013/03/24/incrementally-rolling-out-machines-with-a-new-puppet-role/[moving some applications from Passenger to Unicorn] and were testing whether or not we'd done so successfully.
+
+We were doing this by creating an +++<cite>+++/etc/hosts+++</cite>+++ entry from our top level domain to an nginx proxy node which was to forward on the request to the application server.
+
+[source,text]
+----
+
+Request -> nginx on proxy node -> nginx on app server node -> unicorn on app server node
+----
+
+This didn't work and we got a 404 response code so I logged onto the server hosting the application server and started writing our a cURL command to simulate what the proxy should be doing to see if the problem was there.
+
+After watching me do this a couple of times Tim suggested that we might be more successful if we opened a bunch of tabs on the shell tailing the various log files that the request should pass through.
+
+We set up tail commands against the following files:
+
+* nginx access log on proxy node
+* nginx error log on proxy node
+* nginx access log on the app server node
+* unicorn log on the app server node
+
+Immediately it became clear that we actually had a problem on the proxy node because we'd configured one of the nginx directives incorrectly.
+
+Once we'd fixed this the request flowed through smoothly.
+
+We extended this tailing of files idea when testing multiple nodes through a load balancer except this time we http://www.markhneedham.com/blog/2013/01/15/fabric-tailing-log-files-on-multiple-machines/[made use of Fabric] to make things a bit easier.
+
+The second was earlier this week when https://twitter.com/barisbalic[Baris] and I were trying to configure puppet so that we could install different Ruby versions on different machines.
+
+We were having trouble figuring out why the wrong version was getting installed so eventually we chatted to https://twitter.com/supersheep[Andy] who amongst other things had a look at the apt history log @ +++<cite>+++/var/log/apt/history.log+++</cite>+++ and was able to figure out how this was happening.
+
+Lesson of the last two weeks: *embrace the logs*!

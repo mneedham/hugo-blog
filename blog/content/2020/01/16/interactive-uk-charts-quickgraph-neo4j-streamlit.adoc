@@ -122,7 +122,7 @@ image::{{<siteurl>}}/uploads/2020/01/streamlit-header.png[title="Our first Strea
 So far so good!
 Let's add some more content to the page based on the queries that we ran in the QuickGraph blog post.
 
-=== Which song was number 1 for the most weeks?
+== Which song was number 1 for the most weeks?
 
 The first thing we did in our previous post was work out which song was number 1 for the most weeks.
 We'll start by returning all the numbers 1 songs in 2019.
@@ -166,7 +166,7 @@ Let's create one:
 
 image::{{<siteurl>}}/uploads/2020/01/streamlit-number1s-count.png[title="An Altair chart showing the Number 1 songs"]
 
-=== Which song was number 1 on a specific date?
+== Which song was number 1 on a specific date?
 
 As well as returning the results of a hard coded query like this, we can also execute dynamic queries based on user input.
 The `date_input` component gives us a calendar from which the user can select a date that we use in a query.
@@ -191,7 +191,7 @@ Let's have a look which songs were at the top of the chart in June 2019:
 
 image::{{<siteurl>}}/uploads/2020/01/streamlit-chart-by-date.png[title="The top of the chart on 12th June 2019"]
 
-=== How did a song chart over the year?
+== How did a song chart over the year?
 
 In the QuickGraph blog post we wrote a query to find out which number 1 songs didn't go straight in at number 1.
 One of my favourite songs, Dance Monkey, took 8 weeks from its first appearance in the chart until it got to the top.

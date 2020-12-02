@@ -1,0 +1,60 @@
++++
+draft = false
+date="2013-11-29 19:50:53"
+title="Neo4j: What is a node?"
+tag=['neo4j']
+category=['neo4j']
++++
+
+One of the first things I needed to learn when I started using Neo4j was how to model my domain using nodes and relationships and it wasn't initially obvious to me what things should be nodes.
+
+Luckily https://twitter.com/iansrobinson[Ian Robinson] showed me a mini-algorithm which I found helpful for getting started. The steps are as follows:
+
+. Write out the questions you want to ask
+. Highlight/underline the nouns
+. Those are your nodes!
+
+This is reasonably similar to the way that we work out what our objects should be when we're doing OO modelling and I thought I'd give it a try on some of the data sets that I've worked with recently:
+
+* Female *friends* of friends that somebody could go out with
+* *Goals* scored by *Arsenal* *players* in a particular *season*
+* *Colleagues* who have similar *skills* to me
+* *Episodes* of a *TV program* that a particular *actor* appeared in
+* *Customers* who would be affected if a piece of *equipment* went in for repair
+
+If you're like me and aren't that great at English grammar we can always cheat and get http://nltk.org/book/ch05.html[NLTK] to help us out:
+
+[source,python]
+----
+
+>>> nltk.pos_tag(nltk.word_tokenize("Female friends of friends that somebody could go out with"))
+[('Female', 'NNP'), ('friends', 'NNS'), ('of', 'IN'), ('friends', 'NNS'), ('that', 'WDT'), ('somebody', 'NN'), ('could', 'MD'), ('go', 'VB'), ('out', 'RP'), ('with', 'IN')]
+----
+
+That tells us the likely tag for each part of speech in the sentence and we can filter the resulting list so we only see nouns like this:
+
+[source,python]
+----
+
+>>> nouns = ['NNS', 'NN', 'NP', 'NNP']
+>>> [(word, grammar) for (word, grammar) in nltk.pos_tag(nltk.word_tokenize("Female friends of friends that somebody could go out with")) if grammar in nouns]
+[('Female', 'NNP'), ('friends', 'NNS'), ('friends', 'NNS'), ('somebody', 'NN')]
+----
+
+We can ignore the 'Female' in this sentence (I think it's been picked up as a proper noun because of the capitalisation) which leaves us with 'friends' and 'somebody' In both cases these nouns represent the concept of a person so we'd want to create nodes representing people in this domain.
+
+Let's see how NLTK gets on with our second question:
+
+[source,python]
+----
+
+>>> sentence = "Goals scored by Arsenal players in a particular season"
+>>> [(word, grammar) for (word, grammar) in nltk.pos_tag(nltk.word_tokenize(sentence)) if grammar in ['NNS', 'NN', 'NP']]
+[('Goals', 'NNS'), ('Arsenal', 'NNP'), ('players', 'NNS'), ('season', 'NN')]
+----
+
+In this case we'd have goals, teams (e.g. Arsenal), players and seasons as our nodes.
+
+Although this is a very rough algorithm for working out what things should be nodes in a graph I think it's a good way to get started.
+
+After that the other queries we want to write may lead us to change the model to solve our problem even better.

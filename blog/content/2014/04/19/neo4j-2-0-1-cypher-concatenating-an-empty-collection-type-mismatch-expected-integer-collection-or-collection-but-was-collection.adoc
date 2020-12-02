@@ -1,0 +1,64 @@
++++
+draft = false
+date="2014-04-19 19:51:58"
+title="Neo4j 2.0.1: Cypher - Concatenating an empty collection / Type mismatch: expected Integer, Collection<Integer> or Collection<Collection<Integer>> but was Collection<Any>"
+tag=['neo4j']
+category=['neo4j']
++++
+
+Last weekend I was playing around with some collections using Neo4j's Cypher query language and I wanted to concatenate two collections.
+
+This was easy enough when both collections contained values\...
+
+[source,cypher]
+----
+
+$ RETURN [1,2,3,4] + [5,6,7];
+==> +---------------------+
+==> | [1,2,3,4] + [5,6,7] |
+==> +---------------------+
+==> | [1,2,3,4,5,6,7]     |
+==> +---------------------+
+==> 1 row
+----
+
+\...but I ended up with the following exception when I tried to concatenate with an empty collection:
+
+[source,cypher]
+----
+
+$ RETURN [1,2,3,4] + [];
+==> SyntaxException: Type mismatch: expected Integer, Collection<Integer> or Collection<Collection<Integer>> but was Collection<Any> (line 1, column 20)
+==> "RETURN [1,2,3,4] + []"
+==>                     ^
+----
+
+I figured there was probably some strange type coercion going on for the empty collection and came up with the following work around using the +++<cite>+++http://docs.neo4j.org/chunked/stable/query-functions-collection.html#functions-range[RANGE]+++</cite>+++ function:
+
+[source,cypher]
+----
+
+$ RETURN [1,2,3,4] + RANGE(0,-1);
+==> +-------------------------+
+==> | [1,2,3,4] + RANGE(0,-1) |
+==> +-------------------------+
+==> | [1,2,3,4]               |
+==> +-------------------------+
+==> 1 row
+----
+
+While writing this up I decided to check if it behaved the same way in the http://blog.neo4j.org/2014/04/neo4j-202-maintenance-release.html[recently released 2.0.2] and was pleasantly surprised to see that the work around is no longer necessary:
+
+[source,cypher]
+----
+
+$ RETURN [1,2,3,4] + [];
+==> +----------------+
+==> | [1,2,3,4] + [] |
+==> +----------------+
+==> | [1,2,3,4]      |
+==> +----------------+
+==> 1 row
+----
+
+So if you're seeing the same issue get yourself upgraded!

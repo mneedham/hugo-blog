@@ -1,0 +1,53 @@
++++
+draft = false
+date="2014-08-17 01:49:10"
+title="Ruby: Google Drive - Error=BadAuthentication (GoogleDrive::AuthenticationError) Info=InvalidSecondFactor"
+tag=['ruby']
+category=['Ruby']
++++
+
+I've been using the https://github.com/gimite/google-drive-ruby[Google Drive gem] to try and interact with my Google Drive account and almost immediately ran into problems trying to login.
+
+I started out with the following code:
+
+[source,ruby]
+----
+
+require "rubygems"
+require "google_drive"
+
+session = GoogleDrive.login("me@mydomain.com", "mypassword")
+----
+
+I'll move it to use OAuth when I put it into my application but for spiking this approach works. Unfortunately I got the following error when running the script:
+
+[source,text]
+----
+
+/Users/markneedham/.rbenv/versions/1.9.3-p327/lib/ruby/gems/1.9.1/gems/google_drive-0.3.10/lib/google_drive/session.rb:93:in `rescue in login': Authentication failed for me@mydomain.com: Response code 403 for post https://www.google.com/accounts/ClientLogin: Error=BadAuthentication (GoogleDrive::AuthenticationError)
+Info=InvalidSecondFactor
+	from /Users/markneedham/.rbenv/versions/1.9.3-p327/lib/ruby/gems/1.9.1/gems/google_drive-0.3.10/lib/google_drive/session.rb:86:in `login'
+	from /Users/markneedham/.rbenv/versions/1.9.3-p327/lib/ruby/gems/1.9.1/gems/google_drive-0.3.10/lib/google_drive/session.rb:38:in `login'
+	from /Users/markneedham/.rbenv/versions/1.9.3-p327/lib/ruby/gems/1.9.1/gems/google_drive-0.3.10/lib/google_drive.rb:18:in `login'
+	from src/gdoc.rb:15:in `<main>'
+----
+
+Since I have two factor authentication enabled on my account https://github.com/gimite/google-drive-ruby/issues/40[it turns out] that I need to create an https://security.google.com/settings/security/apppasswords[app password] to login:
+
+image::{{<siteurl>}}/uploads/2014/08/2014-08-17_02-47-03.png[2014 08 17 02 47 03,600]
+
+It will then pop up with a password that we can use to login (I have revoked this one!):
+
+image::{{<siteurl>}}/uploads/2014/08/2014-08-17_02-46-29.png[2014 08 17 02 46 29,600]
+
+We can then use this password instead and everything works fine:
+
+[source,ruby]
+----
+
+
+require "rubygems"
+require "google_drive"
+
+session = GoogleDrive.login("me@mydomain.com", "tuceuttkvxbvrblf")
+----

@@ -1,0 +1,83 @@
++++
+draft = false
+date="2013-02-23 15:04:58"
+title="Ruby: Stripping out a non breaking space character (&nbsp;)"
+tag=['ruby', 'character-encoding']
+category=['Ruby']
++++
+
+A couple of days ago I was playing with some code to scrape data from a web page and I wanted to skip a row in a table if the row didn't contain any text.
+
+I initially had the following code to do that:
+
+[source,ruby]
+----
+
+rows.each do |row|
+  next if row.strip.empty?
+  # other scraping code
+end
+----
+
+Unfortunately that approach broke down fairly quickly because empty rows contained a http://www.yellowpipe.com/yis/tools/ASCII-HTML-Characters/index.php[non breaking space] i.e. '&nbsp;'.
+
+If we try called +++<cite>+++strip+++</cite>+++ on a string containing that character we can see that it doesn't get stripped:
+
+[source,ruby]
+----
+
+# it's hex representation is A0
+> "\u00A0".strip
+=> " "
+> "\u00A0".strip.empty?
+=> false
+----
+
+I wanted to see whether I could use +++<cite>+++gsub+++</cite>+++ to solve the problem so I tried the following code which didn't help either:
+
+[source,ruby]
+----
+
+> "\u00A0".gsub(/\s*/, "")
+=> " "
+> "\u00A0".gsub(/\s*/, "").empty?
+=> false
+----
+
+A bit of googling led me to this http://stackoverflow.com/questions/3913900/ruby-1-9-strip-not-removing-whitespace[Stack Overflow post] which suggests using the http://en.wikipedia.org/wiki/Regular_expression#POSIX_character_classes[POSIX space character class] to match the non breaking space rather than '\s' because that will match more of the different space characters.
+
+e.g.
+
+[source,ruby]
+----
+
+> "\u00A0".gsub(/[[:space:]]+/, "")
+=> ""
+> "\u00A0".gsub(/[[:space:]]+/, "").empty?
+=> true
+----
+
+So that we don't end up indiscriminately removing all spaces to avoid problems like this where we mash the two names together\...
+
+[source,ruby]
+----
+
+> "Mark Needham".gsub(/[[:space:]]+/, "")
+=> "MarkNeedham"
+----
+
+\...the poster suggested the following regex which does the job:
+
+[source,ruby]
+----
+
+> "\u00A0".gsub(/\A[[:space:]]+|[[:space:]]+\z/, '')
+=> ""
+> ("Mark" + "\u00A0" + "Needham").gsub(/\A[[:space:]]+|[[:space:]]+\z/, '')
+=> "Mark Needham"
+----
+
+* \A matches the beginning of the string
+* \z matches the end of the string
+
+So what this bit of code does is match all the spaces that appear at the beginning or end of the string and then replaces them with ''.

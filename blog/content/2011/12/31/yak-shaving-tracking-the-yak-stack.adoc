@@ -1,0 +1,32 @@
++++
+draft = false
+date="2011-12-31 03:54:00"
+title="Yak Shaving: Tracking the yak stack"
+tag=['yak-shaving']
+category=['Software Development']
++++
+
+image::{{<siteurl>}}/uploads/2011/12/yak-stack.jpg[Yak stack,300]
+
+While I've been http://www.markhneedham.com/blog/category/android-2/[learning how to write an android application] there's been plenty of opportunities for me to go off http://www.markhneedham.com/blog/?s=shaving+yak[shaving yaks], it's pretty much Yakville Central.
+
+Typically I'd end up spending hours trying to work out some obscure thing which I didn't really need to know so I wanted to try and avoid that this time.
+
+I started keeping a track of the 'yak stack' which I was currently following and mentally noting exactly where I was up to.
+
+An example of a yak stack I kept while trying to authorise a user of the app with Twitter using OAuth is shown in the photo on the right hand side.
+
+It ended up looking like this:
+
+* Get the home timeline working
+ ** OAuth blowing up
+  *** Not actually capturing redirect back to app
+   **** Launch mode in Android manifest
+
+Once I realise I'm heading down the stack I've been giving myself one http://www.pomodorotechnique.com/[pomodoro] to  try and dig myself one level up.
+
+If I still haven't managed to solve the problem I might keep going for one more pomodoro or just find another way around the problem.
+
+I'm sure I'll come across problems where I need to spend more than an hour trying to solve it but for now it's working ok as a rule of thumb.
+
+It's definitely fun chasing yaks but I get to the end of the day and haven't really achieved anything which isn't fun.

@@ -1,0 +1,39 @@
++++
+draft = false
+date="2013-10-22 22:02:14"
+title="Neo4j: Modelling hyper edges in a property graph"
+tag=['neo4j']
+category=['neo4j']
++++
+
+At the http://www.meetup.com/graphdb-belgium/[Graph Database meet up in Antwerp] last week we discussed how you would model a hyper edge in a property graph like Neo4j and I realised that I'd done this in my football graph without realising.
+
+A hyper edge is http://www.hyperedge.com.au/why-hyperedge[defined as follows]:
+
+____
+A hyperedge is a *connection between two or more vertices*, or nodes, of a hypergraph. A hypergraph is a graph in which generalized edges (called hyperedges) may connect more than two nodes with discrete properties.
+____
+
+In Neo4j an edge (or relationship) can only be between itself or another node, there's no way of creating a relationship between more than 2 nodes.
+
+I had problems when trying to model the relationship between a player and a football match because I wanted to say that a player participated in a match and represented a specific team in that match.
+
+I started out with the following model:
+
+image::{{<siteurl>}}/uploads/2013/10/2013-10-22_22-47-13.png[2013 10 22 22 47 13,600]
+
+Unfortunately creating a direct relationship from the player to the match means that there's no way to work out which team they played for.
+
+This information is useful because sometimes players transfer teams in the middle of a season and we want to analyse how they performed for each team.
+
+In a property graph we need to introduce an extra node which links the match, player and team together:
+
+image::{{<siteurl>}}/uploads/2013/10/2013-10-22_22-54-25.png[2013 10 22 22 54 25,600]
+
+Although we are forced to adopt this design it actually helps us *realise an extra entity* in our domain which wasn't visible before - a player's performance in a match.
+
+If we want to capture information about a players' performance in a match we can store it on this node.
+
+We can also easily aggregate players stats by following the +++<cite>+++played+++</cite>+++ relationship without needing to worry about the matches they played in.
+
+The Neo4j manual has a http://docs.neo4j.org/chunked/milestone/cypher-cookbook-hyperedges.html[few more examples of domain models containing hyper edges] which are worth having a look at if you want to learn more.

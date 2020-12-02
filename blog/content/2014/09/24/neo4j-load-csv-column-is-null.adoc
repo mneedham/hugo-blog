@@ -1,0 +1,85 @@
++++
+draft = false
+date="2014-09-24 20:21:59"
+title="Neo4j: LOAD CSV - Column is null"
+tag=['neo4j']
+category=['neo4j']
++++
+
+One problem I've seen a few people have recently when using Neo4j's http://docs.neo4j.org/chunked/stable/query-load-csv.html[LOAD CSV] function is dealing with CSV files that have dodgy hidden characters at the beginning of the header line.
+
+For example, consider an import of this CSV file:
+
+[source,text]
+----
+
+$ cat ~/Downloads/dodgy.csv
+userId,movieId
+1,2
+----
+
+We might start by checking which columns it has:
+
+[source,cypher]
+----
+
+$ load csv with headers from "file:/Users/markneedham/Downloads/dodgy.csv" as line return line;
++----------------------------------+
+| line                             |
++----------------------------------+
+| {userId -> "1", movieId -> "2"} |
++----------------------------------+
+1 row
+----
+
+Looks good so far but what about if we try to return just 'userId'?
+
+[source,cypher]
+----
+
+$ load csv with headers from "file:/Users/markneedham/Downloads/dodgy.csv" as line return line.userId;
++-------------+
+| line.userId |
++-------------+
+| <null>      |
++-------------+
+1 row
+----
+
+Hmmm it's null\...what about 'movieId'?
+
+[source,cypher]
+----
+
+$ load csv with headers from "file:/Users/markneedham/Downloads/dodgy.csv" as line return line.movieId;
++--------------+
+| line.movieId |
++--------------+
+| "2"          |
++--------------+
+1 row
+----
+
+That works fine so immediately we can suspect there are hidden characters at the beginning of the first line of the file.
+
+The easiest way to check if this is the case is open the file using a Hex Editor - I quite like http://ridiculousfish.com/hexfiend/[Hex Fiend] for the Mac.
+
+If we look at dodgy.csv we'll see the following:
+
+image::{{<siteurl>}}/uploads/2014/09/2014-09-24_21-20-06.png[2014 09 24 21 20 06,465]
+
+Let's delete the highlighted characters and try our cypher query again:
+
+[source,cypher]
+----
+
+$ load csv with headers from "file:/Users/markneedham/Downloads/dodgy.csv" as line return line.userId;
++-------------+
+| line.userId |
++-------------+
+| "1"         |
++-------------+
+1 row
+----
+
+All is well again, but something to keep in mind if you see a LOAD CSV near you behaving badly.

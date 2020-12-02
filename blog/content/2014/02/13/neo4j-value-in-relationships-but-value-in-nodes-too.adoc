@@ -1,0 +1,61 @@
++++
+draft = false
+date="2014-02-13 00:10:37"
+title="Neo4j: Value in relationships, but value in nodes too!"
+tag=['neo4j']
+category=['neo4j']
++++
+
+I've recently spent a bit of time working with people on their graph commons and a common pattern I've come across is that although the models have lots of relationships there are often missing nodes.
+
+== Emails
+
+We'll start with a model which represents the emails that people send between each other. A first cut might look like this:
+
+image::{{<siteurl>}}/uploads/2014/02/2014-02-12_08-30-59.png[2014 02 12 08 30 59,600]
+
+The problem with this approach is that we haven't modelled the concept of *an email* - that's been implicitly modelled via a relationship.
+
+This means that if we want to indicate who was cc'd or bcc'd on the email we can't do it. We might also want to track the replies on a thread but again we can't do it.
+
+A richer model that treated an email as a first class citizen would allow us to do both these things and would look like this:
+
+image::{{<siteurl>}}/uploads/2014/02/2014-02-12_23-16-02.png[2014 02 12 23 16 02,600]
+
+We could then write queries to get the chain of emails in a thread or find all the emails that a person was cc'd in - two queries that would be much more difficult to write if we don't have the concept of an email.
+
+== Footballers and football matches
+
+Our http://www.markhneedham.com/blog/2013/10/22/neo4j-modelling-hyper-edges-in-a-property-graph/[second example come from my football dataset] and involves modelling the matches that players participated in.
+
+My first attempt looked like this:
+
+image::{{<siteurl>}}/uploads/2014/02/2014-02-12_23-30-35.png[2014 02 12 23 30 35,600]
+
+This works reasonably well but I wanted to be able to model which team a player had represented in a match which was quite difficult with this model.
+
+One approach would be to add a 'team' property to the 'PLAYED_IN' relationship but then we'd need to do some work at query time to work out which team node that property value referred to.
+
+Instead I realised that I was missing the concept of a *player's performance in a match* which would make some queries much easier to write. The new model looks like this:
+
+image::{{<siteurl>}}/uploads/2014/02/2014-02-12_23-37-28.png[2014 02 12 23 37 28,600]
+
+== The tube
+
+The final example is modelling the London tube although this could apply to any transport system. Our initial model of part of the Northern Line might look like this:
+
+image::{{<siteurl>}}/uploads/2014/02/2014-02-12_23-59-46.png[2014 02 12 23 59 46,600]
+
+This model works really well and my colleague Rik has http://blog.bruggen.com/2013/11/meet-this-tubular-graph.html[written a blog post showing the queries you could write against it].
+
+However, it's missing the concept of a platform which means if we want to create a routing application which takes into account the amount of time it takes to move between different
+
+If we introduce a node to represent the different platforms in a station we can introduce that type of information:
+
+image::{{<siteurl>}}/uploads/2014/02/2014-02-13_00-04-06.png[2014 02 13 00 04 06,600]
+
+In each of these examples we've effectively normalised our model by introducing an extra concept which means it looks more complicated.
+
+The benefit of this approach across all three examples is that it allows us to answer more complicated questions of our data which in my experience are the really interesting questions.
+
+As always, let me know what you think in the comments.

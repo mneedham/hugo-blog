@@ -1,0 +1,106 @@
++++
+draft = false
+date="2013-08-11 08:07:01"
+title="Jersey Client: com.sun.jersey.api.client.UniformInterfaceException"
+tag=['java']
+category=['Java']
++++
+
+As I mentioned in http://www.markhneedham.com/blog/2013/07/28/jersey-client-testing-external-calls/[a post a couple of weeks ago] we've been doing some which involved calling the neo4j server's http://docs.neo4j.org/chunked/stable/ha-rest-info.html#_the_endpoints[HA URI] to determine whether a machine was slave or master.
+
+We started off with the following code using https://jersey.java.net/documentation/latest/user-guide.html#client[jersey-client]:
+
+[source,java]
+----
+
+public class HaSpike {
+    public static void main(String[] args) {
+        String response = client()
+                .resource("http://localhost:7474/db/manage/server/ha/slave")
+                .accept(MediaType.TEXT_PLAIN)
+                .get(String.class);
+
+        System.out.println("response = " + response);
+    }
+
+    private static Client client() {
+        DefaultClientConfig defaultClientConfig = new DefaultClientConfig();
+        defaultClientConfig.getClasses().add(JacksonJsonProvider.class);
+        return Client.create(defaultClientConfig);
+    }
+}
+----
+
+which works fine when the server is actually a slave:
+
+[source,text]
+----
+
+response = true
+----
+
+but blows up in style if the server is the master:
+
+[source,text]
+----
+
+Exception in thread "main" com.sun.jersey.api.client.UniformInterfaceException: GET http://localhost:7474/db/manage/server/ha/slave returned a response status of 404 Not Found
+	at com.sun.jersey.api.client.WebResource.handle(WebResource.java:686)
+	at com.sun.jersey.api.client.WebResource.access$200(WebResource.java:74)
+	at com.sun.jersey.api.client.WebResource$Builder.get(WebResource.java:507)
+	at HaSpike.main(HaSpike.java:10)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:601)
+	at com.intellij.rt.execution.application.AppMain.main(AppMain.java:120)
+----
+
+We return a 404 status code from that URI if you're not a slave because it simplifies things for upstream load balancers but I thought Jersey would just return the body of the response rather than throwing an exception.
+
+A quick browse of the Jersey code showed a way around this:
+
+[source,Java]
+----
+
+    private <T> T handle(Class<T> c, ClientRequest ro) throws UniformInterfaceException, ClientHandlerException {
+        setProperties(ro);
+        ClientResponse r = getHeadHandler().handle(ro);
+
+        if (c == ClientResponse.class) return c.cast(r);
+
+        if (r.getStatus() < 300) return r.getEntity(c);
+
+        throw new UniformInterfaceException(r,
+                ro.getPropertyAsFeature(ClientConfig.PROPERTY_BUFFER_RESPONSE_ENTITY_ON_EXCEPTION, true));
+    }
+----
+
++++<cite>+++WebResource#handle+++</cite>+++ gets called by +++<cite>+++WebResource#get+++</cite>+++ and if we pass +++<cite>+++ClientResponse.class+++</cite>+++ to it instead of +++<cite>+++String.class+++</cite>+++ we can get around this because the code returns without checking the status of the response.
+
+Our code needs to read like this:
+
+[source,java]
+----
+
+public class HaSpike {
+    public static void main(String[] args) {
+        ClientResponse response = client()
+                .resource("http://localhost:7474/db/manage/server/ha/slave")
+                .accept(MediaType.TEXT_PLAIN)
+                .get(ClientResponse.class);
+
+        System.out.println("response = " + response.getEntity(String.class));
+    }
+
+    ...
+}
+----
+
+And if we run it, this time we get the expected result:
+
+[source,text]
+----
+
+response = false
+----

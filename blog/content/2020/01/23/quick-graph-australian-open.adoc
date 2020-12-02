@@ -360,7 +360,7 @@ And there is an equivalent import script for the men's tournament in the https:/
 
 Alright, it's time to start writing some queries!
 
-=== Who won each of the tournaments?
+== Who won each of the tournaments?
 
 Let's start with a simple query to find out the finalists in each tournament and the result of the final match:
 
@@ -402,7 +402,7 @@ ORDER BY tournament.year
 We've got lots of different winners here and a few players who have won the tournament multiple times.
 Serena Williams has won the tournament an incredible 7 times in 20 years!
 
-=== What was Osaka's route to the 2019 final?
+== What was Osaka's route to the 2019 final?
 
 The final is the most important match, but what route did the winner take to get there?
 Let's have a look at Naomi Osaka's journey to the 2019 final:
@@ -424,7 +424,7 @@ RETURN path,
 
 image::{{<siteurl>}}/uploads/2020/01/aus-open-osaka.png[title="Naomi Osaka's path to the 2019 final"]
 
-=== Who lost the final, but won it the next year?
+== Who lost the final, but won it the next year?
 
 In this query we're going to try and find players that lost the final, but then won the tournament the following year:
 
@@ -447,7 +447,7 @@ RETURN player.name AS player, t.year, t2.year
 
 Just the three players fixed their heart break at losing the final as quickly as possible.
 
-=== Who lost the final, but subsequently won the tournament?
+== Who lost the final, but subsequently won the tournament?
 
 Are there any players who lost the final but won it at some future tournament even if it wasn't the next year?
 
@@ -475,7 +475,7 @@ RETURN player.name, t.year, t2.year
 We get the 3 players from the previous query as well as Kim Clijsters and Li Na.
 Li Na actually lost the final twice before winning it in 2014.
 
-=== How long did players wait from their first final defeat until their first win?
+== How long did players wait from their first final defeat until their first win?
 
 We could tweak this query slightly to find the number of years that passed between a player losing their first final and winning their first final.
 We'll also add an additional filter so that we exclude players who have already won the tournament before they lost in the final.
@@ -578,7 +578,7 @@ Now let's write some queries against the updated model.
 
 == Querying the graph: Sets Edition
 
-=== Did anyone win the tournament without losing a set?
+== Did anyone win the tournament without losing a set?
 
 Let's start by finding out if any players had a perfect tournament i.e. they won it without losing a set.
 The following query reveals all:
@@ -618,7 +618,7 @@ Just the one on the men's side. What about the women's?
 Only three players here.
 So that means in most tournaments the winner loses a set somewhere along the way.
 
-=== Did the winner drop any sets?
+== Did the winner drop any sets?
 
 Let's tweak that previous query a bit to return the number of matches in which the winner lost a set and the total number of sets lost:
 

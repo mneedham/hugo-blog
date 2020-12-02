@@ -133,7 +133,7 @@ The Google sheet already contains the answers to the following questions:
 Let's see what else we can learn.
 The queries that follow use Neo4j's https://neo4j.com/developer/cypher-basics-i/[Cypher^] query language.
 
-=== How many judges included the top 5 in their top 5?
+== How many judges included the top 5 in their top 5?
 
 [source,cypher]
 ----
@@ -165,7 +165,7 @@ This is not that surprising given that they finished 1st and 2nd in the https://
 
 Did any judges get the top 3 exactly right?
 
-=== Which judges got the top 3 exactly correct?
+== Which judges got the top 3 exactly correct?
 
 [source,cypher]
 ----
@@ -188,7 +188,7 @@ Football is clearly a game of different opinions!
 
 Next let's see which clubs have fared best.
 
-=== Which club has the most players on the list?
+== Which club has the most players on the list?
 
 [source,cypher]
 ----
@@ -220,7 +220,7 @@ Real Madrid having the most players is a strange one given their relatively poor
 Perhaps the players that they have on the list didn't receive many votes.
 Let's tweak the query to sum the voting scores given to the players that play for those clubs
 
-=== Which clubs have the highest ranking players on the list?
+== Which clubs have the highest ranking players on the list?
 
 [source,cypher]
 ----
@@ -254,7 +254,7 @@ After them come the 2018/2019 winners of the Premier League, La Liga, and Serie 
 The top 10 contains 3 clubs that play in England, 3 clubs that play in Spain, and 1 each from the Netherlands, Germany, France, and Italy.
 Let's next see which countries have the highest ranking players on the whole list.
 
-=== Which countries have the highest ranking players on the list?
+== Which countries have the highest ranking players on the list?
 
 [source,cypher]
 ----

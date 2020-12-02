@@ -1,0 +1,254 @@
++++
+draft = false
+date="2015-05-17 11:04:59"
+title="Neo4j: Refactoring the BBC football live text fouls graph"
+tag=['neo4j']
+category=['neo4j']
++++
+
+Yesterday I wrote about http://www.markhneedham.com/blog/2015/05/16/neo4j-bbc-football-live-text-fouls-graph/[a Neo4j graph I've started building] which contains all the fouls committed in the Champions League game between Barcelona & Bayern Munich and surrounding meta data.
+
+While adding other events into the graph I realised that I'd added some duplication in the model and the model could do with some refactoring to make it easier to use.
+
+To recap, this is the model that we designed in the previous blog post:
+
+image::{{<siteurl>}}/uploads/2015/05/2015-05-16_22-50-32.png[,465]
+
+The duplication is on the left hand side of the model - we model a foul as being committed by one player against another and then hook the foul back into the match. By doing that we're not using the 'appearance' concept which links a player and a match together.
+
+We can make the 'COMMITTED_IN_MATCH' relationship redundant by connecting the foul to appearance rather than to player. The match the foul was committed in can then be found by navigating through the appearance node.
+
+This is what we want the graph to look like:
+
+image::{{<siteurl>}}/uploads/2015/05/2015-05-17_10-40-44.png[2015 05 17 10 40 44,465]
+
+We'll move towards this new model in 3 steps:
+
+* Introduce the new structure alongside the existing one
+* Rewrite our queries to use the new structure
+* Remove the old structure
+
+== Introducing the new structure
+
+First up let's write a query to introduce the new structure.
+
+[source,cypher]
+----
+
+match (foul:Foul)-[:COMMITTED_AGAINST]->(fouledPlayer),
+      (foul)<-[:COMMITTED_FOUL]-(foulingPlayer),
+      (foul)-[:COMMITTED_IN_MATCH]->(match:Match {id: "32683310"}),
+      (foulingPlayer)-[:MADE_APPEARANCE]-(foulingPlayerApp)-[:IN_MATCH]->(match),
+      (fouledPlayer)-[:MADE_APPEARANCE]-(fouledPlayerApp)-[:IN_MATCH]->(match)
+MERGE (foul)<-[:COMMITTED_FOUL]-(foulingPlayerApp)
+MERGE (foul)-[:COMMITTED_AGAINST]->(fouledPlayerApp)
+----
+
+Remember we're not going to delete the old structure yet so that's why there aren't any delete statements in here.
+
+== Rewriting our queries
+
+Now we need to update our queries to work against the new graph structure:
+
+== Where do the fouls happen?
+
+[source,cypher]
+----
+
+match (match:Match {id: "32683310"})<-[:COMMITTED_IN_MATCH]-(foul)
+RETURN foul.location AS location, COUNT(*) as fouls
+ORDER BY fouls DESC
+----
+
+becomes
+
+[source,cypher]
+----
+
+match (match:Match {id: "32683310"})<-[:IN_MATCH]-()<-[]-(foul:Foul)
+RETURN foul.location AS location, COUNT(*) as fouls
+ORDER BY fouls DESC
+----
+
+== Who fouls the most?
+
+[source,cypher]
+----
+
+match (match:Match {id: "32683310"})<-[:COMMITTED_IN_MATCH]-(foul:Foul)<-[:COMMITTED_FOUL]-(fouler:Player)
+RETURN fouler.name AS fouler, COUNT(*) as fouls
+ORDER BY fouls DESC
+LIMIT 10;
+----
+
+becomes
+
+[source,cypher]
+----
+
+match (match:Match {id: "32683310"})<-[:IN_MATCH]-(appearance)-[:COMMITTED_FOUL]->(foul:Foul),
+      (appearance)<-[:MADE_APPEARANCE]-(fouler)
+RETURN fouler.name AS fouler, COUNT(*) as fouls
+ORDER BY fouls DESC
+LIMIT 10
+----
+
+== Who was fouled the most?
+
+[source,cypher]
+----
+
+match (match:Match {id: "32683310"})<-[:IN_MATCH]-(appearance)-[r:COMMITTED_FOUL]->(foul:Foul),
+      (appearance)<-[:MADE_APPEARANCE]-(fouler)
+RETURN fouler.name AS fouler, COUNT(*) as fouls
+ORDER BY fouls DESC
+LIMIT 10
+----
+
+becomes
+
+[source,cypher]
+----
+
+match (match:Match {id: "32683310"})<-[:IN_MATCH]-(appearance)<-[:COMMITTED_AGAINST]->(foul:Foul),
+      (appearance)<-[:MADE_APPEARANCE]-(fouled)
+RETURN fouled.name AS fouled, COUNT(*) as fouls
+ORDER BY fouls DESC
+LIMIT 10
+----
+
+== Who fouled who the most?
+
+[source,cypher]
+----
+
+match (match:Match {id: "32683310"})<-[:COMMITTED_IN_MATCH]-(foul:Foul)-[:COMMITTED_AGAINST]->(fouled:Player),
+      (foul)<-[:COMMITTED_FOUL]-(fouler:Player)
+RETURN fouler.name AS fouler, fouled.name AS fouled, COUNT(*) as fouls
+ORDER BY fouls DESC
+LIMIT 10
+----
+
+becomes
+
+[source,cypher]
+----
+
+match (match:Match {id: "32683310"}),
+      (match)<-[:IN_MATCH]-(fouledApp)<-[:COMMITTED_AGAINST]->(foul:Foul)<-[:COMMITTED_FOUL]-(foulerApp)-[:IN_MATCH]->(match),
+      (fouledApp)<-[:MADE_APPEARANCE]-(fouled),
+      (foulerApp)<-[:MADE_APPEARANCE]-(fouler)
+RETURN fouler.name AS fouler, fouled.name AS fouled, COUNT(*) as fouls
+ORDER BY fouls DESC
+LIMIT 10;
+----
+
+== Which team fouled most?
+
+[source,cypher]
+----
+
+match (match:Match {id: "32683310"})<-[:COMMITTED_IN_MATCH]-()<-[:COMMITTED_FOUL]-(fouler),
+      (fouler)-[:MADE_APPEARANCE]-(app)-[:IN_MATCH]-(match),
+      (app)-[:FOR_TEAM]->(team)
+RETURN team.name, COUNT(*) as fouls
+ORDER BY fouls DESC
+----
+
+becomes
+
+[source,cypher]
+----
+
+match (match:Match {id: "32683310"})<-[:IN_MATCH]-(app:Appearance)-[:COMMITTED_FOUL]->(),
+      (app)-[:FOR_TEAM]->(team)
+RETURN team.name, COUNT(*) as fouls
+ORDER BY fouls DESC
+----
+
+== Worst fouler for each team
+
+[source,cypher]
+----
+
+match (match:Match {id: "32683310"})<-[:COMMITTED_IN_MATCH]-(foul)<-[:COMMITTED_FOUL]-(fouler),
+      (fouler)-[:MADE_APPEARANCE]-(app)-[:IN_MATCH]-(match),
+      (app)-[:FOR_TEAM]->(team)
+WITH team, fouler, COUNT(*) AS fouls
+ORDER BY team.name, fouls DESC
+WITH team, COLLECT({fouler:fouler, fouls:fouls})[0] AS topFouler
+RETURN team.name, topFouler.fouler.name, topFouler.fouls;
+----
+
+becomes
+
+[source,cypher]
+----
+
+match (match:Match {id: "32683310"})<-[:IN_MATCH]-(app:Appearance)-[:COMMITTED_FOUL]->(),
+      (app)-[:FOR_TEAM]->(team),
+      (fouler)-[:MADE_APPEARANCE]->(app)
+WITH team, fouler, COUNT(*) AS fouls
+ORDER BY team.name, fouls DESC
+WITH team, COLLECT({fouler:fouler, fouls:fouls})[0] AS topFouler
+RETURN team.name, topFouler.fouler.name, topFouler.fouls;
+----
+
+== Most fouled against for each team
+
+[source,cypher]
+----
+
+match (match:Match {id: "32683310"})<-[:COMMITTED_IN_MATCH]-(foul)<-[:COMMITTED_FOUL]-(fouler),
+      (fouler)-[:MADE_APPEARANCE]-(app)-[:IN_MATCH]-(match),
+      (app)-[:FOR_TEAM]->(team)
+WITH team, fouler, COUNT(*) AS fouls
+ORDER BY team.name, fouls DESC
+WITH team, COLLECT({fouler:fouler, fouls:fouls})[0] AS topFouler
+RETURN team.name, topFouler.fouler.name, topFouler.fouls
+----
+
+becomes
+
+[source,cypher]
+----
+
+match (match:Match {id: "32683310"})<-[:IN_MATCH]-(app:Appearance)<-[:COMMITTED_AGAINST]->(),
+      (app)-[:FOR_TEAM]->(team),
+      (fouled)-[:MADE_APPEARANCE]->(app)
+WITH team, fouled, COUNT(*) AS fouls
+ORDER BY team.name, fouls DESC
+WITH team, COLLECT({fouled:fouled, fouls:fouls})[0] AS topFouled
+RETURN team.name, topFouled.fouled.name, topFouled.fouls
+----
+
+The early queries are made more complicated by the refactoring but the latter ones are slightly simpler. I think we need to hook some more events onto the appearance node to see whether this refactoring is worthwhile or not.
+
+== Removing the old structure
+
+Holding judgement for now, let's look at how we'd remove the old structure - the final step in this refactoring:
+
+[source,cypher]
+----
+
+match (match:Match {id: "32683310"})<-[oldRel:COMMITTED_IN_MATCH]-(foul:Foul)
+DELETE oldRel
+----
+
+[source,cypher]
+----
+
+match (player:Player)<-[oldRel:COMMITTED_AGAINST]-(foul:Foul)
+DELETE oldRel
+----
+
+[source,cypher]
+----
+
+match (player:Player)-[oldRel:COMMITTED_FOUL]->(foul:Foul)
+DELETE oldRel
+----
+
+Hopefully you can see how you'd go about refactoring your own graph if you realise the model isn't quite what you want.
+
+Any questions/thoughts/suggestions let me know!

@@ -1,0 +1,36 @@
++++
+draft = false
+date="2009-01-01 09:28:23"
+title="2008: My Technical Review"
+tag=['learning']
+category=['Learning']
++++
+
+http://dahliabock.wordpress.com/2008/12/28/2008-in-hindsight/[Others] in the http://haacked.com/archive/2008/12/30/not-your-typical-top-ten-of-2008-post.aspx[blogosphere] seem to be doing 2008 round ups around about now so I thought I'd jump in on the action.
+
+== Project Overview
+
+* I worked on 5 projects this year writing code in C# 2.0/3.0, Java and Ruby.
+* 2 of the projects were writing client side code, 2 web applications and 1 writing services.
+* The domains I worked in were investment banking, insurance and an industrial automation system
+
+== What did I learn in 2008?
+
+Probably the year in which I've learn the most so far and I've blogged a lot of it previously so these are just some of the main points that come to mind.
+
+* I hadn't worked on a legacy code base until this year but got the opportunity to work out how to put *tests around code written in a non TDD way*. I still have more to learn around this area and Michael Feathers 'http://www.amazon.co.uk/Working-Effectively-Legacy-Robert-Martin/dp/0131177052/ref=sr_1_1?ie=UTF8&s=books&qid=1230762963&sr=8-1[Working Effectively with Legacy Code]' is probably the best place to learn it.
+* I thought I had a reasonable grasp on *coding in an Object Oriented way* but I worked on a project in the second half of the year where I realised how much more could be done by sticking to the principles. We tried out http://www.markhneedham.com/blog/2008/11/06/object-calisthenics-first-thoughts/[object calisthenics] in some coding dojos and I learnt a bit about the idea of managing the flow of an application through using lots of small fine grained objects rather than putting a lot of state into a smaller number of them.
+* I'd heard of http://en.wikipedia.org/wiki/Representational_State_Transfer[REST] but hadn't worked with this approach on any projects. I did on two projects this year and I think what it advocates ties in very nicely with my current preference for minimising state and keeping it simple.
+* I worked on projects which all approach agile in a slightly different way. My favourite approach was on a project at the start of the year which was termed *lightweight agile* by one of my colleagues. Looking back on it now I suppose it was almost lean in a way - we had some process but not too much, information about stories was only shared just before it was needed and we spent really high percentage of the time coding. It just worked!
+* I started writing this blog with some regularity and realised that *putting your thoughts into words makes them much clearer* in your own mind. I think http://apprenticeship.oreilly.com/wiki/share_what_you_learn[sharing your learning] is not only a good way of tracking what you have learnt but for providing a starting point for others trying to learn the same things so I intend to keep doing this.
+* *Twitter is a really good learning medium* - I wrote previously of how I was using http://www.markhneedham.com/blog/2008/12/07/twitter-as-a-learning-tool/[Twitter as a learning too]l and since then it's proved itself again with some interesting conversations about the http://code.google.com/p/specunit-net/[Context/Spec framework] http://twitter.com/bellware[Scott Bellware] wrote and which http://twitter.com/gblock[Glenn Block] is learning about, and some interesting ideas around Software Craftsmanship by http://twitter.com/coreyhaines[Corey Haines] and http://twitter.com/cory_foy[Cory Foy]. I've not met any of these guys but Twitter has given me the opportunity to learn from them which I think is really great.
+
+== What do I want to learn in 2009?
+
+There are bound to be areas of learning that come up which I hadn't considered and I'll gain knowledge in those areas, but these are some of the areas that I already know I need to improve in.
+
+* *Reading code bases* - This is one thing I've ended up doing much more in 2008 than 2007, in particular reading the code of open source projects. http://softwarecraftsmanship.oreilly.com/wiki/use_the_source[Going to the source] is one of the best way of learning different approaches to problem solving and I'm keen to learn techniques for doing this more effectively. I intend to blog my thoughts on different code bases as I did for http://www.markhneedham.com/blog/2008/12/31/oxite-some-thoughts/[Oxite] as I find doing this allows me to gain more from the process.
+* In my reading of open source code I've realised that code written for frameworks is much different than that written for applications. I'm keen to spend some time coding like this, just need to find an open source project that intrigues me enough now!
+* *Functional programming* - I have played around briefly with http://erlang.org/[Erlang] and http://research.microsoft.com/en-us/um/people/curtisvv/fsharp_default.aspx[F#] this year and in the latter part of the year I've had the opportunity to work with some of the functional features in C# but I haven't practice for any length of time yet. I'm keen to see how doing so will influence the way that I write code in imperative languages. I imagine that if I work in the Java world at some stage in 2009 http://clojure.org/[Clojure] will be another language to look at.
+* How to *utilise coding dojos effectively* - a more general area of learning than the others but I want to try and work out if/how we can make these sessions about deliberate practice to make them more effective for improving skills.
+* *How to apply lean on projects* - I've been doing quite a bit of reading about the http://www.markhneedham.com/blog/2008/11/19/the-toyota-way-book-review/[The Toyota Way] and http://www.markhneedham.com/blog/2008/12/20/lean-software-development-book-review/[Lean] lately and I'm keen to see how we can apply this principles on software projects. I think this will be in the form of applying agile principles more effectively but it will be interesting to find out.

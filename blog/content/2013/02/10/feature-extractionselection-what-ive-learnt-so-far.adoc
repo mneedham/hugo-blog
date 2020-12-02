@@ -1,0 +1,48 @@
++++
+draft = false
+date="2013-02-10 15:42:07"
+title="Feature Extraction/Selection - What I've learnt so far"
+tag=['machine-learning-2']
+category=['Machine Learning']
++++
+
+A couple of weeks ago I wrote about http://www.markhneedham.com/blog/2013/01/31/kaggle-digit-recognizer-a-feature-extraction-fail/[some feature extraction work that I'd done] on the http://www.kaggle.com/c/digit-recognizer[Kaggle Digit Recognizer] data set and having realised that I had no idea what I was doing I thought I should probably learn a bit more.
+
+I came across Dunja Mladenic's 'http://videolectures.net/slsfs05_mladenic_drfsm[Dimensionality Reduction by Feature Selection in Machine Learning]' presentation in which she sweeps across the landscape of feature selection and explains how everything fits together.
+
+The talk starts off by going through some reasons that we'd want to use dimensionality reduce/feature selection:
+
+* Improve the prediction performance
+* Improve learning efficiency
+* Provide faster predictors possibly requesting less information on the original data
+* Reduce complexity of the learned results, enable better understanding of the underlying process
+
+Mladenic suggests that there are a few ways we can go about reducing the dimensionality of data:
+
+* Selecting a subset of the original features
+* Constructing features to replace the original features
+* Using background knowledge to construct new features to be used in addition to the original features
+
+The talk focuses on the first of these and a lot of it focuses on how we can go about using feature selection as a pre-processing step on our data sets.
+
+The approach seems to involve either starting with all the features and removing them one at a time and seeing how the outcome is affected or starting with none of the features and adding them one at a time.
+
+However, about half way through the talk Mladenic points out that *some algorithms actually have feature selection built into them* so there's no need to have the pre-processing step.
+
+I think this is the case with http://en.wikipedia.org/wiki/Random_forest[random forests of decision trees] because the decision trees are constructed by taking into account which features give the greatest http://en.wikipedia.org/wiki/Information_gain_in_decision_trees[information gain] so low impact features are less likely to be used.
+
+I previously wrote http://www.markhneedham.com/blog/2013/01/08/kaggle-digit-recognizer-finding-pixels-with-no-variance-using-r/[a blog post describing how I removed all the features with zero variance] from the data set and after submitting a random forest trained on the new data set we saw no change in accuracy which proved the point.
+
+I also came across an interesting paper by Isabelle Guyon & Andre Elisseeff titled 'http://clopinet.com/isabelle/Papers/guyon03a.pdf[An Introduction to Variable and Feature Selection]' which has a flow chart-ish set of questions to help you work out where to start.
+
+One of the things I picked up from reading this paper is that if you have domain knowledge then *you might be able to construct a better set of features by making use of this knowledge*.
+
+Another suggestion is to *come up with a variable ranking for each feature* i.e. how much that feature contributes to the outcome/prediction. This is something also suggested in the https://class.coursera.org/dataanalysis-001/class/index[Coursera Data Analysis course] and in R we can use the +++<cite>+++http://web.njit.edu/all_topics/Prog_Lang_Docs/html/library/base/html/glm.html[glm]+++</cite>+++ function to help work this out.
+
+The authors also point out that we should separate the problem of model selection (i.e. working out which features to use) from the problem of testing our classifier.
+
+To test the classifier we'd most likely keep a test set aside but we shouldn't use this data for testing feature selection, rather we should use the training data. http://en.wikipedia.org/wiki/Cross-validation_(statistics)[Cross validation] probably works best here.
+
+There's obviously more covered in the presentation & paper than what I've covered here but I've found that in general the material I've come across tends to drift towards being quite abstract/theoretical and therefore quite difficult for me to follow.
+
+If anyone has come across any articles/books which explain how to go about feature selection using an example I'd love to read it/them!

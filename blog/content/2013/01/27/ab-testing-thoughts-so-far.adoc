@@ -1,0 +1,57 @@
++++
+draft = false
+date="2013-01-27 13:27:32"
+title="A/B Testing: Thoughts so far"
+tag=['software-development', 'absplittesting']
+category=['Software Development']
++++
+
+I've been working at http://www.uswitch.com/[uSwitch] for about two months now and for the majority of that time have been working on an A/B test we were running to try and make it easier for users to go through the energy comparison process.
+
+I found the 'http://www.exp-platform.com/Documents/GuideControlledExperiments.pdf[Practical Guide to Controlled Experiments on the Web]' paper useful for explaining how to go about doing an A/B test and there's also http://mcfunley.com/design-for-continuous-experimentation[an interesting presentation by Dan McKinley] about how http://www.etsy.com/[etsy] do A/B testing.
+
+I've previously read about A/B tests which changed the page for users on the client side using tools like http://analytics.blogspot.co.uk/2012/06/helping-to-create-better-websites.html[Google Website Optimiser] but since we had made significant changes to the journey we split users on the server side.
+
+== Reporting
+
+Before we started running our test we needed to work out how we were measuring conversion and how we would get the data to allow us to calculate that.
+
+We decided to measure the number of people who started a comparison against the number of those who reached the thank you page and only included those who had an active session from the time we started the experiment.
+
+We were already recording the pages users were hitting so it wasn't difficult to write a query to derive the conversion rate.
+
+Unfortunately it was taking us a couple of hours to run other queries about the experiment because we had mixed together data about users' sessions and the experiment. The data therefore wasn't optimised for the types of queries we wanted to run.
+
+One of our next tasks is to +++<strong>+++split these concerns +++</strong>+++to make our lives a bit easier.
+
+== Conversion rate and time
+
+I learnt that *people don't necessarily finish a transaction in one sitting* so the conversion rate at the beginning of the experiment isn't representative.
+
+We saw it level out after a couple of weeks once we'd gone through a full 'season'. A season is a time period which cover all the days of the week and take into account the average amount of time that people take to go end to end in the process.
+
+We've worked out the amount of time that we need to run the test to unequivocally say that the control or experiment has fared better but there is a tendency to kill off the experiment if it's doing significantly worse. I still need to learn when you should stick with it and when it's best to kill it off.
+
+== Cognitive biases
+
+Although we were http://www.r-tutor.com/elementary-statistics/hypothesis-testing/two-tailed-test-population-proportion[using a hypothesis test] to determine whether the control or experiment was doing better some http://en.wikipedia.org/wiki/Cognitive_bias[cognitive biases] tried to creep in.
+
+When we started the experiment most people were fairly convinced that the experiment was going to fare better and so we http://en.wikipedia.org/wiki/Confirmation_bias[really wanted that to happen] and would look for the positives in how it was doing.
+
+As with the first example in the etsy talk there was quite a big difference between the two versions and as a result we'd spent a few weeks coding up the experiment and http://en.wikipedia.org/wiki/Sunk_costs#Loss_aversion_and_the_sunk_cost_fallacy[didn't want that work to feel wasted].
+
+== What but not why
+
+From the data we could easily see what the users behaviour was but it was much more difficult to understand why that was the case even after drilling down into the data.
+
+I hadn't realised that http://en.wikipedia.org/wiki/Usability_testing[user testing] fills this gap quite well because people vocalise what they're thinking when going through the journey and you get an explanation about what other users might be doing as well.
+
+One of the suggestions from the etsy talk is to try and make your hypotheses smaller so that you can run *smaller tests with less variables* and therefore have more chance of explaining what's going on.
+
+I find this type of stuff fascinating so if anyone has some good papers/articles/blogs where others have written about their experiences I'd love to hear about them.
+
+These are some other posts that I've come across:
+
+* http://www.cennydd.co.uk/2009/statistical-significance-other-ab-test-pitfalls/[Statistical significance & other A/B test pitfalls]
+* http://37signals.com/svn/posts/1525-writing-decisions-headline-tests-on-the-highrise-signup-page[Writing Decisions: Headline tests on the Highrise signup page]
+* http://kylerush.net/blog/optimization-at-the-obama-campaign-ab-testing/[Optimization at the Obama campaign: a/b testing]

@@ -1,0 +1,84 @@
++++
+draft = false
+date="2014-05-31 12:44:10"
+title="Neo4j: Cypher - Neo.ClientError.Statement.ParameterMissing and neo4j-shell"
+tag=['neo4j']
+category=['neo4j']
++++
+
+Every now and then I get sent Neo4j cypher queries to look at and more often than not they're http://docs.neo4j.org/chunked/stable/cypher-parameters.html[parameterised] which means you can't easily run them in the http://neo4j.com/blog/neo4j-2-0-0-m06-introducing-neo4js-browser/[Neo4j browser].
+
+For example let's say we have a database which has a user called 'Mark':
+
+[source,cypher]
+----
+
+CREATE (u:User {name: "Mark"})
+----
+
+Now we write a query to find 'Mark' with the name parameterised so we can easily search for a different user in future:
+
+[source,cypher]
+----
+
+MATCH (u:User {name: {name}}) RETURN u
+----
+
+If we run that query in the Neo4j browser we'll get this error:
+
+[source,bash]
+----
+
+Expected a parameter named name
+Neo.ClientError.Statement.ParameterMissing
+----
+
+If we try that in neo4j-shell we'll get the same exception to start with:
+
+[source,cypher]
+----
+
+$ MATCH (u:User {name: {name}}) RETURN u;
+ParameterNotFoundException: Expected a parameter named name
+----
+
+However, as https://twitter.com/mesirii[Michael] pointed out to me, the neat thing about neo4j-shell is that we can define parameters by using the +++<cite>+++export+++</cite>+++ command:
+
+[source,cypher]
+----
+
+$ export name="Mark"
+$ MATCH (u:User {name: {name}}) RETURN u;
++-------------------------+
+| u                       |
++-------------------------+
+| Node[1923]{name:"Mark"} |
++-------------------------+
+1 row
+----
+
++++<cite>+++export+++</cite>+++ is a bit sensitive to spaces so it's best to keep them to a minimum. e.g. the following tries to create the variable 'name ' which is invalid:
+
+[source,bash]
+----
+
+$ export name = "Mark"
+name  is no valid variable name. May only contain alphanumeric characters and underscores.
+----
+
+The variables we create in the shell don't have to only be primitives. We can create maps too:
+
+[source,bash]
+----
+
+$ export params={ name: "Mark" }
+$ MATCH (u:User {name: {params}.name}) RETURN u;
++-------------------------+
+| u                       |
++-------------------------+
+| Node[1923]{name:"Mark"} |
++-------------------------+
+1 row
+----
+
+A simple tip but one that saves me from having to rewrite queries all the time!

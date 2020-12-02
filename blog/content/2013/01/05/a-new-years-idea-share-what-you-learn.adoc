@@ -1,0 +1,120 @@
++++
+draft = false
+date="2013-01-05 00:25:30"
+title="A new year's idea: Share what you learn"
+tag=['software-development']
+category=['Software Development']
++++
+
+_Apologies in advance for how meta this post is_.
+
+About 4 1/2 years ago https://twitter.com/thejayfields[Jay Fields] wrote a blog post where http://blog.jayfields.com/2008/08/be-your-start-up.html[he encouraged people to write, present and contribute] and outlined the advantages he'd seen in his career from doing so.
+
+In hindsight the bit which stood out the most for me was the following paragraph:
+
+____
+Don't know what to write about? The answers are all around you. Anything you do that's interesting, there's 100 people searching Google for how to do it. *Any question a colleague asks you, someone is searching Google for the same answer. Anything that's valuable to you\... yes, someone is googling for it*.
+____
+
+Motivated partly by this and partly by the fact that I was working away from home and staying in a hotel overlooking a motorway and had nothing else to do I started documenting what I was learning on here.
+
+I've now written over 1,000 posts but have failed to convince any of my friends that they should blog too and make people's Google experience better too!
+
+I have however managed to accrue a huge collection of reasons why people don't write about what they're learning and added to a quick twitter survey I did this morning here they are!
+
+== I learn more by coding
+
+This is the argument that I use against myself the most frequently - surely if my area of interest is programming then I will get better faster by coding more rather than writing about things.
+
+I probably convince myself that this is true 4 times out of 5 and then after spending a bit of time reflecting on what I've been doing by writing it up I wish I'd done so earlier!
+
+I've also been lucky enough that people much better than me have commented on my posts and showed me ways to improve which would have taken me much longer to discover by myself.
+
+I suppose I could have achieved that by going on an IRC channel but this way my whole thought process has been laid out, the code demonstrated and then another way explained.
+
+Writing code and putting it on github is awesome but writing a summary article explaining what you were doing and showing people some examples of what they can do with your code is even better.
+
+As a final incentive, the title you give the post and the language you use to describe what you're done will probably be more SEO friendly than pure code so others will be more likely to come across it. #win!
+
+== I don't have time
+
+Obviously I don't know everybody's personal circumstances and I'm sure in some cases it's true that people don't have time but when I explain how long it takes me to write a post people are often surprised.
+
+I was fairly sure that on average it takes me less than an hour but I thought I better time myself writing a few of my recent posts so I had some empirical evidence!
+
+* http://www.markhneedham.com/blog/2012/12/31/bitwise-operations-in-ruby-and-haskell/[Bit wise operations in Ruby and Haskell] - 1 hour
+* http://www.markhneedham.com/blog/2012/12/31/gamification-and-software-some-thoughts/[Reality is broken] - 1 hour
+* http://www.markhneedham.com/blog/2012/12/27/mahout-parallelising-the-creation-of-decisiontrees/[Parallelising Mahout forests] - 1 hour
+* http://www.markhneedham.com/blog/2013/01/02/haskell-reading-files/[Reading files in Haskell] - 25 minutes
+* http://www.markhneedham.com/blog/2012/12/24/the-tracer-bullet-approach-an-example/[Tracer Bullet] - 20 minutes
+* Posts on the http://www.markhneedham.com/blog/2012/12/31/haskell-strictness-and-the-monadic-bind/[union find data structure] http://www.markhneedham.com/blog/2012/12/31/haskell-an-impressively-non-performant-union-find/[in Haskell] - 2 hours
+
+I think the belief that it should take much longer than this derives from the thinking that a blog post needs to be a piece of art and that they need to be really extensive and cover every possibility.
+
+I try to apply the single responsibility principle when I'm writing and if I start drifting off into a different topic then I copy and paste that text and put it in another post.</li>
+
+I have a notepad with me at all times and whenever I see something interesting or something takes longer than it should I sketch out what the problem was and how we solved it and then write it up in the evening
+
+It's very easy to procrastinate when writing so I keep http://chrisyeh.blogspot.co.uk/2012/12/my-20-minute-secret-to-being-insanely.html[a pomodoro timer running] and it does the job of keeping me focused as well as providing motivation to try and finish the post within a time box.
+
+A bit of gamification always keeps things fun so I originally started out with the intention of writing one post per day which I eventually scaled back to about 16/17 posts a month which I achieved 2/3 of the months of 2012.
+
+I find doing that makes me keep my mind open to interesting things to write about and makes me do things that I can then write about.
+
+== I'm not doing anything interesting to write about
+
+It seems to be a universal truth that http://en.wiktionary.org/wiki/the_grass_is_always_greener_on_the_other_side[what other people are doing sounds more interesting to us than what we're doing].
+
+This means that what you're currently working on is probably interesting to other people even if you don't think it will be.
+
+I have friends who have played around/done work with Go, Riak, Cassandra and Clojure to name but a few which sound fascinating to me but still haven't reached the 'interesting' threshold!
+
+Briefly brainstorming some other things that I'd find interesting:
+
+* Stories from first time/seasoned tech leads describing how they handle situations
+* How do hypermedia systems work in real life? Some war stories around trying to implement proper REST
+* How do people go about learning new programming languages? What problems do they run into?
+
+There are undoubtably way more interesting topics than what I've come up with - giving the topic your personal angle is often a good way of making the post stand out from other ones on the same topic.
+
+== Everybody already knows what I'd write about
+
+An interesting thing that I've noticed from 4 years of writing is that what I considered at the time to be my most pointless posts are the ones that are most useful to people.
+
+Two examples come to mind.
+
+One is a post I wrote in 2010 aggregating a bunch of instructions on http://www.markhneedham.com/blog/2010/07/08/installing-ruby-1-9-2-with-rvm-on-snow-leopard/[compiling Ruby 1.9.2 using RvM on Snow Leopard] - it's been read 25,000 times.
+
+The other I wrote at the start of 2012 about the idea of http://www.markhneedham.com/blog/2012/02/20/coding-packaging-by-vertical-slice/[organising code by domain area] rather than by layer which has 30 comments from people sharing their thoughts.
+
+Even if you do think everybody already knows what you want to write about it doesn't matter because you're writing first for yourself and then for everybody else.
+
+== I'm not good at writing
+
+This one is said less frequently but is still a fear for people and in this case I think Jay addresses it best:
+
+____
+Writing well is hard, but you're a programmer, so you needn't worry about that. No one expects you to be a good writer, they're happy if you are, but they're forgiving if you're not. Don't use your poor writing skills as an excuse not to write.
+____
+
+The only way to get better at writing is to write but 'http://www.amazon.co.uk/Writing-Well-Classic-Guide-Nonfiction/dp/141775057X[On Writing Well]' has some good pointers and describes common mistakes that people make. I still have advice from the book ringing in my head as I write every post.
+
+== People will criticise what I write
+
+One of the main fears that people seem to have is that what they write will be criticised by others and therefore they need to make sure every possible angle is covered before writing about anything.
+
+Out of the 1,000+ posts I've written I can only think of one or two occasions when I've been criticised in a way I didn't think was particularly constructive which at the time wasn't nice but eventually you realise it doesn't actually matter. Most of the time people were very kind if I'd got something wrong and I just corrected it.
+
+On the flip side, as I mentioned earlier, people tend to be really helpful and teach me new things by commenting on what I write.
+
+== I need to write my own blog
+
+I know this one is a bit sarcastic but many people seem to get distracted from sharing what they're learning by spending too much time working out how to do so i.e. writing their own blogging software
+
+I use http://wordpress.com/[WordPress] but I think http://pages.github.com/[github pages], http://jekyllbootstrap.com/[Jekyll] or https://www.tumblr.com/[tumblr] are probably better options.
+
+I will end the post with the provocative words of Eric Raymond in http://www.catb.org/esr/faqs/hacker-howto.html[How To Become a Hacker]:
+
+____
+Creative brains are a valuable, limited resource. They shouldn't be wasted on re-inventing the wheel when there are so many fascinating new problems waiting out there. To behave like a hacker, you have to believe that the thinking time of other hackers is precious -- so much so that *it's almost a moral duty for you to share information, solve problems and then give the solutions away just so other hackers can solve new problems instead of having to perpetually re-address old ones*.
+____

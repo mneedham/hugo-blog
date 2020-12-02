@@ -1,0 +1,49 @@
++++
+draft = false
+date="2011-11-24 22:25:04"
+title="XP Day: Cynefin & Agile (Joseph Pelrine/Steve Freeman)"
+tag=['xpday']
+category=['XP Day']
++++
+
+Another session that I attended at XP Day was one facilitated by http://twitter.com/#!/sf105[Steve Freeman] and http://twitter.com/#!/josephpelrine[Joseph Pelrine] where we discussed the http://en.wikipedia.org/wiki/Cynefin[Cynefin model], something that I http://www.markhneedham.com/blog/2011/05/19/xp-2011-how-complex-is-software/[first came across earlier in the year at XP 2011].
+
+image::{{<siteurl>}}/uploads/2011/11/607px-Cynefin_framework_Feb_2011.jpeg[607px Cynefin framework Feb 2011,300]
+
+We spent the first part of the session drawing out the model and coming up with some software examples which might fit into each domain.
+
+* *Simple* - when you're going to checkin run the build
+* *Complicated* - certain types of architectural decisions
+* *Complex* - task estimation
+* *Chaos* - startup explosion
+
+Steve pointed out that with simple/complicated the important thing to remember is that things on the right hand side are *repeatable* whereas on the other side we could do the same thing again and get a completely different result.
+
+The most interesting part of the discussion for me was when http://twitter.com/#!/PapaChrisMatts[Chris Matts] joined in and suggested that in his experience people generally preferred to be in one of the quadrants more than the others.
+
+He used http://twitter.com/tastapod[Dan North] as his example, suggesting that Dan prefers to be in chaotic situations.
+
+I think I like being in the complex domain when you don't really know what's going to happen. I find it quite boring when things are predictable.
+
+Traditional project managers would probably prefer to be in the simple/complicated domains because things are a bit more certain over that size.
+
+http://twitter.com/lizdouglass[Liz] and I were discussing afterwards whether that tendency is what tends to lead to people becoming generalists rather than specialists.
+
+If you were to become a specialist in a subject then it would suggest to me that *a lot of your time would be spent in the complicated domain* honing your skills.
+
+image::{{<siteurl>}}/uploads/2011/11/cynefin.gif[Cynefin,314]
+
+Another discussion was around the desire when building systems to try and move the building of that system, which originally starts off being complex, into the complicated and finally into the simple domain.
+
+http://twitter.com/#!/natpryce[Nat Pryce] pointed out that we can often end up pushing a system back into chaos if we try and force it into the simple domain.
+
+Pushing something into simple would suggest that anyone would be able to make changes to it without having any specialist/expert skills.
+
+Someone else in the group pointed out that *it's often been thought that we can make the programming of systems something so simple that anyone can do it* but that so far that theory has been proved false.
+
+Overall this was an interesting session for me and it makes it a bit easier to understand some of the things that I see in the projects that I work on.
+
+== Recommended reading from the session
+
+* http://www.amazon.co.uk/Sense-Respond-Journey-Customer-Purpose/dp/140394573X/ref=sr_1_1?ie=UTF8&qid=1322173200&sr=8-1[Sense and Respond] by Stephen Parry
+* Joseph Perline on http://www.metaprog.com/csot/[Social Complexity & Coaching Self Organising Teams]

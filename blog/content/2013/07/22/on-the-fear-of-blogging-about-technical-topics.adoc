@@ -1,0 +1,39 @@
++++
+draft = false
+date="2013-07-22 23:47:28"
+title="On \"The fear of blogging about technical topics\""
+tag=['software-development']
+category=['Software Development']
++++
+
+My former colleague https://twitter.com/annejsimmons[Anne Simmons] recently wrote an interesting post in which she describes http://annejsimmons.com/2013/07/16/the-fear-of-blogging-about-technical-topics/[some of the reasons that she finds herself not wanting to write about technical topics.].
+
+I wrote a post at the end of 2012 in which I explained some of the reasons why I think http://www.markhneedham.com/blog/2013/01/05/a-new-years-idea-share-what-you-learn/[writing about what you learn is a good idea] but Anne brought up some things I hadn't thought of which I think are worth addressing.
+
+She's already described her own mantras to overcome these but I thought it'd still be interesting to share my experience as well:
+
+== What do I know that the internet doesn't already?!
+
+I've found that then posts I write in which I aggregate a bunch of information that I found from different places tend to be my most read posts.
+
+A lot of the people that I've worked with (including me) when encountered with a stack trace will paste it straight into google to try and solve their problem.
+
+I've had the same experience as Anne in spending ages trying to solve a problem and thinking it would be cool to save someone else (usually future me) from having to rediscover the solution in the future.
+
+== Will people judge me about what knowledge I do have?/What if I'm wrong?!
+
+In 5 years of writing I've only had a couple of times when people commented in what I thought was an unnecessary manner but the majority of feedback has been very positive.
+
+Frequently people actually teach me something that I didn't know rather than criticising what I do know so for me writing has been a net gain.
+
+A strange side effect is that people think I know much more than I do based on writing about things I've been working on.
+
+== In summary
+
+It can only be a good thing for the internet if more people write about the things that they're working on so I hope Anne keeps to her one post a month target!
+
+I'll finish off with the http://www.catb.org/esr/faqs/hacker-howto.html[Eric Raymond] quote that I used on http://www.markhneedham.com/blog/2013/01/05/a-new-years-idea-share-what-you-learn/[my previous post about sharing what you learn]:
+
+____
+Creative brains are a valuable, limited resource. They shouldn't be wasted on re-inventing the wheel when there are so many fascinating new problems waiting out there. To behave like a hacker, you have to believe that the thinking time of other hackers is precious -- so much so that *it's almost a moral duty for you to share information, solve problems and then give the solutions away just so other hackers can solve new problems instead of having to perpetually re-address old ones*.
+____

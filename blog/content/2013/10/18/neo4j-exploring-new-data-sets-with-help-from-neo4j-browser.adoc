@@ -1,0 +1,47 @@
++++
+draft = false
+date="2013-10-18 11:43:59"
+title="Neo4j: Exploring new data sets with help from Neo4j browser"
+tag=['neo4j']
+category=['neo4j']
++++
+
+One of the things that I've found difficult when looking at a new Neo4j database is working out the structure of the data it contains.
+
+I'm used to relational databases where you can easily get a list of the table and the foreign keys that allow you to join them to each other.
+
+image::{{<siteurl>}}/uploads/2013/10/2013-10-17_21-27-36.png[2013 10 17 21 27 36,226]
+
+This has traditionally been difficult when using Neo4j but with the http://blog.neo4j.org/2013/10/neo4j-200-m06-introducing-neo4js-browser.html[release of the Neo4j browser] we can now easily get this type of overview by clicking on the Neo4j icon at the top left of the browser.
+
+We'll see something similar to the image on the left which shows the structure of my football graph and we can now discover parts of the graph by clicking on the various labels, properties or relationships.
+
+For example, if we click on the +++<cite>+++Month+++</cite>+++ label the following query will be executed:
+
+image::{{<siteurl>}}/uploads/2013/10/2013-10-18_11-59-49.png[2013 10 18 11 59 49,400]
+
+&nbsp;
+
+That query actually returns all the months in the database since there are only 12 in total, but for other queries we'd get back a subset of the nodes/relationships with that structure.
+
+To explore the structure around the months we might explore which relationships it has by running a query like this:
+
+image::{{<siteurl>}}/uploads/2013/10/2013-10-18_12-18-54.png[2013 10 18 12 18 54,600]
+
+From running this query we learn that there is a +++<cite>+++in_month+++</cite>+++ relationship connecting matches to the month that they were played in.
+
+Another useful exploration mechanism is the +++<cite>+++http://docs.neo4j.org/chunked/milestone/query-match.html#match-all-shortest-paths[allShortestPaths]+++</cite>+++ function which will show us the path between two nodes if one exists. For example the following query would show us the path between Wayne Rooney and March:
+
+image::{{<siteurl>}}/uploads/2013/10/2013-10-18_12-27-12.png[2013 10 18 12 27 12,600]
+
+The text is a bit small but the relationship between Rooney and a match is named +++<cite>+++played_in+++</cite>+++ so if we want to find which matches Rooney played in in March we could easily write that query.
+
+Another neat feature of the browser is that we can save our queries as we go by clicking on the save button and optionally naming the query in a comment:
+
+image::{{<siteurl>}}/uploads/2013/10/2013-10-18_12-37-31.png[2013 10 18 12 37 31,600]
+
+We can then access those queries and re-run them if we want via the star tab on the left hand side:
+
+image::{{<siteurl>}}/uploads/2013/10/2013-10-18_12-34-06.png[2013 10 18 12 34 06,600]
+
+You can get a hold of the browser by downloading milestone 2.0.0-M06 about half way down the http://www.neo4j.org/download[download page] or if you want to hack on the browser it's on https://github.com/neo4j/neo4j-browser[github].

@@ -1,0 +1,73 @@
++++
+draft = false
+date="2013-06-20 06:31:11"
+title="neo4j/cypher: CREATE with optional properties"
+tag=['neo4j']
+category=['neo4j']
++++
+
+I've written before about using the http://docs.neo4j.org/chunked/milestone/query-create.html[cypher CREATE statement] to http://www.markhneedham.com/blog/2013/05/25/neo4jcypher-properties-or-relationships-its-easy-to-switch/[add inferred information to a neo4j graph] and sometimes we want to do that but have to deal with optional properties while creating our new relationships.
+
+For example let's say we have the following people in our graph with the 'started' and 'left' properties representing their tenure at a company:
+
+[source,cypher]
+----
+
+CREATE (person1 { personId: 1, started: 1361708546 })
+CREATE (person2 { personId: 2, started: 1361708546, left: 1371708646 })
+CREATE (company { companyId: 1 })
+----
+
+We want to create a 'TENURE' link from them to the company including the 'started' and 'left' properties when applicable and might start with the following query:
+
+[source,cypher]
+----
+
+START person = node:node_auto_index('personId:1 personId:2'),
+      company = node:node_auto_index('companyId:1')
+CREATE person-[:TENURE_AT { started: person.started, left: person.left }]-company
+RETURN person, company
+----
+
+which throws an exception because not all people have a 'left' property:
+
+[source,text]
+----
+
+Error: org.neo4j.cypher.EntityNotFoundException: The property 'left' does not exist on Node[1]
+----
+
+We tweak our query a bit to make the property optional:
+
+[source,cypher]
+----
+
+START person = node:node_auto_index('personId:1 personId:2'),
+      company = node:node_auto_index('companyId:1')
+CREATE person-[:TENURE_AT { started: person.started, left: person.left? }]-company
+RETURN person, company
+----
+
+which still doesn't work:
+
+[source,text]
+----
+
+Error: java.lang.IllegalArgumentException: Null parameter, key=left, value=null
+----
+
+After looking at this for a while https://twitter.com/apcj[Alistair] pointed out that we should just split the updating of the optional property from the creation of the relationship so we end up with the following:
+
+[source,cypher]
+----
+
+START person = node:node_auto_index('personId:1 personId:2'),
+      company = node:node_auto_index('companyId:1')
+CREATE person-[tenure:TENURE_AT { started: person.started }]-company
+WITH person, tenure, company
+WHERE HAS(person.left)
+SET tenure.left = person.left
+RETURN person, company
+----
+
+The http://console.neo4j.org/?id=gdbpuv[code is on the console] if you want to see how it works.

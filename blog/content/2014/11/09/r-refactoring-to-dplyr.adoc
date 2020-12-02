@@ -1,0 +1,184 @@
++++
+draft = false
+date="2014-11-09 00:11:48"
+title="R: Refactoring to dplyr"
+tag=['r-2']
+category=['R']
++++
+
+I've been looking back over some of the early code I wrote using R before I knew about the http://cran.r-project.org/web/packages/dplyr/vignettes/introduction.html[dplyr] library and thought it'd be an interesting exercise to refactor some of the snippets.
+
+We'll use the following data frame for each of the examples:
+
+[source,r]
+----
+
+library(dplyr)
+
+data = data.frame(
+  letter = sample(LETTERS, 50000, replace = TRUE),
+  number = sample (1:10, 50000, replace = TRUE)
+  )
+----
+
+== Take \{n} rows
+
+[source,r]
+----
+
+> data[1:5,]
+  letter number
+1      R      7
+2      Q      3
+3      B      8
+4      R      3
+5      U      2
+----
+
+becomes:
+
+[source,r]
+----
+
+> data %>% head(5)
+  letter number
+1      R      7
+2      Q      3
+3      B      8
+4      R      3
+5      U      2
+----
+
+== Order by numeric value descending
+
+[source,r]
+----
+
+> data[order(-(data$number)),][1:5,]
+   letter number
+14      H     10
+17      G     10
+63      L     10
+66      W     10
+73      R     10
+----
+
+becomes:
+
+[source,r]
+----
+
+> data %>% arrange(desc(number)) %>% head(5)
+  letter number
+1      H     10
+2      G     10
+3      L     10
+4      W     10
+5      R     10
+----
+
+== Count number of items
+
+[source,r]
+----
+
+> length(data[,1])
+[1] 50000
+----
+
+becomes:
+
+[source,r]
+----
+
+> data %>% count()
+Source: local data frame [1 x 1]
+
+      n
+1 50000
+----
+
+== Filter by column value
+
+[source,r]
+----
+
+> length(subset(data, number == 1)[, 1])
+[1] 4928
+----
+
+becomes:
+
+[source,r]
+----
+
+> data %>% filter(number == 1) %>% count()
+Source: local data frame [1 x 1]
+
+     n
+1 4928
+----
+
+== Group by variable and count
+
+[source,r]
+----
+
+> aggregate(data, by= list(data$number), function(x) length(x))
+   Group.1 letter number
+1        1   4928   4928
+2        2   5045   5045
+3        3   5064   5064
+4        4   4823   4823
+5        5   5032   5032
+6        6   5163   5163
+7        7   4945   4945
+8        8   5077   5077
+9        9   5025   5025
+10      10   4898   4898
+----
+
+becomes:
+
+[source,r]
+----
+
+> data %>% count(number)
+Source: local data frame [10 x 2]
+
+   number    n
+1       1 4928
+2       2 5045
+3       3 5064
+4       4 4823
+5       5 5032
+6       6 5163
+7       7 4945
+8       8 5077
+9       9 5025
+10     10 4898
+----
+
+== Select a range of rows
+
+[source,r]
+----
+
+> data[4:5,]
+  letter number
+4      R      3
+5      U      2
+----
+
+becomes:
+
+[source,r]
+----
+
+> data %>% slice(4:5)
+  letter number
+1      R      3
+2      U      2
+----
+
+There's certainly more code in some of the dplyr examples but I find it easier to remember how the dplyr code works when I come back to it and hence tend to favour that approach.

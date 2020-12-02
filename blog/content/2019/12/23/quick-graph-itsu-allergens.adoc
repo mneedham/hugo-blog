@@ -107,7 +107,7 @@ image::{{<siteurl>}}/uploads/2019/12/itsu-sample.svg[]
 
 Now let's explore the data using Neo4j's https://neo4j.com/developer/cypher-basics-i/[Cypher^] query language.
 
-=== How many allergens are there?
+== How many allergens are there?
 
 [source,cypher]
 ----
@@ -122,7 +122,7 @@ RETURN count(*), collect(allergen.name) AS allergens;
 | 14       | ["fish", "soya", "mustard", "gluten", "celery", "sesame", "sulphur dioxide", "dairy", "egg", "crustaceans", "wheat", "mullusc", "nuts", "peanuts"]
 |===
 
-=== Which allergen is most prevalent?
+== Which allergen is most prevalent?
 
 [source,cypher]
 ----
@@ -150,7 +150,7 @@ LIMIT 5;
 
 Itsu is clearly not a good place to go if you're allergic to soya, gluten, or sesame.
 
-=== Which allergens appear together most frequently?
+== Which allergens appear together most frequently?
 
 [source,cypher]
 ----
@@ -176,7 +176,7 @@ It looks like Itsu recipes often use soya alongside gluten and sesame.
 
 And now let's finally see what I can eat the next time that I go to Itsu.
 
-=== How many things can I eat in Itsu?
+== How many things can I eat in Itsu?
 
 [source,cypher]
 ----
@@ -222,7 +222,7 @@ RETURN count,
        products
 ----
 
-=== How many hot things can I eat in Itsu?
+== How many hot things can I eat in Itsu?
 
 Let's say I want to eat something from the `hot` category.
 We haven't modelled that in our graph, but it is embedded in the `url` property stored on each product.

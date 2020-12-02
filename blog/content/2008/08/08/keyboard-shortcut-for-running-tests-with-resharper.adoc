@@ -1,0 +1,20 @@
++++
+draft = false
+date="2008-08-08 19:23:13"
+title="Keyboard shortcut for running tests with Resharper"
+tag=['resharper']
+category=['Coding', '.NET']
++++
+
+Having moved back into the world of C#/.NET development after a few months in the Java world I have had the joy of getting to use http://www.jetbrains.com/resharper/[Resharper] again.
+
+One annoyance that myself and my team have been having over the past few weeks is running unit tests. We always end up going to the Solution Explorer, right click the project and then click 'Run Unit Tests'. There is another way...
+
+From Visual Studio:
+
+* Click on Tools > Options > Keyboard
+* Select the 'Show commands containing' box and type in 'resharper.resharper_unittest'.
+* Select 'Resharper.Resharper_UnitTest_ContextRun'
+* Assign this to a keyboard shortcut (I usually use Shift-F11 as that's the same as IntelliJ!) and running unit tests need never be a pain again.
+
+image::{{<siteurl>}}/uploads/2008/08/resharper-screenshot.jpg[resharper-screenshot.jpg]

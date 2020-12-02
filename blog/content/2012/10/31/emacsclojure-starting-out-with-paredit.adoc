@@ -1,0 +1,61 @@
++++
+draft = false
+date="2012-10-31 08:41:09"
+title="Emacs/Clojure: Starting out with paredit"
+tag=['clojure', 'emacs', 'paredit']
+category=['Clojure']
++++
+
+I've been complaining recently to https://twitter.com/jennifersmithco[Jen] and https://twitter.com/otfrom[Bruce] about the lack of a beginner's guide to http://emacswiki.org/emacs/ParEdit[emacs paredit mode] which seems to be the defacto approach for people working with Clojure and both pointed me to the http://emacswiki.org/emacs/PareditCheatsheet[paredit cheat sheet].
+
+While it's very comprehensive, I found that it's a little overwhelming for a complete newbie like myself.
+
+I therefore thought it'd be useful to write a bit about a couple of things that I've picked up from pairing with Jen on little bits of Clojure over the last couple of months.
+
+Let's say we start with a simple function to add two numbers together:
+
+image::{{<siteurl>}}/uploads/2012/10/Screen-shot-2012-10-31-at-08.16.18.jpeg[Screen shot 2012 10 31 at 08 16 18,124]
+
+And say for example we decide that we want to add 5 to the result so the function adds the two numbers together and then adds 5.
+
+Jen showed me that the best way to do this is to go beyond the furthest bracket to the left and start typing there:
+
+image::{{<siteurl>}}/uploads/2012/10/Screen-shot-2012-10-31-at-08.23.15.jpeg[Screen shot 2012 10 31 at 08 23 15,122]
+
+The brackets are now a bit misaligned. We need the ')' where the cursor currently is to go to the end of the line.
+
+One way to do this is to move the cursor in front of the '(' of the second '+' on the line and press 'Ctrl + K' which in emacs means 'kill line to end' but in this case kills to the end of the expression that we're at the beginning of:
+
+image::{{<siteurl>}}/uploads/2012/10/Screen-shot-2012-10-31-at-08.25.16.jpeg[Screen shot 2012 10 31 at 08 25 16,118]
+
+We then move the cursor back to just after the '5' and press 'Ctrl + Y' which in emacs means re-insert the last text that was killed:
+
+image::{{<siteurl>}}/uploads/2012/10/Screen-shot-2012-10-31-at-08.26.04.jpeg[Screen shot 2012 10 31 at 08 26 04,129]
+
+This works but it's a little bit long winded and Jen showed me a quicker way.
+
+If we go back to the position where we had just inserted the '+ 5' and place our cursor just in front of the ')':
+
+image::{{<siteurl>}}/uploads/2012/10/Screen-shot-2012-10-31-at-08.23.15.jpeg[Screen shot 2012 10 31 at 08 23 15,122]
+
+We can then press 'Ctrl + Shift + Right Arrow' to push the right bracket to the end of the line:
+
+image::{{<siteurl>}}/uploads/2012/10/Screen-shot-2012-10-31-at-08.32.07.jpeg[Screen shot 2012 10 31 at 08 32 07,121]
+
+From what I can tell, this can also be achieved by pressing 'Meta + X' followed by 'paredit-forward-slurp-sexp' or 'Meta + Shift + )'.
+
+We have to be a little bit careful about where we position the cursor because if we put it after the bracket then we can end up bringing another function into our one by mistake!
+
+For example say just below our 'add' function we have a subtract one:
+
+image::{{<siteurl>}}/uploads/2012/10/Screen-shot-2012-10-31-at-08.34.31.jpeg[Screen shot 2012 10 31 at 08 34 31,153]
+
+And we put our cursor just after the ')' of the '+ 5' bit of code and press 'Ctrl + Shift + RIght Arrow':
+
+image::{{<siteurl>}}/uploads/2012/10/Screen-shot-2012-10-31-at-08.35.24.jpeg[Screen shot 2012 10 31 at 08 35 24,164]
+
+We now have a bizarre looking function 'add' which has the 'subtract' function contained inside it!
+
+At the moment this is the main paredit shortcut I know and it seems to work reasonably well. I also find myself using 'Ctrl + Shift + -' which allows me to undo any mistakes I make!
+
+Now to learn my next command! Any suggestions?

@@ -1,0 +1,62 @@
++++
+draft = false
+date="2014-05-25 22:17:35"
+title="Neo4j: Cypher - Rounding a float value to decimal places"
+tag=['neo4j', 'cypher']
+category=['neo4j']
++++
+
+About 6 months ago http://www.jacqui.tk/[Jacqui Read] created a github issue explaining how she wanted to https://github.com/neo4j/neo4j/issues/1580[round a float value to a number of decimal places] but was unable to do so due to the +++<cite>+++http://docs.neo4j.org/chunked/stable/query-functions-mathematical.html#functions-round[round]+++</cite>+++ function not taking the appropriate parameter.
+
+I found myself wanting to do the same thing last week where I initially had the following value:
+
+[source,cypher]
+----
+
+RETURN toFloat("12.336666") AS value
+----
+
+I wanted to round that to 2 decimal places and https://twitter.com/wefreema[Wes] suggested multiplying the value before using ROUND and then dividing afterwards to achieve that.
+
+For two decimal places we need to multiply and divide by 100:
+
+[source,cypher]
+----
+
+WITH toFloat("12.336666") AS value
+RETURN round(100 * value) / 100 AS value
+----
+
+[source,bash]
+----
+
+12.34
+----
+
+https://twitter.com/mesirii[Michael] suggested abstracting the number of decimal places like so:
+
+[source,cypher]
+----
+
+WITH 2 as precision
+WITH toFloat("12.336666") AS value, 10^precision AS factor
+RETURN round(factor * value)/factor AS value
+----
+
+If we want to round to 4 decimal places we can easily change that:
+
+[source,cypher]
+----
+
+WITH 4 as precision
+WITH toFloat("12.336666") AS value, 10^precision AS factor
+RETURN round(factor * value)/factor AS value
+----
+
+[source,bash]
+----
+
+12.3367
+----
+
+The code is http://gist.neo4j.org/?0e68a1c6922c04b53af0[available as a graph gist] too if you want to play around with it. And you may as well check out the https://github.com/neo4j-contrib/graphgist/wiki[other gists] while you're at it - enjoy!

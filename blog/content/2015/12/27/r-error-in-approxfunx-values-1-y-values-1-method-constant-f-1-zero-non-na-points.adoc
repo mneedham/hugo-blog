@@ -1,0 +1,62 @@
++++
+draft = false
+date="2015-12-27 12:24:05"
+title="R: Error in approxfun(x.values.1, y.values.1, method = \"constant\", f = 1, :  zero non-NA points"
+tag=['r-2']
+category=['R']
++++
+
+I've been following http://www.r-bloggers.com/how-to-perform-a-logistic-regression-in-r/[Michy Alice's logistic regression tutorial] to create an attendance model for London dev meetups and ran into an interesting problem while doing so.
+
+Our dataset has a class imbalance i.e. most people RSVP 'no' to events which can lead to misleading accuracy score where predicting 'no' every time would lead to supposed high accuracy.
+
+[source,r]
+----
+
+Source: local data frame [2 x 2]
+
+  attended     n
+     (dbl) (int)
+1        0  1541
+2        1    53
+----
+
+I sampled the data using +++<cite>+++caret+++</cite>+++'s +++<cite>+++http://www.inside-r.org/packages/cran/caret/docs/upSample[upSample]+++</cite>+++ function to avoid this:
+
+[source,r]
+----
+
+attended = as.factor((df %>% dplyr::select(attended))$attended)
+upSampledDf = upSample(df %>% dplyr::select(-attended), attended)
+upSampledDf$attended = as.numeric(as.character(upSampledDf$Class))
+----
+
+I then trained a logistic regression model but when I tried to plot the area under the curve I ran into trouble:
+
+[source,r]
+----
+
+p <- predict(model, newdata=test, type="response")
+pr <- prediction(p, test$attended)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+
+Error in approxfun(x.values.1, y.values.1, method = "constant", f = 1,  :
+  zero non-NA points
+----
+
+I don't have any NA values in my data frame so this message was a bit confusing to start with. As usual http://stackoverflow.com/questions/23836955/error-in-approxfunx-values-1-y-values-1-method-constant-f-1-zero-no/33028711#33028711[Stack Overflow came to the rescue] with the suggestion that I was probably missing positive/negative values for the independent variable i.e. 'approved'.
+
+A quick count on the test data frame using dplyr confirmed my mistake:
+
+[source,r]
+----
+
+> test %>% count(attended)
+Source: local data frame [1 x 2]
+
+  attended     n
+     (dbl) (int)
+1        1   582
+----
+
+I'll have to http://stackoverflow.com/questions/9081498/the-correct-approach-of-randomly-re-ordering-a-matrix-in-r[randomly sort the data frame] and then reassign my training and test data frames to work around it.

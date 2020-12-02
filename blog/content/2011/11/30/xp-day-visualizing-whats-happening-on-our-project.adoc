@@ -1,0 +1,28 @@
++++
+draft = false
+date="2011-11-30 02:25:52"
+title="XP Day: Visualizing what's happening on our project"
+tag=['clojure', 'xpday', 'nodejs']
+category=['XP Day']
++++
+
+Another presentation that I gave at XP Day was one covering some visualisations http://twitter.com/lizdouglass[Liz], http://en.twitter.com/#!/uday_rayala[Uday] and I have created from various data we have about our project, gathered from Git, Go and Mingle.
+
+*http://www.slideshare.net/markhneedham/visualisations-10314318[Visualisations]*
+
+These were some of the things that I learned from doing the presentation:
+
+* The various graphs I presented in the talk have a resolution of 1680 x 1050 which is a much higher resolution than what was available on the projector. As a result it was necessary to *scroll up and down/side to side when demonstrating each visualisation* so that people could actually see them. Either I need to work out how to get the resolution of the projector higher or be able to shrink the images to the right size so they'd fit more naturally. I imagine the later would be easier to achieve.
+* My *machine refused to switch to Powerpoint* when I was presenting so I had to wing it a bit from my memory of how the talk was meant to go. As a result of not having the slides to show I ended up just showing the code that we'd written to create the graphs. I didn't think this would work very well but the feedback I got suggested that people enjoyed seeing the code behind the visualisations.
+
+I had a discussion with people during the talk and with others at XP Day about how I could change the visualisations so that they were more useful. These were some of the ideas that other people had:
+
+image::{{<siteurl>}}/uploads/2011/11/topgit.gif[Topgit,500]
+
+* http://twitter.com/mwjacks0n[Matt Jackson] suggested that it would be interesting to graph how often the *last ten builds* were broken so you could see how it was trending.
+* *Actionable metrics* - we had a discussion about what somebody is supposed to do as a result of seeing a visualisation of something i.e. what action do we want them to take. We achieve this in some cases e.g. with the pair stair it's clear who you haven't paired with recently and the impetus is therefore on you to address that if you want to.
+* https://twitter.com/#!/parker0phil[Phil Parker] suggested that *metrics that you have an emotional response to* are the most effective ones in his experience. I think this links to the idea of them being actionable in that if you have an emotional response to something then it often makes you want to go and do something about it.
+* I had an interesting discussion with http://twitter.com/#!/benjaminm[Benjamin Mitchell] in which he suggested that an interesting question to ask is '*what would better look like?*' and another one would be '*what rule would we have to have in place for people to behave like this?*'. We realised that in some cases it's not really clear what better would look like since you can end up with two potentially competing 'good' practices e.g. checking in frequently is good but if everyone does it together then it can lead to the build breaking which isn't as good. </ul> We haven't tried to tidy up any of the code that we used but it is available on the following github accounts if anyone's interested:
+ ** https://github.com/mneedham/dashboard[node.js dashboard]
+ ** https://github.com/uday-rayala/clojure-samples/tree/master/GitStats[Clojure backed visualisations]
+ ** https://github.com/pairstair/pairstair.github.com[Javascript Pair Stair]

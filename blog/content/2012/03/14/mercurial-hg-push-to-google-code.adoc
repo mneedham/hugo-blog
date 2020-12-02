@@ -1,0 +1,31 @@
++++
+draft = false
+date="2012-03-14 21:25:40"
+title="Mercurial: hg push to Google Code"
+tag=['mercurial', 'hg']
+category=['Version Control']
++++
+
+I wanted to make a change to add +++<cite>+++flatMap+++</cite>+++ to +++<cite>+++Option+++</cite>+++ in https://code.google.com/p/totallylazy/[totallylazy] so I had to https://code.google.com/r/mhneedham-totally-lazy/[clone the repository] and make the change.
+
+I thought I'd then be able to just push the change using my Google user name and password but instead ended up with the following error:
+
+[source,text]
+----
+
+➜  mhneedham-totally-lazy  hg push
+pushing to https://m.h.needham@code.google.com/r/mhneedham-totally-lazy/
+searching for changes
+1 changesets found
+http authorization required
+realm: Google Code hg Repository
+user: m.h.needham
+password:
+abort: HTTP Error 403: Forbidden
+----
+
+It turns out that you need to specifically set an option to use your Google account from the https://code.google.com/hosting/settings[settings page]:
+
+image::{{<siteurl>}}/uploads/2012/03/googlecode.gif[Googlecode,600]
+
+And then it works!

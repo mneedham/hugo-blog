@@ -1,0 +1,62 @@
++++
+draft = false
+date="2014-10-20 15:53:51"
+title="Python: Converting a date string to timestamp"
+tag=['python']
+category=['Python']
++++
+
+I've been playing around with Python over the last few days while cleaning up a data set and one thing I wanted to do was translate date strings into a timestamp.
+
+I started with a date in this format:
+
+[source,python]
+----
+
+date_text = "13SEP2014"
+----
+
+So the first step is to translate that into a Python date - the https://docs.python.org/2/library/datetime.html#strftime-strptime-behavior[strftime section of the documentation] is useful for figuring out which format code is needed:
+
+[source,python]
+----
+
+import datetime
+
+date_text = "13SEP2014"
+date = datetime.datetime.strptime(date_text, "%d%b%Y")
+
+print(date)
+----
+
+[source,bash]
+----
+
+$ python dates.py
+2014-09-13 00:00:00
+----
+
+The next step was to translate that to a UNIX timestamp. I thought there might be a method or property on the Date object that I could access but I couldn't find one and so ended up using https://docs.python.org/2/library/calendar.html#calendar.timegm[calendar] to do the transformation:
+
+[source,python]
+----
+
+import datetime
+import calendar
+
+date_text = "13SEP2014"
+date = datetime.datetime.strptime(date_text, "%d%b%Y")
+
+print(date)
+print(calendar.timegm(date.utctimetuple()))
+----
+
+[source,text]
+----
+
+$ python dates.py
+2014-09-13 00:00:00
+1410566400
+----
+
+It's not too tricky so hopefully I shall remember next time.

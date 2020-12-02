@@ -1,0 +1,19 @@
++++
+draft = false
+date="2009-06-30 23:09:35"
+title="F#: What I've learnt so far"
+tag=['altnet', 'f']
+category=['F#']
++++
+
+I did a presentation of some of the stuff that I've learnt from playing around with F# over the last six months or so at the most recent http://sydney.ozalt.net/2009/05/june-meeting-f.html[Alt.NET Sydney meeting].
+
+I've included the slides below but there was also some interesting discussion as well.
+
+* One of the questions asked was around how you would deal with code on a real project with regards to structuring it and ensuring that it was maintainable. I'm not actually sure what the answer is to this question as I haven't written any code in F# that's in production but there are certainly applications written n F# that are in production - the main one that I know a bit about is one which http://pandamonial.com/[Amanda Laucher] worked on http://vimeo.com/3555080[which she spoke about at the Alt.NET conference in Seattle].
+* There was some discussion about dynamic v static languages - http://fragmental.tw/[Phil] spoke of not caring about what type something is rather caring about what it does. I pretty much agree with this and I think when using languages which have quite strong type inference such as F# (and more-so Haskell from what I hear) then I think we do move more towards that situation.
+* http://erik.doernenburg.com[Erik] raised the point that functional languages aren't the solution for everything and I certainly feel it's niche is probably around operations with heavy data parsing/mining involved. I'm not sure I'd fancy doing an ASP.NET MVC application only in F# although I've seen some WPF code written using F# (unfortunately can't remember where) which looked reasonable so I'm not sure we should write it off just yet.
+
+I've put the code that I walked through in the presentation on http://bitbucket.org/markhneedham/altnet-sydney-fsharp/changeset/dfcbc2acf486/[bitbucket].
+
+http://www.slideshare.net/markhneedham/f-what-ive-learnt-so-far?type=presentation[F#: What I&#39;ve learnt so far]

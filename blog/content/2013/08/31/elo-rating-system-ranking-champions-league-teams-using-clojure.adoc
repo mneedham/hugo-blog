@@ -1,0 +1,55 @@
++++
+draft = false
+date="2013-08-31 13:01:16"
+title="Elo Rating System: Ranking Champions League teams using Clojure"
+tag=['clojure', 'ranking-systems']
+category=['Clojure', 'Ranking Systems']
++++
+
+As I mentioned in an earlier blog post http://www.markhneedham.com/blog/2013/08/24/ranking-systems-what-ive-learnt-so-far/[I've been learning about ranking systems] and one of the first ones I came across was the http://en.wikipedia.org/wiki/Elo_rating_system[Elo rating system] which is most famously used to rank chess players.
+
+The Elo rating system uses the following formula to work out a player/team's ranking after they've participated in a match:
+
+____
+R' = R + K * (S - E)
+
+* R' is the new rating
+* R is the old rating
+* K is a maximum value for increase or decrease of rating (16 or 32 for ELO)
+* S is the score for a game
+* E is the expected score for a game
++
+I converted that formula into the following Clojure functions:
++
+which would be called like this to work out the new ranking of a team ranked 1200 that beat a team ranked 1500:
++
+The way it works is that we first work out the likelihood that we should win the match by calling +++<cite>+++expected+++</cite>+++:
++
+This tells us that we have a 15% chance of winning the match so if we do win then our ranking should be increased by a large amount as we aren't expected to win. In this case a win gives us a points increase of '32 * (1-0.15)' which is ~27 points.
++
+I kept things simple by always setting the importance/maximum value of increase or decrease to 32. The http://www.eloratings.net/system.html[World Football Rankings] took a different approach where they vary it based on the importance of a match and the margin of victory.
++
+I decided to try out the algorithm on the 2002/2003 Champions League season. I was able to http://www.rsssf.com/ec/ec200203det.html[grab the data] from The Rec Sport Soccer Statistics Foundation and I've written previously about http://www.markhneedham.com/blog/2013/08/26/clojureenlive-screen-scraping-a-html-file-from-disk/[how I scraped it using Enlive].
++
+With a lot of help from https://twitter.com/pbostrom[Paul Bostrom] I ended up with the following code to run a reduce over the matches while updating team rankings after each match:
++
+The +++<cite>+++matches+++</cite>+++ parameter that we pass into +++<cite>+++top-teams+++</cite>+++ https://github.com/mneedham/ranking-algorithms/blob/master/src/ranking_algorithms/parse.clj#L20[looks like this]:
++
+And calling +++<cite>+++https://github.com/mneedham/ranking-algorithms/blob/master/src/ranking_algorithms/parse.clj#L22[extract-teams]+++</cite>+++ on it gets us a set of all the teams involved:
++
+We then +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/mapcat[mapcat]+++</cite>+++ over it to get a vector containing team/default points pairs:
++
+before calling +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/array-map[array-map]+++</cite>+++ to make a hash of the result:
++
+We then apply a reduce over all the matches and call the function +++<cite>+++process-match+++</cite>+++ on each iteration to update team rankings appropriately. The final step is to sort the teams by their ranking so we can list the top teams:
++
+Interestingly the winners (Juventus) are only in 5th place and the top 2 places are occupied by teams that lost in the Quarter Final. I wrote the following functions to investigate what was going on:
++
+If we call it with Juventus we can see how they performed in their matches:
++
+Although I'm missing the final - I need to fix the parser to pick that match up and it was a draw anyway - they actually only won 8 of their matches outright. Barcelona, on the other hand, won 13 matches although 2 of those were qualifiers.
++
+The next step is to take into account the importance of the match rather than applying an importance of 32 across the board and adding some value to winning a tie/match even if it's on penalties or away goals.
++
+The https://github.com/mneedham/ranking-algorithms/tree/master/src/ranking_algorithms[code is on github] if you want to play around with it or have suggestions for something else I can try out.
+____

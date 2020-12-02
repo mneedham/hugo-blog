@@ -1,0 +1,180 @@
++++
+draft = false
+date="2013-03-21 23:25:09"
+title="beanstalkd: Getting the status of the queue"
+tag=['beanstalkd']
+category=['Software Development']
++++
+
+For the last few days https://twitter.com/jasonneylon[Jason] and I have been porting a few of our applications across to a new puppet setup and one thing we needed to do was check that messages were passing through http://kr.github.com/beanstalkd/[beanstalkd] correctly.
+
+We initially had the idea that it wasn't configured correctly so https://twitter.com/pingles[Paul] showed us a way of checking whether that was the case by connecting to the port it runs on like so:
+
+[source,text]
+----
+
+$ telnet localhost 11300
+stats
+
+current-jobs-urgent: 0
+current-jobs-ready: 0
+current-jobs-reserved: 0
+current-jobs-delayed: 0
+current-jobs-buried: 0
+cmd-put: 66
+...
+current-connections: 6
+current-producers: 1
+current-workers: 1
+current-waiting: 1
+total-connections: 58
+pid: 15622
+version: 1.4.6
+rusage-utime: 0.000000
+rusage-stime: 0.040002
+uptime: 22740
+binlog-oldest-index: 0
+binlog-current-index: 0
+binlog-max-size: 10485760
+----
+
+The way we'd setup our beanstalks consumer, if it wasn't able to process a message correctly we put the message back on the queue in a 'buried' state so we'd see a number greater than 0 for the 'current-jobs-buried' property.
+
+I was already curious how we'd go about writing a one liner to get those stats using http://netcat.sourceforge.net/[netcat] and after a bit of fiddling to force the new line character to be sent properly I ended up with the following:
+
+[source,text]
+----
+
+$ echo -e "stats\r\n" | nc localhost 11300
+----
+
+The key is the http://linux.about.com/library/cmd/blcmdl1_echo.htm['-e'] flag which I may well have written about before but had forgotten all about:
+
+[source,text]
+----
+
+-e
+enable interpretation of the backslash-escaped characters listed below
+
+...
+
+\NNN
+the character whose ASCII code is NNN (octal)
+\\
+backslash
+\a
+alert (BEL)
+\b
+backspace
+\c
+suppress trailing newline
+\f
+form feed
+\n
+new line
+\r
+carriage return
+\t
+horizontal tab
+\v
+vertical tab
+----
+
+We can see how that works with the following example:
+
+[source,text]
+----
+
+$ echo -e "mark\nmark"
+mark
+mark
+----
+
+[source,text]
+----
+
+$ echo  "mark\nmark"
+mark\nmark
+----
+
+Alternatively we can pass either the '-c' or '-C' flag depending on our version of netcat and a http://en.wikipedia.org/wiki/Newline[CRLF/newline] will be sent as the line ending:
+
+[source,text]
+----
+
+# netcat-openbsd version
+$ echo "stats" | nc -C localhost 11300
+----
+
+or
+
+[source,text]
+----
+
+# one on Mac OS X by default
+$ echo "stats" | nc -c localhost 11300
+----
+
+Going back to beanstalkd - there is actually a https://github.com/kr/beanstalkd/blob/master/doc/protocol.txt[pretty good document] explaining all the different commands that you can send to it, most of which I haven't tried yet!
+
+I have come across some useful ones though:
+
+[source,text]
+----
+
+$ telnet localhost 11300
+----
+
+== To see the names of the tubes (queues) where messages get put
+
+[source,text]
+----
+
+list-tubes
+OK 14
+---
+- default
+----
+
+== To use that tube
+
+[source,text]
+----
+
+use default
+USING DEFAULT
+----
+
+== To see if there are any ready jobs
+
+[source,text]
+----
+
+peek-ready
+NOT_FOUND
+----
+
+== To get the stats for that tube
+
+[source,text]
+----
+
+stats-tube default
+OK 253
+---
+name: default
+current-jobs-urgent: 0
+current-jobs-ready: 0
+current-jobs-reserved: 0
+current-jobs-delayed: 0
+current-jobs-buried: 0
+total-jobs: 155
+current-using: 9
+current-watching: 9
+current-waiting: 1
+cmd-pause-tube: 0
+pause: 0
+pause-time-left: 0
+----
+
+I came across https://github.com/dustin/beanstalk-tools[beanstalk-tools] which contains a bunch of tools for working with beanstalks but since our use is sporadic sending the commands over TCP every now and then will probably do!

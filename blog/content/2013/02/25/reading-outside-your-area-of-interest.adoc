@@ -1,0 +1,26 @@
++++
+draft = false
+date="2013-02-25 22:56:11"
+title="Reading outside your area of interest"
+tag=['learning']
+category=['Learning']
++++
+
+A reasonable amount of the information that I consume comes either via scanning https://twitter.com/[twitter] or from my http://getprismatic.com/news/home[prismatic] feed but I noticed that I'm quite biased to reading things in similar subject areas.
+
+I tend to end up reading about data mining/science, functional programming and startups and while the articles are mostly interesting it does eventually start to feel like you're in an echo chamber.</li>
+
+I have a subscription to the http://www.acm.org/[ACM] mainly because I enjoy reading the 'Communications of the ACM' magazine which gets sent out every month and until recently I only read articles which I thought would be interesting.
+
+This unfortunately meant that I was adding to the problem I mentioned earlier whereby everything I read is about similar topics.
+
+I decided to try and change that by reading the magazine from cover to cover and although I haven't finished yet it's been an interesting experience and I've read about things that I wouldn't have thought to read about including:
+
+* Do more computer science papers get rejected than those in other subjects?
+* How do we allow people to vote in areas where there's been a natural disaster?
+* Why are there currently so many post-docs in computer science?
+* How should we go about analysing performance problems?
+
+This seems to be a reasonably good way of diversifying what I read/learn because an editor has decided what I should read rather than me choosing or an algorithm choosing based on what I've previously read.
+
+Having said that, I'd be intrigued to know what approaches/strategies others have for getting knowledge of a broader range of topics.

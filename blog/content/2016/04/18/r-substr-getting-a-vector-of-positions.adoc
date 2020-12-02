@@ -1,0 +1,36 @@
++++
+draft = false
+date="2016-04-18 19:49:02"
+title="R: substr - Getting a vector of positions"
+tag=['r-2']
+category=['R']
++++
+
+I recently found myself writing an R script to extract parts of a string based on a beginning and end index which is reasonably easy using the +++<cite>+++https://stat.ethz.ch/R-manual/R-devel/library/base/html/substr.html[substr]+++</cite>+++ function:
+
+[source,r]
+----
+
+> substr("mark loves graphs", 0, 4)
+[1] "mark"
+----
+
+But what if we have a vector of start and end positions?
+
+[source,r]
+----
+
+> substr("mark loves graphs", c(0, 6), c(4, 10))
+[1] "mark"
+----
+
+Hmmm that didn't work as I expected! It turns out we actually need to use the +++<cite>+++https://stat.ethz.ch/R-manual/R-devel/library/base/html/substr.html[substring]+++</cite>+++ function instead which wasn't initially obvious to me on reading the documentation:
+
+[source,r]
+----
+
+> substring("mark loves graphs", c(0, 6, 12), c(4, 10, 17))
+[1] "mark"   "loves"  "graphs"
+----
+
+Easy when you know how!

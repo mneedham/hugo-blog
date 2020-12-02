@@ -1,0 +1,68 @@
++++
+draft = false
+date="2016-07-11 06:01:22"
+title="Python: Scraping elements relative to each other with BeautifulSoup"
+tag=['python']
+category=['Python']
++++
+
+Last week we hosted a Game of Thrones based intro to Cypher at the http://www.meetup.com/Women-Who-Code-London/events/231014802/[Women Who Code London meetup] and in preparation had to scrape http://gameofthrones.wikia.com/wiki[the wiki] to build a dataset.
+
+I've built lots of datasets this way and it's a painless experience as long as the pages make liberal use of CSS classes and/or IDs.
+
+Unfortunately the Game of Thrones wiki doesn't really do that so I had to find another way to extract the data I wanted - extracting elements *based on their position to more prominent elements on the page*.
+
+For example, I wanted to extract http://gameofthrones.wikia.com/wiki/Arya_Stark[Arya Stark]'s allegiances which look like this on the page:
+
+image::{{<siteurl>}}/uploads/2016/07/2016-07-11_06-45-37.png[2016 07 11 06 45 37,596]
+
+We don't have a direct route to her allegiances but we do have an indirect path via the h3 element with the text 'Allegiance'.
+
+The following code gets us the 'Allegiance' element:
+
+[source,python]
+----
+
+from bs4 import BeautifulSoup
+
+file_name = "Arya_Stark"
+wikia = BeautifulSoup(open("data/wikia/characters/{0}".format(file_name), "r"), "html.parser")
+allegiance_element = [tag for tag in wikia.find_all('h3') if tag.text == "Allegiance"]
+
+> print allegiance_element
+[<h3 class="pi-data-label pi-secondary-font">Allegiance</h3>]
+----
+
+Now we need to work out the relative position of the div containing the houses. It's inside the same parent div so I thought it'd probably be the next sibling:
+
+[source,python]
+----
+
+next_element = allegiance_element[0].next_sibling
+
+> print next_element
+----
+
+Nope. Nothing! Hmmm, wonder why:
+
+[source,python]
+----
+
+> print next_element.name, type(next_element)
+None <class 'bs4.element.NavigableString'>
+----
+
+Ah, empty string. Maybe it's the one after that?
+
+[source,python]
+----
+
+next_element = allegiance_element[0].next_sibling.next_sibling
+
+> print next_element.name, type(next_element)
+[<a href="/wiki/House_Stark" title="House Stark">House Stark</a>, <br/>, <a href="/wiki/Faceless_Men" title="Faceless Men">Faceless Men</a>, u' (Formerly)']
+----
+
+Hoorah! Afer this it became a case of working out how the text was structure and pulling out what I wanted.
+
+https://github.com/mneedham/neo4j-got/blob/master/scrape_characters.py[The code I ended up with is on github] if you want to recreate it yourself.

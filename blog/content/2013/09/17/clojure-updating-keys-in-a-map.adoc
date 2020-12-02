@@ -1,0 +1,78 @@
++++
+draft = false
+date="2013-09-17 00:24:48"
+title="Clojure: Updating keys in a map"
+tag=['clojure']
+category=['Clojure']
++++
+
+I've been playing with Clojure over the last few weeks and as a result I've been using a lot of maps to represent the data.
+
+For example if we have the following map of teams to http://www.glicko.net/glicko/glicko.pdf[Glicko] ratings and ratings deviations:
+
+[source,lisp]
+----
+
+(def teams { "Man. United" {:points 1500 :rd 350}
+             "Man. City"   {:points 1450 :rd 300} })
+----
+
+We might want to increase Man. United's points score by one for which we could use the +++<cite>+++http://clojuredocs.org/clojure_core/1.2.0/clojure.core/update-in[update-in]+++</cite>+++ function:
+
+[source,lisp]
+----
+
+> (update-in teams ["Man. United" :points] inc)
+{"Man. United" {:points 1501, :rd 350}, "Man. City" {:points 1450, :rd 300}}
+----
+
+The 2nd argument to +++<cite>+++update-in+++</cite>+++ is a nested associative structure i.e. a sequence of keys into the map in this instance.
+
+If we wanted to reset Man. United's points score we could use +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/assoc-in[assoc-in]+++</cite>+++:
+
+[source,lisp]
+----
+
+> (assoc-in teams ["Man. United" :points] 1)
+{"Man. United" {:points 1, :rd 350}, "Man. City" {:points 1450, :rd 300}}
+----
+
+If we want to update multiple keys at once then we can chain them using the http://clojuredocs.org/clojure_core/clojure.core/-%3E[\->] (thread first) macro:
+
+[source,lisp]
+----
+
+(-> teams
+    (assoc-in ["Man. United" :points] 1600)
+    (assoc-in ["Man. United" :rd] 200))
+{"Man. United" {:points 1600, :rd 200}, "Man. City" {:points 1450, :rd 300}}
+----
+
+If instead of replacing just one part of the value we want to replace the whole entry we could use +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/assoc[assoc]+++</cite>+++ instead:
+
+[source,lisp]
+----
+
+> (assoc teams "Man. United" {:points 1600 :rd 300})
+{"Man. United" {:points 1600, :rd 300}, "Man. City" {:points 1450, :rd 300}}
+----
+
++++<cite>+++assoc+++</cite>+++ can also be used to add a new key/value to the map. e.g.
+
+[source,lisp]
+----
+
+> (assoc teams "Arsenal" {:points 1500 :rd 330})
+{"Man. United" {:points 1500, :rd 350}, "Arsenal" {:points 1500, :rd 330}, "Man. City" {:points 1450, :rd 300}}
+----
+
++++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/dissoc[dissoc]+++</cite>+++ plays the opposite role and returns a new map without the specified keys:
+
+[source,lisp]
+----
+
+> (dissoc teams "Man. United" "Man. City")
+{}
+----
+
+And those are all the map based functions I've played around with so far\...

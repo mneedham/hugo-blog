@@ -305,7 +305,7 @@ Now let's https://query.wikidata.org/#CONSTRUCT%20%7B%20%0A%20%20%3Fperson%20wdt
 
 Much better.
 
-=== Returning a custom RDF graph
+== Returning a custom RDF graph
 
 One https://jbarrasa.com/2019/12/05/quickgraph10-enrich-your-neo4j-knowledge-graph-by-querying-wikidata/[other neat thing^] about the `CONSTRUCT` clause is that we can change the RDF graph that our query returns.
 The following query uses vocabulary from schema.org in place of Wikidata predicates:

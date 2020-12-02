@@ -1,0 +1,49 @@
++++
+draft = false
+date="2016-06-30 21:28:35"
+title="Python: BeautifulSoup - Insert tag"
+tag=['python']
+category=['Python']
++++
+
+I've been scraping the Game of Thrones wiki in preparation http://www.meetup.com/Women-Who-Code-London/events/231014802/[for a meetup at Women Who Code next week] and while attempting to extract character allegiances I wanted to insert missing line breaks to separate different allegiances.
+
+I initially tried http://stackoverflow.com/questions/14652706/python-beautifulsoup-add-tags-around-found-keyword[creating a line break] like this:
+
+[source,python]
+----
+
+>>> from bs4 import BeautifulSoup
+>>> tag = BeautifulSoup("<br />", "html.parser")
+>>> tag
+<br/>
+----
+
+It looks like it should work but later on in my script I check the 'name' attribute to work out whether I've got a line break and it doesn't return the value I expected it to:
+
+[source,python]
+----
+
+>>> tag.name
+u'[document]'
+----
+
+My script assumes it's going to return the string 'br' so I needed another way of creating the tag. The following does the trick:
+
+[source,python]
+----
+
+>>> from bs4 import Tag
+>>> tag = Tag(name = "br")
+>>> tag
+<br></br>
+----
+
+[source,python]
+----
+
+>>> tag.name
+'br'
+----
+
+That's all for now, back to scraping for me!

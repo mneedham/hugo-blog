@@ -1,0 +1,36 @@
++++
+draft = false
+date="2013-04-27 14:22:10"
+title="Treat servers as cattle: Spin them up, tear them down"
+tag=['devops-2']
+category=['DevOps']
++++
+
+A few agos I wrote a post about http://www.markhneedham.com/blog/2013/04/07/treating-servers-as-cattle-not-as-pets/[treating servers as cattle, not as pets] in which I described an approach to managing virtual machines at uSwitch whereby we frequently spin up new ones and delete the existing ones.
+
+I've worked on teams previously where we've also talked about this mentality but ended up not doing it because it was difficult, usually for one of two reasons:
+
+* *Slow spin up* - this might be due to the cloud providers infrastructure, doing too much on spin up or I'm sure a variety of other reasons.
+* *Manual steps involved in spin up* - the process isn't 100% automated so we have to do some manual tweaks. Once the machine is finally working we don't want to have to go through that again.
+
+Martin Fowler http://martinfowler.com/bliki/FrequencyReducesDifficulty.html[wrote a post a couple of years ago] where he said the following:
+
+____
+One of my favorite soundbites is: *if it hurts, do it more often*. It has the happy property of seeming nonsensical on the surface, but yielding some valuable meaning when you dig deeper
+____
+
+I think it applies in this context too and I have noticed that the more frequently we tear down and spin up new nodes the easier it becomes to do so.
+
+Part of this is because there's been less time for http://www.markhneedham.com/blog/2013/04/27/puppet-package-versions-to-pin-or-not-to-pin/[changes to have happened in package repositories] but we are also *more inclined to optimise things that we have to do frequently* so the whole process is faster as well.
+
+For example in one of our sets of machines we need to give one machine a specific tag so that when the application is deployed it sets up a bunch of cron jobs to run each evening.
+
+Initially this was done manually and we were quite reluctant to ever tear down that machine but we've now got it all automated and it's not a big deal anymore - it can be cattle just like the rest of them!
+
+One neat rule of thumb https://twitter.com/philandstuff[Phil] taught me is that if we make major changes to our infrastructure we should spin up some new machines to check that it still actually works.
+
+If we don't do this then when we actually need to spin up a new node because of a traffic spike or machine corruption problem it's not going to work and we're going to have to fix things in a much more stressful context.
+
+For example we recently moved some repositories around in github and although it's a fairly simple change spinning up new nodes helped us see all the places where we'd failed to make the appropriate change.
+
+While I appreciate taking this approach is more time consuming in the short term I'd argue that if we automate as much of the pain as possible in the long run it will probably be beneficial.

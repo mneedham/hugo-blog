@@ -1,0 +1,45 @@
++++
+draft = false
+date="2011-12-30 03:38:58"
+title="The Language of Risk"
+tag=['agile']
+category=['Agile']
++++
+
+A few weeks ago Chris Matts wrote an interesting blog post 'http://theitriskmanager.wordpress.com/2011/12/12/the-language-of-risk/[the language of risk]' in which he describes an approach he used to explain the processes his team uses to an auditor.
+
+____
+Why did the auditor like what I said? Because *I explained everything we did in terms of risk*. When they asked for a "`process`", I explained the risk the process was meant to address. I then explained how our different process addressed the risk more effectively.
+____
+
+This seems like a pretty cool idea to me and it got me thinking of the different 'processes' we've used in teams I've worked on and what risks they might be addressing:
+
+* Pair Programming
+ ** Becoming dependent on one person with respect to knowledge of part of the code base.
+ ** Having someone new working on an area of the code that they don't know well and making a mistake.
+* Retrospective
+ ** Making the same mistakes repeatedly/working in a way that (indirectly) wastes money.
+* Story Kick Off
+ ** Building the wrong thing
+ ** Solving the business problem in an inefficient way
+ ** Building something which is very difficult to test
+* Stand Up
+ ** Someone getting stuck on something which someone else in the group might be able to help with.
+ ** People going down rabbit holes and getting stuck on things that don't really matter
+* Show Case
+ ** Building the wrong thing for too long
+* Automated testing
+ ** The application regresses as new functionality is added
+ ** Humans make mistakes when manually going through scenarios
+
+That's just a first attempt at this, I'm sure others could come up with something better!
+
+In coming up with the list I've been working from a process which I've seen used and trying to work out what risk that might be addressing.
+
+Chris seems to look at risks/processes the other way around to i.e. we *think about what risks we need to address and then work out whether we need a process to address it* and if so which one.
+
+Taking that approach would help to explain why some teams don't necessarily need a lot of process - the risks might be catered for in different ways or maybe they just don't exist in specific contexts.
+
+For example a lot of risks around communication go away if the product owner and the team are sitting in the same physical location and can easily just turn and talk to each other if they have any questions.
+
+Even with this new way of looking at risks/process I still think it's useful to keep checking whether or not a process is still necessary because as our team/product changes the risks we face probably do as well.

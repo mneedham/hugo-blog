@@ -1,0 +1,66 @@
++++
+draft = false
+date="2013-09-17 01:03:37"
+title="Clojure: Merge two maps but only keep the keys of one of them"
+tag=['clojure']
+category=['Clojure']
++++
+
+I've http://www.markhneedham.com/blog/2013/09/17/clojure-updating-keys-in-a-map/[been playing around with Clojure maps] recently and I wanted to merge two maps of rankings where the rankings in the second map overrode those in the first while only keeping the teams from the first map.
+
+The +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/merge[merge]+++</cite>+++ function overrides keys in earlier maps but also adds keys that only appear in later maps. For example, if we merge the following maps:
+
+[source,lisp]
+----
+
+> (merge {"Man. United" 1500 "Man. City" 1400} {"Man. United" 1550 "Arsenal" 1450})
+{"Arsenal" 1450, "Man. United" 1550, "Man. City" 1400}
+----
+
+we get back all 3 teams but I wanted a function which only returned 'Man. United' and 'Man. City' since those keys appear in the first map and 'Arsenal' doesn't.
+
+I http://stackoverflow.com/questions/2753874/how-to-filter-a-persistent-map-in-clojure[wrote the following function]:
+
+[source,lisp]
+----
+
+(defn merge-rankings [initial-rankings override-rankings]
+  (merge initial-rankings
+         (into {} (filter #(contains? initial-rankings (key %)) override-rankings))))
+----
+
+If we call that we get the desired result:
+
+[source,lisp]
+----
+
+> (merge-rankings {"Man. United" 1500 "Man. City" 1400} {"Man. United" 1550 "Arsenal" 1450})
+{"Man. United" 1550, "Man. City" 1400}
+----
+
+An alternative version of that function could use +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/select-keys[select-keys]+++</cite>+++ like so:
+
+[source,lisp]
+----
+
+(defn merge-rankings [initial-rankings override-rankings]
+  (select-keys (merge initial-rankings override-rankings) (map key initial-rankings)))
+----
+
+bitemyapp points out in the comments that we can go even further and use the +++<cite>+++http://clojuredocs.org/clojure_core/clojure.core/keys[keys]+++</cite>+++ function instead of +++<cite>+++map key+++</cite>+++, like so:
+
+[source,lisp]
+----
+
+(defn merge-rankings [initial-rankings override-rankings]
+  (select-keys (merge initial-rankings override-rankings) (keys initial-rankings)))
+----
+
+Now let's generify the function so it would make sense in the context of any maps, not just ranking related ones:
+
+[source,lisp]
+----
+
+(defn merge-keep-left [left right]
+  (select-keys (merge left right) (keys left)))
+----

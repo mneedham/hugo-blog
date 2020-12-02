@@ -1,0 +1,18 @@
++++
+draft = false
+date="2010-04-18 21:19:23"
+title="Late integration: Some thoughts"
+tag=['software-development', 'testing']
+category=['Software Development']
++++
+
+John Daniels has http://jd-syntropy.blogspot.com/2010/03/why-you-should-start-with-end-to-end.html[an interesting post summarising GOOSgaggle], an event run a few weeks ago where people met up to talk about the ideas in 'http://www.amazon.co.uk/Growing-Object-Oriented-Software-Guided-Signature/dp/0321503627/ref=sr_1_1?ie=UTF8&s=books&qid=1271313406&sr=8-1[Growing Object Oriented Software, Guided by Tests]'.
+
+It's an interesting post and towards the end he states the following:
+
+____
+Given these two compelling justifications for starting with end-to-end tests, why is it that many people apparently don't start there? We came up with two possibilities, although there may be many others:
+
+*So rather than taking the correct -- and brave -- option of loudly declaring progress on your project to be blocked, you restrict yourself to creating those parts of the system that are within your control.*
+http://www.amazon.co.uk/Fifth-Discipline-Peter-M-Senge/dp/1905211201/ref=sr_1_1?ie=UTF8&s=books&qid=1271619479&sr=8-1[systems thinking]*we didn't have sufficient leverage to change the system*
+____

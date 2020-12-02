@@ -1,0 +1,41 @@
++++
+draft = false
+date="2017-05-27 11:31:08"
+title="GraphQL-Europe: A trip to Berlin"
+tag=['graphql', 'graphqleu']
+category=['Conferences']
++++
+
+Last weekend my colleagues https://twitter.com/lyonwj?lang=en[Will], https://twitter.com/mesirii?lang=en[Michael], https://twitter.com/oskarhane?lang=en[Oskar], and I went to Berlin to spend Sunday at the https://graphql-europe.org/[GraphQL Europe] conference in Berlin.
+
+image::{{<siteurl>}}/uploads/2017/05/IMG_20170521_084449.jpg[IMG 20170521 084449]
+
+Neo4j sponsored the conference as we've been experimenting with building a GraphQL to Neo4j integration and wanted to get some feedback from the community as well as learn what's going on in GraphQL land.
+
+Will and Michael have https://neo4j.com/blog/graphql-neo4j-graph-database-integration/[written about their experience] where they talk more about the hackathon we hosted so I'll cover it more from a personal perspective.
+
+The first thing that stood out for me was how busy it was - I knew GraphQL was pretty hipster but I wasn't expecting there to be ~ 300 attendees.
+
+The venue was amazing - the nHow Hotel is located right next to the Spree River so there were great views to be had during the breaks. It also helped that it was really sunny for the whole day!
+
+image::{{<siteurl>}}/uploads/2017/05/IMG_20170521_103636.jpg[IMG 20170521 103636]
+
+I spent most of the day hanging out at the Neo4j booth which was good fun - several people pointed out that an integration between Neo4j and GraphQL made a lot of sense given that *GraphQL talks about the application graph and Neo4j graphs in general*.
+
+I managed to attend a few of the talks, including one by Brooks Swinnerton from GitHub who announced that they'd be https://developer.github.com/v4/[moving to GraphQL for v4 of their API].
+
+The most interesting part of the talk for me was when Brooks said they'd directed requests for their REST API to the GraphQL one behind the scenes for a while now to check that it could handle the load.
+
+____
+GitHub is moving to GraphQL for v4 of our API because it offers significantly more flexibility for our integrators. The ability to define precisely the data you want--and only the data you want--is a powerful advantage over the REST API v3 endpoints.
+____
+
+I think twitter may be doing something similar based on this tweet by https://twitter.com/tgvashworth[Tom Ashworth]:
+
+++++
+<blockquote class="twitter-tweet"><p lang="en" dir="ltr">Heh. Twitter GraphQL is quietly serving more than 40 million queries per day. Tiny at Twitter scale but not a bad start.</p>&mdash; Tom Ashworth (@tgvashworth) <a href="https://twitter.com/tgvashworth/status/862049341472522240?ref_src=twsrc%5Etfw">May 9, 2017</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+++++
+
+From what I could tell the early pick up of GraphQL seems to be from the front end of applications - several of the attendees had attended https://www.react-europe.org/[ReactEurope] a couple of days earlier - but micro services were mentioned in a few of the talks and it was suggested that GraphQL works well in this world as well.
+
+It was a fun day out so thanks to the folks at https://www.graph.cool/[Graphcool] for organising!

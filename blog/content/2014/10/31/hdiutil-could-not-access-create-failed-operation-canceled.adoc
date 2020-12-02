@@ -1,0 +1,31 @@
++++
+draft = false
+date="2014-10-31 09:45:32"
+title="hdiutil: could not access / create failed - Operation canceled"
+tag=['software-development']
+category=['Software Development']
++++
+
+Earlier in the year I wrote a http://www.markhneedham.com/blog/2014/04/07/install4j-and-applescript-creating-a-mac-os-x-application-bundle-for-a-java-application/[blog post showing how to build a Mac OS X DMG file for a Java application] and I recently revisited this script to update it to a new version and ran into a frustrating error message.
+
+I tried to run the following command to create a new DMG file from a source folder\...
+
+[source,text]
+----
+
+$ hdiutil create -volname "DemoBench" -size 100m -srcfolder dmg/ -ov -format UDZO pack.temp.dmg
+----
+
+\...but was met with the following error message: ~~~text \...could not access /Volumes/DemoBench/DemoBench.app/Contents/Resources/app/database-agent.jar - Operation canceled hdiutil: create failed - Operation canceled ~~~
+
+I was initially a bit stumped and thought maybe the flags to hdiutil had changed but a quick look at the man page suggested that wasn't the issue.
+
+I decided to go back to my pre command line approach for creating a DMG - DiskUtility - and see if I could create it that way. This helped reveal the actual problem:
+
+image::{{<siteurl>}}/uploads/2014/10/2014-10-31_09-42-20.png[2014 10 31 09 42 20,600]
+
+I increased the volume size to 150 MB\... ~~~text $ hdiutil create -volname "DemoBench" -size 150m -srcfolder dmg/ -ov -format UDZO pack.temp.dmg ~~~
+
+and all was well: ~~~text \...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\.... \...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\...\..... created: /Users/markneedham/projects/neo-technology/quality-tasks/park-bench/database-agent-desktop/target/pack.temp.dmg ~~~
+
+And this post will serve as documentation to stop it catching me out next time!

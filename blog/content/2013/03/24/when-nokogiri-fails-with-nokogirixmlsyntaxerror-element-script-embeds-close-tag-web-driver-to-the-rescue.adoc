@@ -1,0 +1,80 @@
++++
+draft = false
+date="2013-03-24 21:20:35"
+title="When nokogiri fails with 'Nokogiri::XML::SyntaxError: Element script embeds close tag' Web Driver to the rescue"
+tag=['software-development']
+category=['Software Development']
++++
+
+As I mentioned in http://www.markhneedham.com/blog/2013/03/24/neo4jcypher-cyphertypeexception-failed-merging-number-with-relationship/[my previous post] I wanted to add televised games to my football graph and the http://www.premierleague.com/en-gb/matchday/broadcast-schedules.tv.html?rangeType=.dateSeason&country=GB&clubId=ALL&season=2012-2013&isLive=true[Premier League website] seemed like the best case to find out which games those were.
+
+I initially tried to use http://nokogiri.org/[Nokogiri] to grab the data that I wanted\...
+
+[source,ruby]
+----
+
+> require 'nokogiri'
+> require 'open-air'
+> tv_times = Nokogiri::HTML(open('http://www.premierleague.com/en-gb/matchday/broadcast-schedules.tv.html?rangeType=.dateSeason&country=GB&clubId=ALL&season=2012-2013&isLive=true'))
+----
+
+\...but when I tried to query by CSS selector for all the matches nothing came back:
+
+[source,ruby]
+----
+
+> tv_times.css(".broadcastschedule table.contentTable tbody tr")
+=> []
+----
+
+I was a bit surprised but read somewhere that I should check if there were any errors while parsing the document. In fact there were quite a few!
+
+[source,ruby]
+----
+
+> tv_times.errors
+=> [#<Nokogiri::XML::SyntaxError: Element script embeds close tag>, #<Nokogiri::XML::SyntaxError: Element script embeds close tag>, #<Nokogiri::XML::SyntaxError: Element script embeds close tag>, #<Nokogiri::XML::SyntaxError: Element script embeds close tag>, #<Nokogiri::XML::SyntaxError: Element script embeds close tag>, #<Nokogiri::XML::SyntaxError: Element script embeds close tag>, #<Nokogiri::XML::SyntaxError: Element script embeds close tag>, #<Nokogiri::XML::SyntaxError: Element script embeds close tag>, #<Nokogiri::XML::SyntaxError: Element script embeds close tag>, #<Nokogiri::XML::SyntaxError: Element script embeds close tag>, #<Nokogiri::XML::SyntaxError: Element script embeds close tag>, #<Nokogiri::XML::SyntaxError: Element script embeds close tag>, ...]
+----
+
+I ran the document through the http://validator.w3.org/[W3C markup validation service] and it didn't seem to find any problem with it.
+
+Next I tried stripping out all the script tags using https://github.com/flavorjones/loofah[loofah] before manually removing them but neither of those approaches helped.
+
+I've previously used https://code.google.com/p/selenium/wiki/RubyBindings[Web Driver] to scrape web pages but I'd found that Nokogiri was much faster so I stopped using it.
+
+Since my new library wasn't playing ball I thought I'd quickly see if Web Driver was up to the challenge and indeed it was:
+
+[source,ruby]
+----
+
+require "selenium-webdriver"
+
+driver = Selenium::WebDriver.for :chrome
+driver.navigate.to "http://www.premierleague.com/en-gb/matchday/broadcast-schedules.tv.html?rangeType=.dateSeason&country=GB&clubId=ALL&season=2012-2013&isLive=true"
+
+matches = driver.find_elements(:css, '.broadcastschedule table.contentTable tbody tr')
+matches.each do|tr| 	
+  match = tr.find_element(:css, "td.show a").text
+  broadcaster = tr.find_element(:css, "td.broadcaster img").attribute("src")
+  tv_channel = broadcaster.include?("sky-sports") ? "Sky" : "ESPN"
+
+  puts "#{match},#{tv_channel}"
+end
+
+driver.quit
+----
+
+[source,ruby]
+----
+
+$ ruby tv_games.rb
+Newcastle United vs Tottenham Hotspur,ESPN
+Wigan Athletic vs Chelsea,Sky
+Manchester City vs Southampton,Sky
+Everton vs Manchester United,Sky
+Swansea City vs West Ham United,Sky
+Chelsea vs Newcastle United,ESPN
+...
+----
+
+Ideally I'd like to use Nokogiri to do this job but it's decided that the document is invalid and it can't parse it properly so Web Driver is a pretty decent replacement I reckon!

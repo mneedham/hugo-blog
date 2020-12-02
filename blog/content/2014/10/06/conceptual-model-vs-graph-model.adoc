@@ -1,0 +1,74 @@
++++
+draft = false
+date="2014-10-06 07:11:50"
+title="Conceptual Model vs Graph Model"
+tag=['modeling']
+category=['Databases']
++++
+
+We've started running some sessions on graph modelling in London and during the http://www.meetup.com/graphdb-london/events/203677112/[first session] it was pointed out that the process I'd described was very similar to that when modelling for a relational database.
+
+I thought I better do some reading on the way relational models are derived and I came across an excellent video by Joe Maguire titled 'https://www.youtube.com/watch?v=x4Q9JeLIyNo[Data Modelers Still Have Jobs: Adjusting For the NoSQL Environment]'
+
+Joe starts off by showing the following 'big picture framework' which describes the http://www.slideshare.net/slideshow/embed_code/23124875?startSlide=5[steps involved in coming up with a relational model]:
+
+image::{{<siteurl>}}/uploads/2014/10/2014-10-05_19-04-46.png[2014 10 05 19 04 46,400]
+
+A couple of slides later he points out that we often blur the lines between the different stages and end up designing a model which contains a lot of implementation details:
+
+image::{{<siteurl>}}/uploads/2014/10/2014-10-06_23-25-22.png[2014 10 06 23 25 22,400]
+
+If, on the other hand, we compare a conceptual model with a graph model this is less of an issue as the two models map quite closely:
+
+* Entities \-> Nodes / Labels
+* Attributes \-> Properties
+* Relationships \-> Relationships
+* Identifiers \-> Unique Constraints
+
+Unique Constraints don't quite capture everything that Identifiers do since it's possible to create a node of a specific label without specifying the property which is uniquely constrained. Other than that though each concept matches one for one.
+
+We often say that graphs are *white board friendly* by which we mean that that the model you sketch on a white board is the same as that stored in the database.
+
+For example, consider the following sketch of people and their interactions with various books:
+
+image::{{<siteurl>}}/uploads/2014/10/IMG_2342.jpg[IMG 2342,400]
+
+If we were to translate that into a write query using Neo4j's cypher query language it would look like this:
+
+[source,cypher]
+----
+
+CREATE (ian:Person {name: "Ian"})
+CREATE (alan:Person {name: "Alan"})
+CREATE (gg:Person:Author {name: "Graham Greene"})
+CREATE (jlc:Person:Author {name: "John Le Carre"})
+
+CREATE (omih:Book {name: "Our Man in Havana"})
+CREATE (ttsp:Book {name: "Tinker Tailor, Soldier, Spy"})
+
+CREATE (gg)-[:WROTE]->(omih)
+CREATE (jlc)-[:WROTE]->(ttsp)
+CREATE (ian)-[:PURCHASED {date: "05-02-2011"}]->(ttsp)
+CREATE (ian)-[:PURCHASED {date: "08-09-2011"}]->(omih)
+CREATE (alan)-[:PURCHASED {date: "05-07-2014"}]->(ttsp)
+----
+
+There are a few extra brackets and the 'CREATE' key word but we haven't lost any of the fidelity of the domain and in my experience a non technical / commercial person would be able to understand the query.
+
+By contrast http://www.toadworld.com/products/toad-data-modeler/w/wiki/399.data-modeling-reality-requires-super-and-sub-types.aspx[this article] shows the steps we might take from a conceptual model describing employees, departments and unions to the eventual relational model.
+
+If you don't have the time to read through that, we start with this initial model\...
+
+image::{{<siteurl>}}/uploads/2014/10/2014-10-07_00-13-51.png[2014 10 07 00 13 51,400]
+
+\...and by the time we've got to a model that can be stored in our relational database:
+
+image::{{<siteurl>}}/uploads/2014/10/2014-10-07_00-14-32.png[2014 10 07 00 14 32,400]
+
+You'll notice we've lost the relationship types and they've been replaced by 4 foreign keys that allow us to join the different tables/sets together.
+
+In a graph model we'd have been able to stay much closer to the conceptual model and therefore closer to the language of the business.
+
+I'm still exploring the world of data modelling and next up for me is to read Joe's 'http://www.amazon.co.uk/gp/product/020170045X/ref=oh_aui_detailpage_o00_s00?ie=UTF8&psc=1[Mastering Data Modeling]' book. I'm also curious how normal forms and data redundancy apply to graphs so I'll be looking into that as well.
+
+Thoughts welcome, as usual!

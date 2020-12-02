@@ -1,0 +1,26 @@
++++
+draft = false
+date="2009-03-10 10:31:27"
+title="DDD: Repository pattern"
+tag=['domain-driven-design']
+category=['Domain Driven Design']
++++
+
+The http://domaindrivendesign.org/discussion/messageboardarchive/Repositories.html[Repository] pattern from Domain Driven Design is one of the cleanest ways I have come across for separating our domain objects from their persistence mechanism.
+
+Until recently every single implementation I had seen of this pattern involved directly using a database as the persistence mechanism with the repository acting as a wrapper around the Object Relational Mapper (Hibernate/NHibernate).
+
+Now I consider there to be two parts to the repository pattern:
+
+. The abstraction of the persistence mechanism away from our other code by virtue of the creation of repositories which can be interacted with to save, update and load domain objects.
+. The need for these repositories to only be available for http://domaindrivendesign.org/discussion/messageboardarchive/Aggregates.html[aggregate] roots in our domain and not for every single domain object. Access to other objects would be via the aggregate root which we could retrieve from one of the repositories.
+
+This pattern can also be useful when we retrieve and store data via services which we have been doing recently. Of course eventually the data is stored in a database but much further up stream.
+
+To start with we were doing that directly from our controllers but it became clear that although we weren't interacting directly with a database the repository pattern would still probably be applicable.
+
+The way we use it is pretty much the same as you would if it was abstracting an ORM:
+
+image::{{<siteurl>}}/uploads/2009/03/repository.gif[repository.gif,448]
+
+I think with an ORM the mapping would be done before you got the data back so that's an implementation detail that is slightly different but as far as I can see the concept is the same.
