@@ -1,0 +1,119 @@
++++
+draft = false
+date="2020-12-15 00:44:37"
+title="Strava: Authorization Error - Missing activity:read_permission"
+tag=['strava']
+category=['strava']
+description="In this post we'll learn how to get an access token with appropriate permissions for the Strava API."
++++
+
+I'm revisiting the Strava API after a two year absence and the approach to authenticating requests has changed in that time.
+You now need to generate an access token via OAuth 2.0, as described in the 'How to authenticate with OAuth 2.0' section of the http://developers.strava.com/docs/getting-started/#oauth[Getting Started with the Strava API^] guide.
+
+I want to generate a token that lets me retrieve all of my activities via the http://developers.strava.com/docs/reference/#api-Activities-getLoggedInAthleteActivities[`/athlete/activities`^] end point.
+
+I tried to do this by following these steps:
+
+. Go to https://www.strava.com/settings/api and copy your Client ID
+. Paste your Client ID into this URL: http://www.strava.com/oauth/authorize?client_id=[REPLACE_WITH_YOUR_CLIENT_ID]&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=read
+. Go to a browser
+. Paste the URL you edited into the browser window (step 1 and 2 from the graph)
+. Hit enter
+. When you see the authorization page, click “Authorize” (step 3a from the graph)
+
+image::{{<siteurl>}}/uploads/2020/12/strava-1.png[title="Strava Authorisation"]
+
+Once we click on 'Authorize', the web browser redirects to a localhost URL that contains an authorisation code.
+For me, this URL looks like this:
+
+[source, text]
+----
+http://localhost/exchange_token?state=&code=b55003496d87a9f0b694ca1680cd5690d27d9d28&scope=read
+----
+
+We then take that code and feed it into another request, which will generate a refresh token, access token, and access token expiration date:
+
+[source,bash]
+----
+curl -X POST https://www.strava.com/oauth/token \
+-F client_id=YOURCLIENTID \
+-F client_secret=YOURCLIENTSECRET \
+-F code=b55003496d87a9f0b694ca1680cd5690d27d9d28 \
+-F grant_type=authorization_code
+----
+
+This request will will return a JSON response that looks like this:
+
+[source,json]
+----
+{
+  "token_type": "Bearer",
+  "expires_at": 1608060738,
+  "expires_in": 18068,
+  "refresh_token": "<refresh-token>",
+  "access_token": "<access-token>",
+  "athlete": {
+    "id": 6958432,
+    "username": null,
+    "resource_state": 2,
+    "firstname": "Mark",
+    "lastname": "Needham",
+    "city": "London",
+    "state": "England",
+    "country": "United Kingdom",
+    "sex": "M",
+    "premium": true,
+    "summit": true,
+    "created_at": "2014-11-01T10:48:26Z",
+    "updated_at": "2020-08-10T06:23:51Z",
+    "badge_type_id": 1,
+    "profile_medium": "https://dgalywyr863hv.cloudfront.net/pictures/athletes/6958432/17352912/1/medium.jpg",
+    "profile": "https://dgalywyr863hv.cloudfront.net/pictures/athletes/6958432/17352912/1/large.jpg",
+    "friend": null,
+    "follower": null
+  }
+}
+----
+
+We can then take the `access_token` and use that on requests against other API endpoints.
+For example, to retrieve my activities, we can make the following request:
+
+[source, bash]
+----
+curl -X GET https://www.strava.com/api/v3/athlete/activities -H 'Authorization: Bearer <access-token>'
+----
+
+When I ran that, I got the following response:
+
+[source, json]
+----
+{
+  "message": "Authorization Error",
+  "errors": [
+    {
+      "resource": "AccessToken",
+      "field": "activity:read_permission",
+      "code": "missing"
+    }
+  ]
+}
+----
+
+The mistake I've made was https://www.reddit.com/r/learnpython/comments/g135yz/strava_api_code_missing/[right at the beginning of the authentication process^], when selecting the 'scope' on the initial request.
+We used the following URL:
+
+[source,text]
+----
+http://www.strava.com/oauth/authorize?client_id=[REPLACE_WITH_YOUR_CLIENT_ID]&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=read
+----
+
+The `scope` is set to `read` when this API end point requires `activity:read_all` permissions, so the URL should instead read like this:
+
+[source,text]
+----
+http://www.strava.com/oauth/authorize?client_id=[REPLACE_WITH_YOUR_CLIENT_ID]&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=activity:read_all
+----
+
+And if we do that and use the authorisation code that it returns to generate an access token, it all works as expected.
+
+Now it's time to analyse those runs!
