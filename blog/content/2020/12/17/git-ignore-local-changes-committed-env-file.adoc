@@ -1,0 +1,14 @@
++++
+draft = true
+date="2020-12-16 00:44:37"
+title="Materialize: Querying JSON files"
+tag=['materialize']
+category=['materialize']
+description="In this post we'll learn how to query a JSON file of Strava activites using the Materialize SQL streaming database."
++++
+
+https://stackoverflow.com/questions/9794931/keep-file-in-a-git-repo-but-dont-track-changes
+
+https://git-scm.com/docs/git-update-index
+
+git update-index --assume-unchanged strava/.envsettings

@@ -12,7 +12,7 @@ I recently learnt about https://materialize.com/[Materialize^], a SQL streaming 
 
 My go-to dataset for new databases is Strava, an app that I use to record my runs.
 It has an API that returns a JSON representation of each run, containing information like the distance covered, elapsed time, heart rate metrics, and more.
-I've extracted my latest 30 activities in the JSON lines format into the https://github.com/mneedham/materialize-sandbox/blob/main/strava/activities-clean.json[`activities-clean.json`^] file on the https://github.com/mneedham/materialize-sandbox/tree/main/strava[mneedham/materialize-sandbox^] repository.
+I've extracted my latest 30 activities in the JSON lines format into the https://github.com/mneedham/materialize-sandbox/blob/main/strava/data/activities-clean.json[`activities-clean.json`^] file on the https://github.com/mneedham/materialize-sandbox/tree/main/strava[mneedham/materialize-sandbox^] repository.
 
 image::{{<siteurl>}}/uploads/2020/12/materialize-banner.png[]
 
@@ -26,11 +26,30 @@ Below is an example of the first line in this file:
 
 == Connecting to Materialize
 
-We're going to query that data using Materialize, but before we do that let's spin up an instance of Materialize using Docker:
+We're going to query that data using Materialize, which we'll set up using the following Docker Compose configuration:
+
+.docker-compose.yml
+[source,yaml]
+----
+  version: '3'
+  services:
+    materialize:
+      image: materialize/materialized:v0.5.3
+      container_name: "materialize-sandbox-docker-compose"
+      volumes:
+        - ./data:/data
+      ports:
+        - "6875:6875"
+----
+
+The `data` directory containing the `activities-clean.json` file is in the https://github.com/mneedham/materialize-sandbox/tree/main/strava[mneedham/materialize-sandbox/strava^] GitHub repository.
+The repository also contains setup instructions.
+
+Once we've cloned that repository, we can launch Materialize by running the following command:
 
 [source, bash]
 ----
-docker run --name materialize-sandbox -p 6875:6875 materialize/materialized:v0.5.3 --workers 1
+docker-compose up
 ----
 
 We should see the following output:
@@ -57,12 +76,6 @@ to improve both our software and your queries! Please reach out at:
 materialized v0.5.3 (f56c5a8a3) listening on 0.0.0.0:6875...
 ----
 
-Now let's copy the JSON file containing all the runs into the container:
-
-[source, bash]
-----
-docker cp activities-clean.json materialize-sandbox:/
-----
 
 We're now ready to connect to Materialize, which we can do using the https://www.postgresql.org/docs/9.3/app-psql.html[`psql` CLI tool^]:
 
@@ -93,7 +106,7 @@ We can do this using the https://materialize.com/docs/sql/create-source/[`CREATE
 [source, sql]
 ----
 CREATE SOURCE activities
-FROM FILE '/activities-clean.json' FORMAT TEXT;
+FROM FILE '/data/activities-clean.json' FORMAT TEXT;
 ----
 
 We need to indicate where the file lives on the server, as well as the format of its contents.
