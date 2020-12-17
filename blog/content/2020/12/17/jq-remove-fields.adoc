@@ -1,0 +1,11 @@
++++
+draft = true
+date="2020-12-16 00:44:37"
+title="Materialize: Querying JSON files"
+tag=['materialize']
+category=['materialize']
+description="In this post we'll learn how to query a JSON file of Strava activites using the Materialize SQL streaming database."
++++
+
+
+cat /tmp/activities.json  | jq -c ".[] | del(.map, .external_id, .start_latlng, .end_latlng, .start_latitude, .start_longitude)" > /tmp/activities-clean.json
