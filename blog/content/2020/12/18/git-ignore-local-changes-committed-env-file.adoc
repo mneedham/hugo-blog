@@ -1,0 +1,36 @@
++++
+draft = false
+date="2020-12-18 00:44:37"
+title="git: Ignore local changes on committed (env) file"
+tag=['git']
+category=['git']
+description="In this post we'll learn how ignore local changes to a committed (environment) file."
++++
+
+Whenever I've writing scripts that rely on credentials defined as environment variables, I like to create a `.env` (or equivalent) file containing those variables.
+I then seed that file with placeholder values for each variable and make local changes that aren't checked in.
+
+I recently created the https://github.com/mneedham/materialize-sandbox/tree/main/strava[mneedham/materialize-sandbox/strava^] repository where I'm using this approach with a https://github.com/mneedham/materialize-sandbox/blob/main/strava/.envsettings[`.envsettings`^] file that has the following contents:
+
+.envsettings
+[source,text]
+----
+export CLIENT_ID="client_id"
+export CLIENT_SECRET="client_secret"
+----
+
+I have that file checked in so that anybody else can clone the repository and update this file with their own credentials.
+
+But I don't want local changes to that file to be tracked, as I might then accidentally commit my credentials.
+I'd previously achieved this by adding `.envsettings` to the `.gitignore` file, but that technique doesn't seem to work anymore!
+
+Luckily there is a way around this, using git's https://stackoverflow.com/questions/13630849/git-difference-between-assume-unchanged-and-skip-worktree#[`update-index`^] command, which I learnt about from https://stackoverflow.com/a/13631525/1093511[Borealid's answer on StackOverflow^].
+
+So once I've committed the `.envsettings` file, I can have git ignore any changes by running the following command:
+
+[source,bash]
+----
+git update-index --skip-worktree strava/.envsettings
+----
+
+And now git will ignore any local changes made to this file, which is exactly what I want!
