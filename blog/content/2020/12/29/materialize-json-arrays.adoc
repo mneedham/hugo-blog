@@ -251,7 +251,10 @@ LIMIT 5;
 |"tier4" |     1
 |===
 
-Interestingly the `ORDER BY` doesn't seem to be reflected in the results, so I guess we may as well not have that line in the query that we used in the materialized view.
+Interestingly the `ORDER BY` doesn't seem to be reflected in the results.
+I learnt from https://twitter.com/frankmcsherry[Frank McSherry^] that it's actually a feature of SQL that the `ORDER BY` clause isnt' inherited from the view.
+
+ so I guess we may as well not have that line in the query that we used in the materialized view.
 
 Now let's add a couple of extra tweets to the end of `covid_sample.json`:
 
@@ -277,7 +280,7 @@ The hashtags from those tweets will be reflected in the results returned:
 .Results
 [opts="header"  ]
 |===
-ht       | count
+| ht       | count
 | "coronavirus" |     3
 |"covid"       |     2
 |"covid19"     |     2
