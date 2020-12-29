@@ -1,0 +1,286 @@
++++
+draft = false
+date="2020-12-29 00:44:37"
+title="Materialize: Querying JSON arrays"
+tag=['materialize']
+category=['materialize']
+description="In this post we'll learn how to query a JSON file that contains arrays using the Materialize SQL streaming database."
+image="uploads/2020/12/materialize-banner-json-arrays.png"
+
++++
+
+In my continued playing with the https://materialize.com/[Materialize^] SQL streaming database, I wanted to analyse a JSON file of tweets that contain arrays of hashtags.
+It took me a while to figure out to do this and in this blog post I'll take you through the steps I tried.
+
+image::{{<siteurl>}}/uploads/2020/12/materialize-banner-json-arrays.png[]
+
+
+The JSON file that we're going to analyse looks like this and we'll save that file in a `data` directory locally.
+
+.https://github.com/mneedham/materialize-sandbox/blob/main/twitter/data/covid_sample.json[covid_sample.json^]
+[source,json]
+----
+{"id": "1341755954614861826", "conversation_id": "1341755954614861826", "created_at": "2020-12-23 14:42:02 GMT", "date": "2020-12-23", "time": "14:42:02", "timezone": "+0000", "user_id": 856240505826496513, "username": "suriyasubraman", "name": "Suriya Subramanian", "place": "", "tweet": "Impact of COVID-19 On Internet of Things (IoT) Networks Market 2020 Industry Challenges ...  https://t.co/ndGN2xRKzv #iot #data #internetofthings", "language": "en", "mentions": [], "urls": ["http://dlvr.it/RpCyyv"], "photos": [], "replies_count": 0, "retweets_count": 0, "likes_count": 0, "hashtags": ["iot", "data", "internetofthings"], "cashtags": [], "link": "https://twitter.com/SuriyaSubraman/status/1341755954614861826", "retweet": false, "quote_url": "", "video": 0, "thumbnail": "", "near": "London", "geo": "", "source": "", "user_rt_id": "", "user_rt": "", "retweet_id": "", "reply_to": [], "retweet_date": "", "translate": "", "trans_src": "", "trans_dest": ""}
+{"id": "1341755827158441984", "conversation_id": "1341755827158441984", "created_at": "2020-12-23 14:41:32 GMT", "date": "2020-12-23", "time": "14:41:32", "timezone": "+0000", "user_id": 26450334, "username": "nickkeca", "name": "Nick Keca", "place": "", "tweet": "Non-compliance is the only thing ordinary people have to fight against the agenda hiding behind this #covid cloak. BUT, we are fighting against financial interests that are so powerful that only strength of numbers &amp; people power can prevail", "language": "en", "mentions": [], "urls": [], "photos": [], "replies_count": 0, "retweets_count": 0, "likes_count": 0, "hashtags": ["covid"], "cashtags": [], "link": "https://twitter.com/nickkeca/status/1341755827158441984", "retweet": false, "quote_url": "", "video": 0, "thumbnail": "", "near": "London", "geo": "", "source": "", "user_rt_id": "", "user_rt": "", "retweet_id": "", "reply_to": [], "retweet_date": "", "translate": "", "trans_src": "", "trans_dest": ""}
+{"id": "1341755981420703744", "conversation_id": "1341755981420703744", "created_at": "2020-12-23 14:42:09 GMT", "date": "2020-12-23", "time": "14:42:09", "timezone": "+0000", "user_id": 147562101, "username": "jasonjamesstone", "name": "Jason Stone 🔶 🇪🇺🇬🇧🏴󠁧󠁢󠁥󠁮󠁧󠁿🇧🇷", "place": "", "tweet": "We can't afford to have a damaging #Brexit and an out of control Coronavirus pandemic at the same time. Sign the petition: Extend the #BrexitTransition Period until the virus is under control  https://t.co/yyI3miEJLg", "language": "en", "mentions": [], "urls": ["https://www.londonlibdems.org.uk/extendbrexit?e=13bee6003ca0b15761a0a8e71e926169&utm_source=ldlondon&utm_medium=email&utm_campaign=brexit_extension&n=3"], "photos": [], "replies_count": 0, "retweets_count": 0, "likes_count": 0, "hashtags": ["brexit", "brexittransition"], "cashtags": [], "link": "https://twitter.com/jasonjamesstone/status/1341755981420703744", "retweet": false, "quote_url": "", "video": 0, "thumbnail": "", "near": "London", "geo": "", "source": "", "user_rt_id": "", "user_rt": "", "retweet_id": "", "reply_to": [], "retweet_date": "", "translate": "", "trans_src": "", "trans_dest": ""}
+{"id": "1341754919896948736", "conversation_id": "1341754919896948736", "created_at": "2020-12-23 14:37:56 GMT", "date": "2020-12-23", "time": "14:37:56", "timezone": "+0000", "user_id": 14508711, "username": "beecee", "name": "Brigid Coady 🌈", "place": {"type": "Point", "coordinates": [51.49594393, -0.13355317]}, "tweet": "Finish work. Give blood. My Xmas present to the world!   #morningcommute #xmas #giveblood #plasma #platelets #covid19 #coronavirus #tier4 #lockdown #London @ Westminster  https://t.co/Tq42OaN811", "language": "en", "mentions": [], "urls": ["https://www.instagram.com/p/CJJNIidgG4M/?igshid=1hu20v1xohrce"], "photos": [], "replies_count": 0, "retweets_count": 0, "likes_count": 0, "hashtags": ["morningcommute", "xmas", "giveblood", "plasma", "platelets", "covid19", "coronavirus", "tier4", "lockdown", "london"], "cashtags": [], "link": "https://twitter.com/beecee/status/1341754919896948736", "retweet": false, "quote_url": "", "video": 0, "thumbnail": "", "near": "London", "geo": "", "source": "", "user_rt_id": "", "user_rt": "", "retweet_id": "", "reply_to": [], "retweet_date": "", "translate": "", "trans_src": "", "trans_dest": ""}
+{"id": "1341753938333237253", "conversation_id": "1341753938333237253", "created_at": "2020-12-23 14:34:02 GMT", "date": "2020-12-23", "time": "14:34:02", "timezone": "+0000", "user_id": 820537716798619648, "username": "amprouk", "name": "AMPro", "place": "", "tweet": "Motability provides #coronavirus update for customers  https://t.co/dRX6xXEtOM", "language": "en", "mentions": [], "urls": ["http://dlvr.it/RpCxYZ"], "photos": [], "replies_count": 0, "retweets_count": 0, "likes_count": 0, "hashtags": ["coronavirus"], "cashtags": [], "link": "https://twitter.com/amprouk/status/1341753938333237253", "retweet": false, "quote_url": "", "video": 0, "thumbnail": "", "near": "London", "geo": "", "source": "", "user_rt_id": "", "user_rt": "", "retweet_id": "", "reply_to": [], "retweet_date": "", "translate": "", "trans_src": "", "trans_dest": ""}
+----
+
+== Connecting to Materialize
+
+We're going to query that data using Materialize, which we'll set up using the following Docker Compose configuration:
+
+.docker-compose.yml
+[source,yaml]
+----
+  version: '3'
+  services:
+    materialize:
+      image: materialize/materialized:v0.5.3
+      container_name: "materialize-sandbox-docker-compose"
+      volumes:
+        - ./data:/data
+      ports:
+        - "6875:6875"
+----
+
+The `data` directory containing the https://github.com/mneedham/materialize-sandbox/blob/main/twitter/data/covid_sample.json[`covid_sample.json`^] file is in the https://github.com/mneedham/materialize-sandbox/tree/main/twitter[mneedham/materialize-sandbox/twitter^] GitHub repository.
+The repository also contains setup instructions.
+
+Once we've cloned that repository, we can launch Materialize by running the following command:
+
+[source, bash]
+----
+docker-compose up
+----
+
+We're now ready to connect to Materialize, which we can do using the https://www.postgresql.org/docs/9.3/app-psql.html[`psql` CLI tool^]:
+
+[source, bash]
+----
+psql -h localhost -p 6875 materialize
+----
+
+.Results
+[source,text]
+----
+psql (12.5 (Ubuntu 12.5-0ubuntu0.20.04.1), server 9.5.0)
+Type "help" for help.
+
+materialize=>
+----
+
+== Creating a materialized view
+
+Now we're to create a source around the file and then a materialized view on top of that source.
+
+.CREATE SOURCE
+[source,sql]
+----
+CREATE SOURCE covid_sample_source
+FROM FILE '/data/covid_sample.json'
+WITH(tail=true)
+FORMAT TEXT;
+----
+
+.CREATE MATERIALIZED VIEW
+[source,sql]
+----
+CREATE MATERIALIZED VIEW covid_sample AS
+SELECT  (val->>'id')::float::bigint AS id,
+        (val->>'username')::text AS username,
+        (val->>'hashtags')::text AS hashtags,
+        (val->>'tweet')::text AS tweet
+FROM (SELECT text::jsonb AS val FROM covid_sample_source);
+----
+
+We can describe the view by running the following query:
+
+[source,sql]
+----
+SHOW COLUMNS
+FROM covid_sample;
+----
+
+
+.Results
+[opts="header"]
+|===
+|name   | nullable | type
+|hashtags | t        | text
+|id       | t        | int8
+|tweet | t        | text
+|username | t        | text
+
+|===
+
+The interesting thing here is that the `hashtags` column is storing data in the `text` type.
+
+== Querying a materialized view
+
+Now it's time to write some queries.
+Let's start with a query that returns all columns and rows in the `covid_sample` view:
+
+[source,sql]
+----
+SElECT *
+FROM covid_sample;
+----
+
+
+.Results
+[opts="header", cols="1,1,1,2"]
+|===
+|id          |    username     |                                                    hashtags                                                    |                                                                                                                         tweet
+|1341753938333237248 | amprouk         | ["coronavirus"]                                                                                                | Motability provides #coronavirus update for customers  https://t.co/dRX6xXEtOM
+|1341755954614861824 | suriyasubraman  | ["iot","data","internetofthings"]                                                                              | Impact of COVID-19 On Internet of Things (IoT) Networks Market 2020 Industry Challenges ...  https://t.co/ndGN2xRKzv #iot #data #internetofthings
+|1341755981420703744 | jasonjamesstone | ["brexit","brexittransition"]                                                                                  | We can't afford to have a damaging #Brexit and an out of control Coronavirus pandemic at the same time. Sign the petition: Extend the #BrexitTransition Period until the virus is under control  https://t.co/yyI3miEJLg
+|1341755827158441984 | nickkeca        | ["covid"]                                                                                                      | Non-compliance is the only thing ordinary people have to fight against the agenda hiding behind this #covid cloak. BUT, we are fighting against financial interests that are so powerful that only strength of numbers &amp; people power can prevail
+|1341754919896948736 | beecee          | ["morningcommute","xmas","giveblood","plasma","platelets","covid19","coronavirus","tier4","lockdown","london"] | Finish work. Give blood. My Xmas present to the world!   #morningcommute #xmas #giveblood #plasma #platelets #covid19 #coronavirus #tier4 #lockdown #London @ Westminster  https://t.co/Tq42OaN811
+|===
+
+I wanted to write a query that shows how many tweets each hashtag appears in, so we'll need to 'explode' the values in `hashtags` column into rows, which we can do using the https://materialize.com/docs/sql/types/jsonb/#jsonb_array_elements[`jsonb_array_elements`] function.
+
+My first attempt was the following:
+
+[source,sql]
+----
+SELECT jsonb_array_elements(hashtags) AS ht
+FROM covid_sample
+LIMIT 5;
+----
+
+.Results
+|===
+| ERROR:  table function (jsonb_array_elements) in scalar position not yet supported, see https://github.com/MaterializeInc/materialize/issues/1546 for more details
+|===
+
+This error indicates that we need to use the `json_array_elements` function in the `FROM` part of the query.
+Let's try that:
+
+[source,sql]
+----
+SELECT ht
+FROM covid_sample,
+     jsonb_array_elements(hashtags) AS ht
+LIMIT 5;
+----
+
+.Results
+|===
+| ERROR:  Cannot call function jsonb_array_elements(string): arguments cannot be implicitly cast to any implementation's parameters; try providing explicit casts
+|===
+
+Hmmm, still no good.
+The problem this time is that the `jsonb_array_elements` function excepts to receive values of type `jsonb` and the `hashtags` column returns values of type `text`.
+We can fix that by casting to the correct type, like this:
+
+[source,sql]
+----
+SELECT ht
+FROM covid_sample,
+     jsonb_array_elements(hashtags :: jsonb) AS ht
+LIMIT 5;
+----
+
+.Results
+[opts="header"  ]
+|===
+|ht
+|"iot"
+|"data"
+|"xmas"
+|"covid"
+|"tier4"
+|===
+
+Success!
+Now we can write a query that shows how many times each hashtag has been used:
+
+[source,sql]
+----
+SELECT ht, count(*) AS count
+FROM covid_sample,
+     jsonb_array_elements(hashtags :: jsonb) AS ht
+GROUP BY ht
+ORDER BY count DESC
+LIMIT 5;
+----
+
+.Results
+[opts="header"  ]
+|===
+|ht       | count
+| "coronavirus" |     2
+|"iot"         |     1
+|"data"        |     1
+|"xmas"        |     1
+|"covid"       |     1
+|===
+
+We could even go further than this and create a view that returns hashtags and their counts:
+
+[source,sql]
+----
+CREATE MATERIALIZED VIEW covid_hashtags AS
+SELECT ht, count(*) AS count
+FROM covid_sample,
+     jsonb_array_elements(hashtags :: jsonb) AS ht
+GROUP BY ht
+ORDER BY count DESC;
+----
+
+Which we can query like this:
+
+[source,sql]
+----
+SELECT *
+FROM covid_hashtags
+LIMIT 5;
+----
+
+.Results
+[opts="header"  ]
+|===
+|ht    | count
+|"iot"   |     1
+|"data"  |     1
+|"xmas"  |     1
+|"covid" |     1
+|"tier4" |     1
+|===
+
+Interestingly the `ORDER BY` doesn't seem to be reflected in the results, so I guess we may as well not have that line in the query that we used in the materialized view.
+
+Now let's add a couple of extra tweets to the end of `covid_sample.json`:
+
+[soruce,json]
+----
+{"id": "1341759529520926722", "conversation_id": "1341759529520926722", "created_at": "2020-12-23 14:56:15 GMT", "date": "2020-12-23", "time": "14:56:15", "timezone": "+0000", "user_id": 368587842, "username": "piterk68", "name": "Peter Lewis", "place": "", "tweet": "A quick thread reflecting on two themes of my year : #COVID &amp; #Inequality particularly race inequality, with a few thank yous at the end:", "language": "en", "mentions": [], "urls": [], "photos": [], "replies_count": 1, "retweets_count": 0, "likes_count": 1, "hashtags": ["covid", "inequality"], "cashtags": [], "link": "https://twitter.com/piterk68/status/1341759529520926722", "retweet": false, "quote_url": "", "video": 0, "thumbnail": "", "near": "London", "geo": "", "source": "", "user_rt_id": "", "user_rt": "", "retweet_id": "", "reply_to": [], "retweet_date": "", "translate": "", "trans_src": "", "trans_dest": ""}
+{"id": "1341759301908631554", "conversation_id": "1341759301908631554", "created_at": "2020-12-23 14:55:20 GMT", "date": "2020-12-23", "time": "14:55:20", "timezone": "+0000", "user_id": 57581622, "username": "lamuscle", "name": "LA Muscle", "place": "", "tweet": "Fitter &amp; Stronger With Minimal Equipment Try This Excellent Pump Workout Full article here:  https://t.co/HY3e9wfX0P #lamuscle #bodyweight #coronavirus #covid19 #isolation #training #fitness #health #muscle #exercise #workout #homeworkout #outdoors #healthy #dumbbells #lean #diet  https://t.co/91wU7DcZRA", "language": "en", "mentions": [], "urls": ["https://www.lamuscle.com/knowledge/lose-fat/fitter-stronger-pump-workout"], "photos": ["https://pbs.twimg.com/media/Ep7i9fvXYAIb5Ay.jpg"], "replies_count": 0, "retweets_count": 0, "likes_count": 1, "hashtags": ["lamuscle", "bodyweight", "coronavirus", "covid19", "isolation", "training", "fitness", "health", "muscle", "exercise", "workout", "homeworkout", "outdoors", "healthy", "dumbbells", "lean", "diet"], "cashtags": [], "link": "https://twitter.com/LAMuscle/status/1341759301908631554", "retweet": false, "quote_url": "", "video": 1, "thumbnail": "https://pbs.twimg.com/media/Ep7i9fvXYAIb5Ay.jpg", "near": "London", "geo": "", "source": "", "user_rt_id": "", "user_rt": "", "retweet_id": "", "reply_to": [], "retweet_date": "", "translate": "", "trans_src": "", "trans_dest": ""}
+----
+
+And if we run the query against `covid_hashtags` again:
+
+[source,sql]
+----
+SELECT *
+FROM covid_hashtags
+ORDER BY count DESC
+LIMIT 5;
+----
+
+The hashtags from those tweets will be reflected in the results returned:
+
+
+.Results
+[opts="header"  ]
+|===
+ht       | count
+| "coronavirus" |     3
+|"covid"       |     2
+|"covid19"     |     2
+|"iot"         |     1
+|"data"        |     1
+|===

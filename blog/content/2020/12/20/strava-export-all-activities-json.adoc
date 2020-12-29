@@ -194,6 +194,7 @@ After it's finished running, `data/activities-all.json` has the following conten
 head -n3 data/activities-all.json
 ----
 
+.Output
 [source,json]
 ----
 {"id": 4489569395, "distance": 13751.9, "moving_time": 4150, "elapsed_time": 4155, "total_elevation_gain": 96.9, "elev_high": 79.3, "elev_low": 25.0, "average_speed": 3.314, "max_speed": 4.6, "average_heartrate": 149.8, "max_heartrate": 176, "start_date": "2020-12-19 07:05:51+00:00"}
