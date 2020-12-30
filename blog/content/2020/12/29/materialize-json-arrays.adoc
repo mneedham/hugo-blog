@@ -10,11 +10,12 @@ image="uploads/2020/12/materialize-banner-json-arrays.png"
 +++
 
 In https://markhneedham.com/blog/2020/12/17/materialize-querying-json-file/[a blog post I wrote a couple of weeks ago^], we learned how to analyse JSON files using the https://materialize.com/[Materialize^] SQL streaming database.
+
 In this post we're going to build on that knowledge to analyse a JSON file of tweets that contain arrays of hashtags.
 It took me a while to figure out to do this, so I wanted to share what I learnt along the way.
 
 image::{{<siteurl>}}/uploads/2020/12/materialize-banner-json-arrays.png[]
-  
+
 The JSON file that we're going to analyse looks like this and we'll save that file in a `data` directory locally.
 
 .https://github.com/mneedham/materialize-sandbox/blob/main/twitter/data/covid_sample.json[covid_sample.json^]
@@ -256,7 +257,7 @@ I learnt from https://twitter.com/frankmcsherry[Frank McSherry^] that it's actua
 
 Now let's add a couple of extra tweets to the end of `covid_sample.json`:
 
-[soruce,json]
+[source,json]
 ----
 {"id": "1341759529520926722", "conversation_id": "1341759529520926722", "created_at": "2020-12-23 14:56:15 GMT", "date": "2020-12-23", "time": "14:56:15", "timezone": "+0000", "user_id": 368587842, "username": "piterk68", "name": "Peter Lewis", "place": "", "tweet": "A quick thread reflecting on two themes of my year : #COVID &amp; #Inequality particularly race inequality, with a few thank yous at the end:", "language": "en", "mentions": [], "urls": [], "photos": [], "replies_count": 1, "retweets_count": 0, "likes_count": 1, "hashtags": ["covid", "inequality"], "cashtags": [], "link": "https://twitter.com/piterk68/status/1341759529520926722", "retweet": false, "quote_url": "", "video": 0, "thumbnail": "", "near": "London", "geo": "", "source": "", "user_rt_id": "", "user_rt": "", "retweet_id": "", "reply_to": [], "retweet_date": "", "translate": "", "trans_src": "", "trans_dest": ""}
 {"id": "1341759301908631554", "conversation_id": "1341759301908631554", "created_at": "2020-12-23 14:55:20 GMT", "date": "2020-12-23", "time": "14:55:20", "timezone": "+0000", "user_id": 57581622, "username": "lamuscle", "name": "LA Muscle", "place": "", "tweet": "Fitter &amp; Stronger With Minimal Equipment Try This Excellent Pump Workout Full article here:  https://t.co/HY3e9wfX0P #lamuscle #bodyweight #coronavirus #covid19 #isolation #training #fitness #health #muscle #exercise #workout #homeworkout #outdoors #healthy #dumbbells #lean #diet  https://t.co/91wU7DcZRA", "language": "en", "mentions": [], "urls": ["https://www.lamuscle.com/knowledge/lose-fat/fitter-stronger-pump-workout"], "photos": ["https://pbs.twimg.com/media/Ep7i9fvXYAIb5Ay.jpg"], "replies_count": 0, "retweets_count": 0, "likes_count": 1, "hashtags": ["lamuscle", "bodyweight", "coronavirus", "covid19", "isolation", "training", "fitness", "health", "muscle", "exercise", "workout", "homeworkout", "outdoors", "healthy", "dumbbells", "lean", "diet"], "cashtags": [], "link": "https://twitter.com/LAMuscle/status/1341759301908631554", "retweet": false, "quote_url": "", "video": 1, "thumbnail": "https://pbs.twimg.com/media/Ep7i9fvXYAIb5Ay.jpg", "near": "London", "geo": "", "source": "", "user_rt_id": "", "user_rt": "", "retweet_id": "", "reply_to": [], "retweet_date": "", "translate": "", "trans_src": "", "trans_dest": ""}

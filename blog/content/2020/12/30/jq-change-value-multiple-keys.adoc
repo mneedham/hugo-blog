@@ -1,0 +1,74 @@
++++
+draft = false
+date="2020-12-29 00:44:37"
+title="jq: How to change the value of keys in JSON documents"
+tag=['jq']
+category=['jq']
+description="In this post we'll learn how to change the values of specific keys in a JSON document using the jq command-line JSON processor."
+image="uploads/2020/12/jq-banner.png"
++++
+
+https://stedolan.github.io/jq/[jq^], the command-line JSON processor, is my favourite tool for transforming JSON documents.
+In this post we're going to learn how to use it to transform the values for specific keys in a document, while leaving everything else untouched.
+
+image::{{<siteurl>}}/uploads/2020/12/jq-banner.png[]
+
+We have the following file, which contains one JSON document:
+
+./tmp/foo.json
+[source,json]
+----
+{"id":1341735877953904600,"conversation_id":"1341735877953904641","created_at":"2020-12-23 13:22:16 GMT","date":"2020-12-23","time":"13:22:16","timezone":"+0000","user_id":"972709154329591800","username":"dondaconceicao","name":"T N Biscuits","place":"","tweet":"Can’t imagine being sick with covid while living alone","language":"en","mentions":[],"urls":[],"photos":[],"replies_count":0,"retweets_count":0,"likes_count":1,"hashtags":[],"cashtags":[],"link":"https://twitter.com/dondaconceicao/status/1341735877953904641","retweet":false,"quote_url":"","video":0,"thumbnail":"","near":"London","geo":"","source":"","user_rt_id":"","user_rt":"","retweet_id":"","reply_to":[],"retweet_date":"","translate":"","trans_src":"","trans_dest":""}
+----
+
+We want to update the `id` field so that its value is a string rather than numeric value.
+We can do this using the https://stedolan.github.io/jq/manual/#tostring[`tostring`^] function, as shown below:
+
+[source,bash]
+----
+cat /tmp/foo.json |  jq -c '.id=(.id|tostring)'
+----
+
+.Output
+[source,json]
+----
+{"id":"1341735877953904600","conversation_id":"1341735877953904641","created_at":"2020-12-23 13:22:16 GMT","date":"2020-12-23","time":"13:22:16","timezone":"+0000","user_id":"972709154329591800","username":"dondaconceicao","name":"T N Biscuits","place":"","tweet":"Can’t imagine being sick with covid while living alone","language":"en","mentions":[],"urls":[],"photos":[],"replies_count":0,"retweets_count":0,"likes_count":1,"hashtags":[],"cashtags":[],"link":"https://twitter.com/dondaconceicao/status/1341735877953904641","retweet":false,"quote_url":"","video":0,"thumbnail":"","near":"London","geo":"","source":"","user_rt_id":"","user_rt":"","retweet_id":"","reply_to":[],"retweet_date":"","translate":"","trans_src":"","trans_dest":""}
+----
+
+All the other fields are left as they were before.
+So far so good.
+
+But what if we want to change the `user_id` key as well?
+My first attempt was to comma separate the two filters:
+
+[source,bash]
+----
+cat /tmp/foo.json |  jq -c '.id=(.id|tostring),.user_id=(.user_id|tostring)'
+----
+
+
+.Output
+[source,json]
+----
+{"id":"1341735877953904600","conversation_id":"1341735877953904641","created_at":"2020-12-23 13:22:16 GMT","date":"2020-12-23","time":"13:22:16","timezone":"+0000","user_id":"972709154329591800","username":"dondaconceicao","name":"T N Biscuits","place":"","tweet":"Can’t imagine being sick with covid while living alone","language":"en","mentions":[],"urls":[],"photos":[],"replies_count":0,"retweets_count":0,"likes_count":1,"hashtags":[],"cashtags":[],"link":"https://twitter.com/dondaconceicao/status/1341735877953904641","retweet":false,"quote_url":"","video":0,"thumbnail":"","near":"London","geo":"","source":"","user_rt_id":"","user_rt":"","retweet_id":"","reply_to":[],"retweet_date":"","translate":"","trans_src":"","trans_dest":""}
+{"id":1341735877953904600,"conversation_id":"1341735877953904641","created_at":"2020-12-23 13:22:16 GMT","date":"2020-12-23","time":"13:22:16","timezone":"+0000","user_id":"972709154329591800","username":"dondaconceicao","name":"T N Biscuits","place":"","tweet":"Can’t imagine being sick with covid while living alone","language":"en","mentions":[],"urls":[],"photos":[],"replies_count":0,"retweets_count":0,"likes_count":1,"hashtags":[],"cashtags":[],"link":"https://twitter.com/dondaconceicao/status/1341735877953904641","retweet":false,"quote_url":"","video":0,"thumbnail":"","near":"London","geo":"","source":"","user_rt_id":"","user_rt":"","retweet_id":"","reply_to":[],"retweet_date":"","translate":"","trans_src":"","trans_dest":""}
+----
+
+Hmmm, now we have two rows instead of one, which isn't what we want!
+Each filter has been applied individually rather than one after the other.
+
+We can fix this by piping one filter into the other using the `|` operator.
+Let's give that a try:
+
+[source,bash]
+----
+cat /tmp/foo.json |  jq -c '.id=(.id|tostring) | .user_id=(.user_id|tostring)'
+----
+
+.Output
+[source,json]
+----
+{"id":"1341735877953904600","conversation_id":"1341735877953904641","created_at":"2020-12-23 13:22:16 GMT","date":"2020-12-23","time":"13:22:16","timezone":"+0000","user_id":"972709154329591800","username":"dondaconceicao","name":"T N Biscuits","place":"","tweet":"Can’t imagine being sick with covid while living alone","language":"en","mentions":[],"urls":[],"photos":[],"replies_count":0,"retweets_count":0,"likes_count":1,"hashtags":[],"cashtags":[],"link":"https://twitter.com/dondaconceicao/status/1341735877953904641","retweet":false,"quote_url":"","video":0,"thumbnail":"","near":"London","geo":"","source":"","user_rt_id":"","user_rt":"","retweet_id":"","reply_to":[],"retweet_date":"","translate":"","trans_src":"","trans_dest":""}
+----
+
+Much better!
