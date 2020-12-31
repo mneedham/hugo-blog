@@ -6,7 +6,6 @@ tag=['materialize']
 category=['materialize']
 description="In this post we'll learn how to query a JSON file that contains arrays using the Materialize SQL streaming database."
 image="uploads/2020/12/materialize-banner-json-arrays.png"
-
 +++
 
 In https://markhneedham.com/blog/2020/12/17/materialize-querying-json-file/[a blog post I wrote a couple of weeks ago^], we learned how to analyse JSON files using the https://materialize.com/[Materialize^] SQL streaming database.
