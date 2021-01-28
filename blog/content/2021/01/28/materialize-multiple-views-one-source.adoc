@@ -120,7 +120,17 @@ AS OF 1;
 [opts="header"]
 |===
 | id     |     start_date      | best_efforts |                                                                                       splits_metric                                                                                       |                                                                                      splits_standard                                                                                      | segment_efforts
-| 3217642015 | 2020-03-25 18:27:10 | []           | [{"average_heartrate":136.11428571428573,"average_speed":3.09,"distance":108.1,"elapsed_time":"0:00:41","elevation_difference":-0.3,"moving_time":"0:00:35","pace_zone":2.0,"split":1.0}] | [{"average_heartrate":136.11428571428573,"average_speed":3.09,"distance":108.1,"elapsed_time":"0:00:41","elevation_difference":-0.3,"moving_time":"0:00:35","pace_zone":2.0,"split":1.0}] | []
+| 3217642015 | 2020-03-25 18:27:10 | []           a| [source,json]
+----
+[{"average_heartrate":136.11428571428573,"average_speed":3.09,"distance":108.1,"elapsed_time":"0:00:41","elevation_difference":-0.3,"moving_time":"0:00:35","pace_zone":2.0,"split":1.0}]
+---- a|
+
+[source,json]
+----
+[{"average_heartrate":136.11428571428573,"average_speed":3.09,"distance":108.1,"elapsed_time":"0:00:41","elevation_difference":-0.3,"moving_time":"0:00:35","pace_zone":2.0,"split":1.0}]
+----
+
+| []
 |===
 
 This view returns JSON arrays for `splits_metric`, `splits_standard`, `best_efforts`, and `segment_efforts`.
