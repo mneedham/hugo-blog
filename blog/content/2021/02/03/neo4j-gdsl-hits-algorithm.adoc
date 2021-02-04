@@ -9,7 +9,7 @@ image="uploads/2021/02/gds-v1.5-hits.png"
 +++
 
 The https://neo4j.com/product/graph-data-science-library/[Neo4j Graph Data Science Library^] provides efficiently implemented, parallel versions of common graph algorithms for Neo4j, exposed as Cypher procedures.
-It recently published the https://github.com/neo4j/graph-data-science/releases/tag/1.5.0-alpha04[preview release of version 1.5^], which has lots of goodies that we're going to explore.
+It recently published the https://github.com/neo4j/graph-data-science/releases/tag/1.5.0-alpha04[preview release of version 1.5^], which has lots of goodies to play with.
 
 image::{{<siteurl>}}/uploads/2021/02/gds-v1.5-hits.png[]
 
@@ -104,13 +104,13 @@ We're going to use some https://neo4j.com/labs/apoc/4.2/overview/[APOC procedure
 .Graph Model
 image::https://neo4j.com/graphacademy/training-gdsds-40/_images/graph.png[]
 
-So we'll the following node labels:
+So we'll have the following node labels:
 
 * `Article` - a paper on a topic
 * `Venue` - where the paper was presented
 * `Author` - the person/people that worked on the `Article`
 
-And we have these relationship types:
+And these relationship types:
 
 * `CITED` - which articles were cited by an article
 * `AUTHOR` - which articles were written by a person/people
