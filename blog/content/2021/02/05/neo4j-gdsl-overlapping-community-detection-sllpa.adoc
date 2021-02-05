@@ -1,0 +1,72 @@
++++
+draft = true
+date="2021-02-04 00:44:37"
+title="Neo4j Graph Data Science 1.5: Exploring the Speaker Listener LPA Overlapping Community Detection Algorithm"
+tag=['neo4j','graph-data-science','graph-algorithms']
+category=['neo4j']
+description="In this post we'll explore the Speaker Listener LPA overlapping community algorithm that was added to the Neo4j Graph Data Science Library in version 1.5.0."
+image="uploads/2021/02/gds-v1.5-hits.png"
++++
+
+The https://neo4j.com/product/graph-data-science-library/[Neo4j Graph Data Science Library^] provides efficiently implemented, parallel versions of common graph algorithms for Neo4j, exposed as Cypher procedures.
+It recently published the https://github.com/neo4j/graph-data-science/releases/tag/1.5.0-alpha04[preview release of version 1.5^], which introduces some fun new algorithms.
+
+image::{{<siteurl>}}/uploads/2021/02/gds-v1.5-hits.png[]
+
+In this blog post we're going to explore the newly added https://neo4j.com/docs/graph-data-science/1.5-preview/algorithms/sllpa/[Speaker-Listener Label Propagation  algorithm^] with the help of a twitter dataset.
+
+== Launching Neo4j
+
+We're going to run Neo4j with the Graph Data Science Library using the following Docker Compose configuration:
+
+.docker-compose.yml
+[source,yaml]
+----
+version: '3.7'
+services:
+  neo4j:
+    image: neo4j:4.2-enterprise
+    container_name: "neo4j4.2-gds1.5-exploration"
+    volumes:
+      - ./plugins-4.2:/plugins
+      - ./data-4.2:/data
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+      - NEO4J_AUTH=neo4j/neo
+
+      # We can use the line below once GDS 1.5.0 is released
+      # - NEO4JLABS_PLUGINS=["apoc", "graph-data-science"]
+
+      # We can use the lines below until GDS 1.5.0 is released
+      - NEO4JLABS_PLUGINS=["apoc"]
+      - "NEO4J_dbms_security_procedures_unrestricted=apoc.*,gds.*"
+----
+
+If you want to follow along with the examples used in the blog post, you can copy the configuration above to a file titled `docker-compose.yml`
+
+[NOTE]
+====
+Until GDS 1.5.0 is released we'll need to manually put the preview jar for the GDS plugin into the `plugins-4.2` directory.
+We can https://github.com/neo4j/graph-data-science/releases/download/1.5.0-alpha04/neo4j-graph-data-science-1.5.0-alpha04.jar[download the file from GitHub releases^].
+====
+
+We can now launch the Neo4j server by running the following command:
+
+[source, bash]
+----
+docker-compose up
+----
+
+After we've launched that command, we need to wait until we see the following output:
+
+.Output
+[source,text]
+----
+neo4j4.2-gds1.5-exploration | 2021-02-03 21:39:15.346+0000 INFO  Bolt enabled on 0.0.0.0:7687.
+neo4j4.2-gds1.5-exploration | 2021-02-03 21:39:16.053+0000 INFO  Remote interface available at http://localhost:7474/
+neo4j4.2-gds1.5-exploration | 2021-02-03 21:39:16.053+0000 INFO  Started.
+
+----

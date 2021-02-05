@@ -152,9 +152,10 @@ LIMIT 5;
 ----
 
 .Results
-|===
-| ERROR:  table function (jsonb_array_elements) in scalar position not yet supported, see https://github.com/MaterializeInc/materialize/issues/1546 for more details
-|===
+[source,text]
+----
+ERROR:  table function (jsonb_array_elements) in scalar position not yet supported, see https://github.com/MaterializeInc/materialize/issues/1546 for more details
+----
 
 This error indicates that we need to use the `json_array_elements` function in the `FROM` part of the query.
 Let's try that:
@@ -168,9 +169,10 @@ LIMIT 5;
 ----
 
 .Results
-|===
-| ERROR:  Cannot call function jsonb_array_elements(string): arguments cannot be implicitly cast to any implementation's parameters; try providing explicit casts
-|===
+[source,text]
+----
+ERROR:  Cannot call function jsonb_array_elements(string): arguments cannot be implicitly cast to any implementation's parameters; try providing explicit casts
+----
 
 Hmmm, still no good.
 The problem this time is that the `jsonb_array_elements` function excepts to receive values of type `jsonb` and the `hashtags` column returns values of type `text`.

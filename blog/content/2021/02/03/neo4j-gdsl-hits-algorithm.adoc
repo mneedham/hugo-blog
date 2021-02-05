@@ -150,14 +150,15 @@ CALL apoc.periodic.iterate(
    FOREACH(citation in citations |
      MERGE (cited:Article {index:citation})
      MERGE (a)-[:CITED]->(cited))',
-   {batchSize: 1000, iterateList: true});
+   {batchSize: 1000, iterateList: true})
+YIELD batches, total, timeTaken, committedOperations;
 ----
 
 .Results
 [opts="header"]
 |===
-| batches | total | timeTaken | committedOperations | failedOperations | failedBatches | retries | errorMessages | batch                                             | operations                                              | wasTerminated | failedParams
-| 52      | 51956 | 21        | 51956               | 0                | 0             | 0       | {}            | {total: 52, committed: 52, failed: 0, errors: {}} | {total: 51956, committed: 51956, failed: 0, errors: {}} | FALSE         | {}
+| batches | total | timeTaken | committedOperations
+| 52      | 51956 | 21        | 51956
 |===
 
 And finally, a bit of cleanup to remove articles that don't have a title:
@@ -238,15 +239,15 @@ And now we'll run the write version of the algorithm against the projected graph
 ----
 CALL gds.alpha.hits.write("citation_graph", {
   hitsIterations: 20
-});
+})
+YIELD writeMillis, nodePropertiesWritten, ranIterations, postProcessingMillis, createMillis, computeMillis;
 ----
 
 .Results
 [opts="header"]
 |===
-| nodePropertiesWritten | ranIterations | didConverge | writeMillis | postProcessingMillis | createMillis | computeMillis | configuration
-| 103912                | 81            | FALSE       | 562         | 0                    | 29           | 430           | {writeConcurrency: 0, writeProperty: "pregel_", relationshipWeightProperty: NULL, hitsIterations: 20, nodeLabels: ["*"], sudo: FALSE, relationshipTypes: ["*"], mutateProperty: "pregel_", concurrency: 4}
-
+| writeMillis | nodePropertiesWritten | ranIterations | postProcessingMillis | createMillis | computeMillis
+| 174         | 103912                | 81            | 0                    | 3            | 390
 |===
 
 By default, this procedure will create `pregel_auth` and `pregel_hub` properties on each of the `Article` nodes storing the computed scores.
@@ -259,26 +260,26 @@ Let's see which articles rank highest, starting with authority:
 ----
 MATCH (a:Article)
 RETURN a.title, a.year, substring(a.abstract, 0, 300) AS abstract,
-       [(a)-[:AUTHOR]->(auth) | auth.name] AS authors, a.pregel_auth
-ORDER BY a.pregel_auth DESC
+       [(a)-[:AUTHOR]->(auth) | auth.name] AS authors,
+       round(a.pregel_auth, 3) AS auth
+ORDER BY auth DESC
 LIMIT 10;
 ----
 
 .Results
-[opts="header", cols="1,1,3,2,1"]
+[opts="header", cols="30,10,25,25,10"]
 |===
-| a.title                                                                         | a.year | abstract | authors                                                                              | a.pregel_auth
-| "Rough sets"                                                                    | 1995   | "Rough set theory, introduced by Zdzislaw Pawlak in the early 1980s [11, 12], is a new mathematical tool to deal with vagueness and uncertainty. This approach seems to be of fundamental importance to artificial intelligence (AI) and cognitive sciences, especially in the areas of machine learning, kno" | ["Jerzy W. Grzymala-Busse", "Wojciech Ziarko", "Zdzisław Pawlak", "Roman Słowiński"] | 0.9902029783523166
-| "Toward Intelligent Systems: Calculi of Information Granules"                   | 2001   | "We present an approach based on calculi of information granules as a basis for approximate reasoning in intelligent systems. Approximate reasoning schemes are defined by means of information granule construction schemes satisfying some robustness constraints. In distributed environments such schemes" | ["Andrzej Skowron"]                                                                  | 0.042331884875655874
-| "Fuzzy Similarity Relation as a Basis for Rough Approximations"                 | 1998   | "The rough sets theory proposed by Pawlak was originally founded on the idea of approximating a given set by means of indiscernibility binary relation, which was assumed to be an equivalence relation (reflexive, symmetric and transitive). With respect to this basic idea, two main theoretical developm" | ["Roman Słowiński", "Salvatore Greco", "Benedetto Matarazzo"]                        | 0.041758364258647956
-| "Approximation spaces and information granulation"                              | 2005   | "In this paper, we discuss approximation spaces in a granular computing framework. Such approximation spaces generalise the approaches to concept approximation existing in rough set theory. Approximation spaces are constructed as higher level information granules and are obtained as the result of com" | ["Andrzej Skowron", "Piotr Synak", "Roman Świniarski"]                               | 0.03769298055544845
-| "Layered learning for concept synthesis"                                        | 2004   | "We present a hierarchical scheme for synthesis of concept approximations based on given data and domain knowledge. We also propose a solution, founded on rough set theory, to the problem of con- structing the approximation of higher level concepts by composing the approximation of lower level concep" | ["Andrzej Skowron", "Jan G. Bazan", "Hung Son Nguyen", "Sinh Hoa Nguyen"]            | 0.037485227017379566
-| "A Comparison of Several Approaches to Missing Attribute Values in Data Mining" | 2000   | "In the paper nine different approaches to missing attribute values are presented and compared. Ten input data files were used to investigate the performance of the nine methods to deal with missing attribute values. For testing both naive classification and new classification techniques of LERS (Lea" | ["Jerzy W. Grzymala-Busse", "Ming Hu"]                                               | 0.035844641067320444
-| "Variable Consistency Model of Dominance-Based Rough Sets Approach"             | 2000   | "Consideration of preference-orders requires the use of an extended rough set model called Dominance-based Rough Set Approach (DRSA). The rough approximations defined within DRSA are based on consistency in the sense of dominance principle. It requires that objects having not-worse evaluation with re" | ["Benedetto Matarazzo", "Salvatore Greco", "Roman Słowiński", "Jerzy Stefanowski"]   | 0.029223470640196817
-| "RSES and RSESlib - A Collection of Tools for Rough Set Computations"           | 2000   | "Rough Set Exploration System - a set of software tools featuring a library of methods and a graphical user interface is presented. Methods, features and abilities of the implemented software are discussed and illustrated with a case study in data analysis."                                             | ["Marcin S. Szczuka", "Jan G. Bazan"]                                                | 0.02646859098387595
-| "Rough sets and information granulation"                                        | 2003   | "In this paper, the study of the evolution of approximation space theory and its applications is considered in the context of rough sets introduced by Zdzislaw Pawlak and information granulation as well as computing with words formulated by Lotfi Zadeh. Central to this evolution is the rough-mereolog" | ["Piotr Synak", "James F. Peters", "Andrzej Skowron", "Sheela Ramanna"]              | 0.026413597077633348
-| "A New Version of Rough Set Exploration System"                                 | 2002   | "We introduce a new version of the Rough Set Exploration System - a software tool featuring a library of methods and a graphical user interface supporting variety of rough-set-based computations. Methods, features and abilities of the implemented software are discussed and illustrated with a case stu" | ["Marcin S. Szczuka", "Jakub Wróblewski", "Jan G. Bazan"]                            | 0.025605824567206278
-
+| a.title                                                                         | a.year | abstract                                                                                                                                                                                                                                                                                                       | authors                                                                              | auth
+| "Rough sets"                                                                    | 1995   | "Rough set theory, introduced by Zdzislaw Pawlak in the early 1980s [11, 12], is a new mathematical tool to deal with vagueness and uncertainty. This approach seems to be of fundamental importance to artificial intelligence (AI) and cognitive sciences, especially in the areas of machine learning, kno" | ["Jerzy W. Grzymala-Busse", "Wojciech Ziarko", "Zdzisław Pawlak", "Roman Słowiński"] | 0.99
+| "Fuzzy Similarity Relation as a Basis for Rough Approximations"                 | 1998   | "The rough sets theory proposed by Pawlak was originally founded on the idea of approximating a given set by means of indiscernibility binary relation, which was assumed to be an equivalence relation (reflexive, symmetric and transitive). With respect to this basic idea, two main theoretical developm" | ["Roman Słowiński", "Salvatore Greco", "Benedetto Matarazzo"]                        | 0.042
+| "Toward Intelligent Systems: Calculi of Information Granules"                   | 2001   | "We present an approach based on calculi of information granules as a basis for approximate reasoning in intelligent systems. Approximate reasoning schemes are defined by means of information granule construction schemes satisfying some robustness constraints. In distributed environments such schemes" | ["Andrzej Skowron"]                                                                  | 0.042
+| "Approximation spaces and information granulation"                              | 2005   | "In this paper, we discuss approximation spaces in a granular computing framework. Such approximation spaces generalise the approaches to concept approximation existing in rough set theory. Approximation spaces are constructed as higher level information granules and are obtained as the result of com" | ["Andrzej Skowron", "Piotr Synak", "Roman Świniarski"]                               | 0.038
+| "Layered learning for concept synthesis"                                        | 2004   | "We present a hierarchical scheme for synthesis of concept approximations based on given data and domain knowledge. We also propose a solution, founded on rough set theory, to the problem of con- structing the approximation of higher level concepts by composing the approximation of lower level concep" | ["Andrzej Skowron", "Jan G. Bazan", "Hung Son Nguyen", "Sinh Hoa Nguyen"]            | 0.037
+| "A Comparison of Several Approaches to Missing Attribute Values in Data Mining" | 2000   | "In the paper nine different approaches to missing attribute values are presented and compared. Ten input data files were used to investigate the performance of the nine methods to deal with missing attribute values. For testing both naive classification and new classification techniques of LERS (Lea" | ["Jerzy W. Grzymala-Busse", "Ming Hu"]                                               | 0.036
+| "Variable Consistency Model of Dominance-Based Rough Sets Approach"             | 2000   | "Consideration of preference-orders requires the use of an extended rough set model called Dominance-based Rough Set Approach (DRSA). The rough approximations defined within DRSA are based on consistency in the sense of dominance principle. It requires that objects having not-worse evaluation with re" | ["Benedetto Matarazzo", "Salvatore Greco", "Roman Słowiński", "Jerzy Stefanowski"]   | 0.029
+| "RSES and RSESlib - A Collection of Tools for Rough Set Computations"           | 2000   | "Rough Set Exploration System - a set of software tools featuring a library of methods and a graphical user interface is presented. Methods, features and abilities of the implemented software are discussed and illustrated with a case study in data analysis."                                             | ["Marcin S. Szczuka", "Jan G. Bazan"]                                                | 0.026
+| "A New Version of Rough Set Exploration System"                                 | 2002   | "We introduce a new version of the Rough Set Exploration System - a software tool featuring a library of methods and a graphical user interface supporting variety of rough-set-based computations. Methods, features and abilities of the implemented software are discussed and illustrated with a case stu" | ["Marcin S. Szczuka", "Jakub Wróblewski", "Jan G. Bazan"]                            | 0.026
+| "Rough sets and information granulation"                                        | 2003   | "In this paper, the study of the evolution of approximation space theory and its applications is considered in the context of rough sets introduced by Zdzislaw Pawlak and information granulation as well as computing with words formulated by Lotfi Zadeh. Central to this evolution is the rough-mereolog" | ["Piotr Synak", "James F. Peters", "Andrzej Skowron", "Sheela Ramanna"]              | 0.026
 |===
 
 The top article by some distance on this metric is https://dl.acm.org/doi/10.1145/219717.219791["Rough sets"^], which was written more than 25 years ago.
@@ -290,26 +291,28 @@ We can have a look at the hub nodes that point to these articles by running the 
 ----
 MATCH (a:Article)
 WITH a, [(a)<-[:CITED]-(other) | other] AS citations
-RETURN a.title, a.year, a.pregel_auth,
-       [c in apoc.coll.sortNodes(citations, "pregel_hub") | {article: c.title, score: c.pregel_hub}][..5] AS topHubs
-ORDER BY a.pregel_auth DESC
+WITH a, apoc.coll.sortNodes(citations, "pregel_hub")[..5] AS topHubs
+RETURN a.title, a.year,
+       round(a.pregel_auth, 3) AS auth,
+       [c in topHubs | {article: c.title, score: round(c.pregel_hub, 3)}] AS topHubs
+ORDER BY auth DESC
 LIMIT 10;
 ----
 
 .Results
-[opts="header"]
+[opts="header", cols="25,10,10,55"]
 |===
-| a.title                                                                         | a.year | a.pregel_auth        | topHubs
-| "Rough sets"                                                                    | 1995   | 0.9902029783523166   | [{score: 0.08326367506940788, article: "Rough ethology: towards a biologically-inspired study of collective behavior in intelligent systems with approximation spaces"}, {score: 0.08231787262265258, article: "Some Issues on Rough Sets"}, {score: 0.07907518529470473, article: "A treatise on rough sets"}, {score: 0.07872293419585193, article: "Approximate boolean reasoning: foundations and applications in data mining"}, {score: 0.07511674943786766, article: "Multimodal classification: case studies"}]
-| "Toward Intelligent Systems: Calculi of Information Granules"                   | 2001   | 0.042331884875655874 | [{score: 0.08326367506940788, article: "Rough ethology: towards a biologically-inspired study of collective behavior in intelligent systems with approximation spaces"}, {score: 0.08231787262265258, article: "Some Issues on Rough Sets"}, {score: 0.07214863113786842, article: "Rough sets and information granulation"}, {score: 0.0707719619818275, article: "A Note on Ziarko's Variable Precision Rough Set Model and Nonmonotonic Reasoning"}, {score: 0.0707719619818275, article: "A Partition Model of Granular Computing"}]
-| "Fuzzy Similarity Relation as a Basis for Rough Approximations"                 | 1998   | 0.041758364258647956 | [{score: 0.08231787262265258, article: "Some Issues on Rough Sets"}, {score: 0.07907518529470473, article: "A treatise on rough sets"}, {score: 0.07872293419585193, article: "Approximate boolean reasoning: foundations and applications in data mining"}, {score: 0.07477697500867436, article: "On generalized rough fuzzy approximation operators"}, {score: 0.07447026538910073, article: "Lattices with Interior and Closure Operators and Abstract Approximation Spaces"}]
-| "Approximation spaces and information granulation"                              | 2005   | 0.03769298055544845  | [{score: 0.08326367506940788, article: "Rough ethology: towards a biologically-inspired study of collective behavior in intelligent systems with approximation spaces"}, {score: 0.08231787262265258, article: "Some Issues on Rough Sets"}, {score: 0.07907518529470473, article: "A treatise on rough sets"}, {score: 0.07477697500867436, article: "On generalized rough fuzzy approximation operators"}, {score: 0.07366616864280168, article: "Matching 2d image segments with genetic algorithms and approximation spaces"}]
-| "Layered learning for concept synthesis"                                        | 2004   | 0.037485227017379566 | [{score: 0.08326367506940788, article: "Rough ethology: towards a biologically-inspired study of collective behavior in intelligent systems with approximation spaces"}, {score: 0.07907518529470473, article: "A treatise on rough sets"}, {score: 0.07872293419585193, article: "Approximate boolean reasoning: foundations and applications in data mining"}, {score: 0.07511674943786766, article: "Multimodal classification: case studies"}, {score: 0.0721760655980943, article: "P300 wave detection based on rough sets"}]
-| "A Comparison of Several Approaches to Missing Attribute Values in Data Mining" | 2000   | 0.035844641067320444 | [{score: 0.08231787262265258, article: "Some Issues on Rough Sets"}, {score: 0.07504070636182412, article: "The rough set exploration system"}, {score: 0.07104378999163101, article: "Missing template decomposition method and its implementation in rough set exploration system"}, {score: 0.06999998428744159, article: "Data with Missing Attribute Values: Generalization of Indiscernibility Relation and Rule Induction"}, {score: 0.06999998428744159, article: "Characteristic relations for incomplete data: a generalization of the indiscernibility relation"}]
-| "Variable Consistency Model of Dominance-Based Rough Sets Approach"             | 2000   | 0.029223470640196817 | [{score: 0.07188564366547426, article: "Rough Set Analysis of Preference-Ordered Data"}, {score: 0.07154820987277162, article: "Variable-precision dominance-based rough set approach"}, {score: 0.07122211388256415, article: "On variable consistency dominance-based rough set approaches"}, {score: 0.07088061573257967, article: "Multicriteria choice and ranking using decision rules induced from rough approximation of graded preference relations"}, {score: 0.06954826858040132, article: "Rough set approach to customer satisfaction analysis"}]
-| "RSES and RSESlib - A Collection of Tools for Rough Set Computations"           | 2000   | 0.02646859098387595  | [{score: 0.07872293419585193, article: "Approximate boolean reasoning: foundations and applications in data mining"}, {score: 0.07294503038007424, article: "Hybridization of rough sets and statistical learning theory"}, {score: 0.07191767495449009, article: "Ontology driven concept approximation"}, {score: 0.07177536533583517, article: "Processing of musical data employing rough sets and artificial neural networks"}, {score: 0.06936032259328882, article: "A statistical method for determining importance of variables in an information system"}]
-| "Rough sets and information granulation"                                        | 2003   | 0.026413597077633348 | [{score: 0.08326367506940788, article: "Rough ethology: towards a biologically-inspired study of collective behavior in intelligent systems with approximation spaces"}, {score: 0.07907518529470473, article: "A treatise on rough sets"}, {score: 0.07477697500867436, article: "On generalized rough fuzzy approximation operators"}, {score: 0.07366616864280168, article: "Matching 2d image segments with genetic algorithms and approximation spaces"}, {score: 0.07101402626231869, article: "Time complexity of decision trees"}]
-| "A New Version of Rough Set Exploration System"                                 | 2002   | 0.025605824567206278 | [{score: 0.07511674943786766, article: "Multimodal classification: case studies"}, {score: 0.07177536533583517, article: "Processing of musical data employing rough sets and artificial neural networks"}, {score: 0.06930146213255818, article: "Introducing a rule importance measure"}, {score: 0.06930146213255818, article: "NetTRS induction and postprocessing of decision rules"}, {score: 0.06930146213255818, article: "Classification of Swallowing Sound Signals: A Rough Set Approach"}]
+| a.title                                                                         | a.year | auth        | topHubs
+| "Rough sets"                                                                    | 1995   | 0.99  | [{score: 0.083, article: "Rough ethology: towards a biologically-inspired study of collective behavior in intelligent systems with approximation spaces"}, {score: 0.082, article: "Some Issues on Rough Sets"}, {score: 0.079, article: "A treatise on rough sets"}, {score: 0.079, article: "Approximate boolean reasoning: foundations and applications in data mining"}, {score: 0.075, article: "Multimodal classification: case studies"}]
+| "Fuzzy Similarity Relation as a Basis for Rough Approximations"                 | 1998   | 0.042 | [{score: 0.082, article: "Some Issues on Rough Sets"}, {score: 0.079, article: "A treatise on rough sets"}, {score: 0.079, article: "Approximate boolean reasoning: foundations and applications in data mining"}, {score: 0.075, article: "On generalized rough fuzzy approximation operators"}, {score: 0.074, article: "Lattices with Interior and Closure Operators and Abstract Approximation Spaces"}]
+| "Toward Intelligent Systems: Calculi of Information Granules"                   | 2001   | 0.042 | [{score: 0.083, article: "Rough ethology: towards a biologically-inspired study of collective behavior in intelligent systems with approximation spaces"}, {score: 0.082, article: "Some Issues on Rough Sets"}, {score: 0.072, article: "Rough sets and information granulation"}, {score: 0.071, article: "A Note on Ziarko's Variable Precision Rough Set Model and Nonmonotonic Reasoning"}, {score: 0.071, article: "A Partition Model of Granular Computing"}]
+| "Approximation spaces and information granulation"                              | 2005   | 0.038 | [{score: 0.083, article: "Rough ethology: towards a biologically-inspired study of collective behavior in intelligent systems with approximation spaces"}, {score: 0.082, article: "Some Issues on Rough Sets"}, {score: 0.079, article: "A treatise on rough sets"}, {score: 0.075, article: "On generalized rough fuzzy approximation operators"}, {score: 0.074, article: "Matching 2d image segments with genetic algorithms and approximation spaces"}]
+| "Layered learning for concept synthesis"                                        | 2004   | 0.037 | [{score: 0.083, article: "Rough ethology: towards a biologically-inspired study of collective behavior in intelligent systems with approximation spaces"}, {score: 0.079, article: "A treatise on rough sets"}, {score: 0.079, article: "Approximate boolean reasoning: foundations and applications in data mining"}, {score: 0.075, article: "Multimodal classification: case studies"}, {score: 0.072, article: "P300 wave detection based on rough sets"}]
+| "A Comparison of Several Approaches to Missing Attribute Values in Data Mining" | 2000   | 0.036 | [{score: 0.082, article: "Some Issues on Rough Sets"}, {score: 0.075, article: "The rough set exploration system"}, {score: 0.071, article: "Missing template decomposition method and its implementation in rough set exploration system"}, {score: 0.07, article: "Data with Missing Attribute Values: Generalization of Indiscernibility Relation and Rule Induction"}, {score: 0.07, article: "Characteristic relations for incomplete data: a generalization of the indiscernibility relation"}]
+| "Variable Consistency Model of Dominance-Based Rough Sets Approach"             | 2000   | 0.029 | [{score: 0.072, article: "Rough Set Analysis of Preference-Ordered Data"}, {score: 0.072, article: "Variable-precision dominance-based rough set approach"}, {score: 0.071, article: "On variable consistency dominance-based rough set approaches"}, {score: 0.071, article: "Multicriteria choice and ranking using decision rules induced from rough approximation of graded preference relations"}, {score: 0.07, article: "Rough set approach to customer satisfaction analysis"}]
+| "RSES and RSESlib - A Collection of Tools for Rough Set Computations"           | 2000   | 0.026 | [{score: 0.079, article: "Approximate boolean reasoning: foundations and applications in data mining"}, {score: 0.073, article: "Hybridization of rough sets and statistical learning theory"}, {score: 0.072, article: "Ontology driven concept approximation"}, {score: 0.072, article: "Processing of musical data employing rough sets and artificial neural networks"}, {score: 0.069, article: "A statistical method for determining importance of variables in an information system"}]
+| "A New Version of Rough Set Exploration System"                                 | 2002   | 0.026 | [{score: 0.075, article: "Multimodal classification: case studies"}, {score: 0.072, article: "Processing of musical data employing rough sets and artificial neural networks"}, {score: 0.069, article: "Introducing a rule importance measure"}, {score: 0.069, article: "NetTRS induction and postprocessing of decision rules"}, {score: 0.069, article: "Classification of Swallowing Sound Signals: A Rough Set Approach"}]
+| "Rough sets and information granulation"                                        | 2003   | 0.026 | [{score: 0.083, article: "Rough ethology: towards a biologically-inspired study of collective behavior in intelligent systems with approximation spaces"}, {score: 0.079, article: "A treatise on rough sets"}, {score: 0.075, article: "On generalized rough fuzzy approximation operators"}, {score: 0.074, article: "Matching 2d image segments with genetic algorithms and approximation spaces"}, {score: 0.071, article: "Time complexity of decision trees"}]
 |===
 
 Based on the top hubs, it's not really obvious why the authority score for "Rough sets" is so much higher than the other articles.
@@ -319,29 +322,30 @@ Perhaps if we return the max, min, and average hub scores we'll be able to figur
 ----
 MATCH (a:Article)
 WITH a, [(a)<-[:CITED]-(other) | other] AS citations
-RETURN a.title, a.year, a.pregel_auth,
-       apoc.coll.max([c in citations | c.pregel_hub]) AS maxHub,
-       apoc.coll.min([c in citations | c.pregel_hub]) AS minHub,
-       apoc.coll.avg([c in citations | c.pregel_hub]) AS averageHub,
+RETURN a.title, a.year,
+       round(a.pregel_auth, 3) AS auth,
+       round(apoc.coll.max([c in citations | c.pregel_hub]), 3) AS maxHub,
+       round(apoc.coll.min([c in citations | c.pregel_hub]), 3) AS minHub,
+       round(apoc.coll.avg([c in citations | c.pregel_hub]), 3) AS averageHub,
        size(citations) AS citations
-ORDER BY a.pregel_auth DESC
+ORDER BY auth DESC
 LIMIT 10;
 ----
 
 .Results
-[opts="header", cols="2,1,1,1,1,1,1"]
+[opts="header", cols="4,1,1,1,1,1,1"]
 |===
-| a.title                                                                         | a.year | a.pregel_auth        | maxHub              | minHub                | averageHub           | citations
-| "Rough sets"                                                                    | 1995   | 0.9902029783523166   | 0.08326367506940788 | 0.067554557521654     | 0.06878778867390127  | 211
-| "Toward Intelligent Systems: Calculi of Information Granules"                   | 2001   | 0.042331884875655874 | 0.08326367506940788 | 0.0028880056052659514 | 0.03649961309668014  | 17
-| "Fuzzy Similarity Relation as a Basis for Rough Approximations"                 | 1998   | 0.041758364258647956 | 0.08231787262265258 | 0.0028488783431201785 | 0.06120868538857942  | 10
-| "Approximation spaces and information granulation"                              | 2005   | 0.03769298055544845  | 0.08326367506940788 | 0.004894621980893008  | 0.05524971672871663  | 10
-| "Layered learning for concept synthesis"                                        | 2004   | 0.037485227017379566 | 0.08326367506940788 | 0.003271977390609752  | 0.04995017718453141  | 11
-| "A Comparison of Several Approaches to Missing Attribute Values in Data Mining" | 2000   | 0.035844641067320444 | 0.08231787262265258 | 0.002445426765787586  | 0.047764047983992745 | 11
-| "Variable Consistency Model of Dominance-Based Rough Sets Approach"             | 2000   | 0.029223470640196817 | 0.07188564366547426 | 0.0037194411878653986 | 0.06119322307172252  | 7
-| "RSES and RSESlib - A Collection of Tools for Rough Set Computations"           | 2000   | 0.02646859098387595  | 0.07872293419585193 | 0.0018057650716348172 | 0.03233099891787266  | 12
-| "Rough sets and information granulation"                                        | 2003   | 0.026413597077633348 | 0.08326367506940788 | 0.005369892005814956  | 0.06452765371395372  | 6
-| "A New Version of Rough Set Exploration System"                                 | 2002   | 0.025605824567206278 | 0.07511674943786766 | 0.002085917437216766  | 0.03753257316297813  | 10
+| a.title                                                                         | a.year | auth        | maxHub              | minHub                | averageHub           | citations
+| "Rough sets"                                                                    | 1995   | 0.99  | 0.083  | 0.068  | 0.069      | 211
+| "Toward Intelligent Systems: Calculi of Information Granules"                   | 2001   | 0.042 | 0.083  | 0.003  | 0.036      | 17
+| "Fuzzy Similarity Relation as a Basis for Rough Approximations"                 | 1998   | 0.042 | 0.082  | 0.003  | 0.061      | 10
+| "Approximation spaces and information granulation"                              | 2005   | 0.038 | 0.083  | 0.005  | 0.055      | 10
+| "Layered learning for concept synthesis"                                        | 2004   | 0.037 | 0.083  | 0.003  | 0.05       | 11
+| "A Comparison of Several Approaches to Missing Attribute Values in Data Mining" | 2000   | 0.036 | 0.082  | 0.002  | 0.048      | 11
+| "Variable Consistency Model of Dominance-Based Rough Sets Approach"             | 2000   | 0.029 | 0.072  | 0.004  | 0.061      | 7
+| "RSES and RSESlib - A Collection of Tools for Rough Set Computations"           | 2000   | 0.026 | 0.079  | 0.002  | 0.032      | 12
+| "Rough sets and information granulation"                                        | 2003   | 0.026 | 0.083  | 0.005  | 0.065      | 6
+| "A New Version of Rough Set Exploration System"                                 | 2002   | 0.026 | 0.075  | 0.002  | 0.038      | 10
 |===
 
 From this output we learn that "Rough sets" is being cited by a lot of articles with a good hub score.
@@ -367,34 +371,44 @@ We can compute the PageRank score for articles, by running the following query:
 CALL gds.pageRank.write("citation_graph", {
   maxIterations: 20,
   writeProperty: "pagerank"
-});
+})
+YIELD writeMillis, nodePropertiesWritten, ranIterations, postProcessingMillis, createMillis, computeMillis;
 ----
+
+.Results
+[opts="header"]
+|===
+| writeMillis | nodePropertiesWritten | ranIterations | postProcessingMillis | createMillis | computeMillis
+| 29          | 51956                 | 20            | 0                    | 0            | 112
+|===
 
 And now let's put the PageRank scores alongside the HITS Authority scores:
 
 [source,cypher]
 ----
 MATCH (a:Article)
-RETURN a.title, a.year, a.pregel_auth, a.pagerank,
+RETURN a.title, a.year,
+       round(a.pregel_auth, 3) AS auth,
+       round(a.pagerank, 3) AS pagerank,
        size([(a)<-[:CITED]-(other) | other]) AS citations
-ORDER BY a.pregel_auth DESC
+ORDER BY auth DESC
 LIMIT 10;
 ----
 
 .Results
-[opts="header",cols="2,1,1,1,1"]
+[opts="header",cols="60,10,10,10,10"]
 |===
-| a.title                                                                         | a.year | a.pregel_auth        | a.pagerank          | citations
-| "Rough sets"                                                                    | 1995   | 0.9902029783523166   | 25.6091115475157    | 211
-| "Toward Intelligent Systems: Calculi of Information Granules"                   | 2001   | 0.04233188487565586  | 1.8623787731480146  | 17
-| "Fuzzy Similarity Relation as a Basis for Rough Approximations"                 | 1998   | 0.041758364258647956 | 0.7381119743920863  | 10
-| "Approximation spaces and information granulation"                              | 2005   | 0.03769298055544847  | 0.4183675493462943  | 10
-| "Layered learning for concept synthesis"                                        | 2004   | 0.03748522701737958  | 0.5048689365386962  | 11
-| "A Comparison of Several Approaches to Missing Attribute Values in Data Mining" | 2000   | 0.035844641067320444 | 0.8960653031419498  | 11
-| "Variable Consistency Model of Dominance-Based Rough Sets Approach"             | 2000   | 0.029223470640196817 | 0.47098140234211316 | 7
-| "RSES and RSESlib - A Collection of Tools for Rough Set Computations"           | 2000   | 0.026468590983875946 | 1.2963852994143963  | 12
-| "Rough sets and information granulation"                                        | 2003   | 0.026413597077633355 | 0.37512267220881773 | 6
-| "A New Version of Rough Set Exploration System"                                 | 2002   | 0.02560582456720627  | 0.6822797993168933  | 10
+| a.title                                                                         | a.year | auth  | pagerank | citations
+| "Rough sets"                                                                    | 1995   | 0.99  | 25.609   | 211
+| "Fuzzy Similarity Relation as a Basis for Rough Approximations"                 | 1998   | 0.042 | 0.738    | 10
+| "Toward Intelligent Systems: Calculi of Information Granules"                   | 2001   | 0.042 | 1.862    | 17
+| "Approximation spaces and information granulation"                              | 2005   | 0.038 | 0.418    | 10
+| "Layered learning for concept synthesis"                                        | 2004   | 0.037 | 0.505    | 11
+| "A Comparison of Several Approaches to Missing Attribute Values in Data Mining" | 2000   | 0.036 | 0.896    | 11
+| "Variable Consistency Model of Dominance-Based Rough Sets Approach"             | 2000   | 0.029 | 0.471    | 7
+| "RSES and RSESlib - A Collection of Tools for Rough Set Computations"           | 2000   | 0.026 | 1.296    | 12
+| "A New Version of Rough Set Exploration System"                                 | 2002   | 0.026 | 0.682    | 10
+| "Rough sets and information granulation"                                        | 2003   | 0.026 | 0.375    | 6
 |===
 
 Rough Sets is the only one with a high PageRank score as well.
@@ -403,26 +417,28 @@ In fact, its PageRank score is the 3rd highest in the graph, which we can see by
 [source,cypher]
 ----
 MATCH (a:Article)
-RETURN a.title, a.year, a.pregel_auth, a.pagerank,
+RETURN a.title, a.year,
+       round(a.pregel_auth, 5) AS auth,
+       round(a.pagerank, 5) AS pagerank,
        size([(a)<-[:CITED]-(other) | other]) AS citations
-ORDER BY a.pagerank DESC
+ORDER BY pagerank DESC
 LIMIT 10;
 ----
 
 .Results
-[opts="header",cols="2,1,1,1,1"]
+[opts="header",cols="60,10,10,10,10"]
 |===
-| a.title                                                                                             | a.year | a.pregel_auth         | a.pagerank         | citations
-| "A method for obtaining digital signatures and public-key cryptosystems"                            | 1978   | 4.874797058555547E-5  | 93.94312821386555  | 125
-| "Secure communications over insecure channels"                                                      | 1978   | 1.7207701396673202E-6 | 79.869243291032    | 7
-| "Rough sets"                                                                                        | 1995   | 0.9902029783523166    | 25.6091115475157   | 211
-| "An axiomatic basis for computer programming"                                                       | 1969   | 4.367476872170036E-4  | 23.029374515410247 | 93
-| "Pastry: Scalable, Decentralized Object Location, and Routing for Large-Scale Peer-to-Peer Systems" | 2001   | 3.366445250036015E-6  | 21.469559684534033 | 108
-| "SCRIBE: The Design of a Large-Scale Event Notification Infrastructure"                             | 2001   | 4.777843263911293E-7  | 19.48630488278577  | 14
-| "A field study of the software design process for large systems"                                    | 1988   | 1.3094721639230512E-6 | 19.02815292411806  | 53
-| "Productivity factors and programming environments"                                                 | 1984   | 5.2969492266137203E-8 | 18.499350399215682 | 5
-| "Analyzing medium-scale software development"                                                       | 1978   | 2.5543024446107876E-6 | 16.452747461039383 | 5
-| "A Calculus of Communicating Systems"                                                               | 1982   | 3.7209705772249456E-6 | 15.430585576749756 | 55
+| a.title                                                                                             | a.year | auth   | pagerank | citations
+| "A method for obtaining digital signatures and public-key cryptosystems"                            | 1978   | 5.0E-5 | 93.94313 | 125
+| "Secure communications over insecure channels"                                                      | 1978   | 0.0    | 79.86924 | 7
+| "Rough sets"                                                                                        | 1995   | 0.9902 | 25.60911 | 211
+| "An axiomatic basis for computer programming"                                                       | 1969   | 4.4E-4 | 23.02937 | 93
+| "Pastry: Scalable, Decentralized Object Location, and Routing for Large-Scale Peer-to-Peer Systems" | 2001   | 0.0    | 21.46956 | 108
+| "SCRIBE: The Design of a Large-Scale Event Notification Infrastructure"                             | 2001   | 0.0    | 19.4863  | 14
+| "A field study of the software design process for large systems"                                    | 1988   | 0.0    | 19.02815 | 53
+| "Productivity factors and programming environments"                                                 | 1984   | 0.0    | 18.49935 | 5
+| "Analyzing medium-scale software development"                                                       | 1978   | 0.0    | 16.45275 | 5
+| "A Calculus of Communicating Systems"                                                               | 1982   | 0.0    | 15.43059 | 55
 |===
 
 I find it kinda interesting that while these articles have very high transitive importance, their HITS Authority score is very low.
@@ -437,29 +453,30 @@ We can find the articles with the highest hub score, by running the following qu
 ----
 MATCH (a:Article)
 WITH a, [(a)-[:CITED]->(other) | other] AS cited
-RETURN a.title, a.year, a.pregel_hub,
-       apoc.coll.max([c in cited | c.pregel_auth]) AS maxAuth,
-       apoc.coll.min([c in cited | c.pregel_auth]) AS minAuth,
-       apoc.coll.avg([c in cited | c.pregel_auth]) AS averageAuth,
+RETURN a.title, a.year,
+       round(a.pregel_hub, 3) AS hub,
+       round(apoc.coll.max([c in cited | c.pregel_auth]), 3) AS maxAuth,
+       round(apoc.coll.min([c in cited | c.pregel_auth]), 3) AS minAuth,
+       round(apoc.coll.avg([c in cited | c.pregel_auth]), 3) AS averageAuth,
        size(cited) AS cited
 ORDER BY a.pregel_hub DESC
 LIMIT 10;
 ----
 
 .Results
-[opts="header",cols="2,1,1,1,1,1,1"]
+[opts="header",cols="40,10,10,10,10,10,10"]
 |===
-| a.title                                                                                                                         | a.year | a.pregel_hub        | maxAuth            | minAuth               | averageAuth         | cited
-| "Rough ethology: towards a biologically-inspired study of collective behavior in intelligent systems with approximation spaces" | 2005   | 0.08326367506940784 | 0.9902029783523166 | 0.005680492622161004  | 0.10170537472109026 | 12
-| "Some Issues on Rough Sets"                                                                                                     | 2004   | 0.08231787262265253 | 0.9902029783523166 | 0.0056159671977223866 | 0.1340667876173836  | 9
-| "A treatise on rough sets"                                                                                                      | 2005   | 0.0790751852947047  | 0.9902029783523166 | 0.005394741540465512  | 0.14488379256921233 | 8
-| "Approximate boolean reasoning: foundations and applications in data mining"                                                    | 2006   | 0.0787229341958519  | 0.9902029783523166 | 0.0053707101242607    | 0.11539071050887917 | 10
-| "Multimodal classification: case studies"                                                                                       | 2006   | 0.07511674943786763 | 0.9902029783523166 | 0.005124685436249977  | 0.1223386972056362  | 9
-| "The rough set exploration system"                                                                                              | 2005   | 0.0750407063618241  | 0.9902029783523166 | 0.005119497539227279  | 0.15713337837732522 | 7
-| "On generalized rough fuzzy approximation operators"                                                                            | 2006   | 0.07477697500867433 | 0.9902029783523166 | 0.026413597077633355  | 0.2740169800610116  | 4
-| "Lattices with Interior and Closure Operators and Abstract Approximation Spaces"                                                | 2009   | 0.0744702653891007  | 0.9902029783523166 | 0.005080580368787054  | 0.13644652798469234 | 8
-| "Matching 2d image segments with genetic algorithms and approximation spaces"                                                   | 2006   | 0.07366616864280165 | 0.9902029783523166 | 0.005025722524161729  | 0.15425513047737024 | 7
-| "Hybridization of rough sets and statistical learning theory"                                                                   | 2011   | 0.07294503038007422 | 0.9902029783523166 | 0.004976524367039553  | 0.21384311877165932 | 5
+| a.title                                                                                                                         | a.year | hub        | maxAuth            | minAuth               | averageAuth         | cited
+| "Rough ethology: towards a biologically-inspired study of collective behavior in intelligent systems with approximation spaces" | 2005   | 0.083 | 0.99    | 0.006   | 0.102       | 12
+| "Some Issues on Rough Sets"                                                                                                     | 2004   | 0.082 | 0.99    | 0.006   | 0.134       | 9
+| "A treatise on rough sets"                                                                                                      | 2005   | 0.079 | 0.99    | 0.005   | 0.145       | 8
+| "Approximate boolean reasoning: foundations and applications in data mining"                                                    | 2006   | 0.079 | 0.99    | 0.005   | 0.115       | 10
+| "Multimodal classification: case studies"                                                                                       | 2006   | 0.075 | 0.99    | 0.005   | 0.122       | 9
+| "The rough set exploration system"                                                                                              | 2005   | 0.075 | 0.99    | 0.005   | 0.157       | 7
+| "On generalized rough fuzzy approximation operators"                                                                            | 2006   | 0.075 | 0.99    | 0.026   | 0.274       | 4
+| "Lattices with Interior and Closure Operators and Abstract Approximation Spaces"                                                | 2009   | 0.074 | 0.99    | 0.005   | 0.136       | 8
+| "Matching 2d image segments with genetic algorithms and approximation spaces"                                                   | 2006   | 0.074 | 0.99    | 0.005   | 0.154       | 7
+| "Hybridization of rough sets and statistical learning theory"                                                                   | 2011   | 0.073 | 0.99    | 0.005   | 0.214       | 5
 |===
 
 The `maxAuth` scores tell us that all of these articles cite the "Rough sets" article that we came across in the previous section.
@@ -470,26 +487,29 @@ In any case, let's have a look at the other authorities that these articles have
 ----
 MATCH (a:Article)
 WITH a, [(a)-[:CITED]->(other) | other] AS cited
-RETURN a.title, a.year, a.pregel_hub,
-       [c in apoc.coll.sortNodes(cited, "pregel_auth") | {article: c.title, score: c.pregel_auth}][..5] AS topAuthorities
-ORDER BY a.pregel_hub DESC
+WITH a, apoc.coll.sortNodes(cited, "pregel_auth")[..5] AS topAuthorities
+RETURN a.title, a.year,
+       round(a.pregel_hub, 3) AS hub,
+       [c in topAuthorities | {article: c.title, score: round(c.pregel_auth, 3)}] AS topAuthorities
+ORDER BY hub DESC
 LIMIT 10;
 ----
 
 .Results
-[opts="header", cols="2,1,1,2"]
+[opts="header", cols="30,10,10,50"]
 |===
-| a.title                                                                                                                         | a.year | a.pregel_hub        | topAuthorities
-| "Rough ethology: towards a biologically-inspired study of collective behavior in intelligent systems with approximation spaces" | 2005   | 0.08326367506940784 | [{score: 0.9902029783523166, article: "Rough sets"}, {score: 0.04233188487565586, article: "Toward Intelligent Systems: Calculi of Information Granules"}, {score: 0.03769298055544847, article: "Approximation spaces and information granulation"}, {score: 0.03748522701737958, article: "Layered learning for concept synthesis"}, {score: 0.026413597077633355, article: "Rough sets and information granulation"}]
-| "Some Issues on Rough Sets"                                                                                                     | 2004   | 0.08231787262265253 | [{score: 0.9902029783523166, article: "Rough sets"}, {score: 0.04233188487565586, article: "Toward Intelligent Systems: Calculi of Information Granules"}, {score: 0.041758364258647956, article: "Fuzzy Similarity Relation as a Basis for Rough Approximations"}, {score: 0.03769298055544847, article: "Approximation spaces and information granulation"}, {score: 0.035844641067320444, article: "A Comparison of Several Approaches to Missing Attribute Values in Data Mining"}]
-| "A treatise on rough sets"                                                                                                      | 2005   | 0.0790751852947047  | [{score: 0.9902029783523166, article: "Rough sets"}, {score: 0.041758364258647956, article: "Fuzzy Similarity Relation as a Basis for Rough Approximations"}, {score: 0.03769298055544847, article: "Approximation spaces and information granulation"}, {score: 0.03748522701737958, article: "Layered learning for concept synthesis"}, {score: 0.026413597077633355, article: "Rough sets and information granulation"}]
-| "Approximate boolean reasoning: foundations and applications in data mining"                                                    | 2006   | 0.0787229341958519  | [{score: 0.9902029783523166, article: "Rough sets"}, {score: 0.041758364258647956, article: "Fuzzy Similarity Relation as a Basis for Rough Approximations"}, {score: 0.03748522701737958, article: "Layered learning for concept synthesis"}, {score: 0.026468590983875946, article: "RSES and RSESlib - A Collection of Tools for Rough Set Computations"}, {score: 0.02075152931567768, article: "Some Issues on Rough Sets"}]
-| "Multimodal classification: case studies"                                                                                       | 2006   | 0.07511674943786763 | [{score: 0.9902029783523166, article: "Rough sets"}, {score: 0.03748522701737958, article: "Layered learning for concept synthesis"}, {score: 0.02560582456720627, article: "A New Version of Rough Set Exploration System"}, {score: 0.01529992283315893, article: "The rough set exploration system"}, {score: 0.01047484963984212, article: "Rough Set Methods in Approximation of Hierarchical Concepts"}]
-| "The rough set exploration system"                                                                                              | 2005   | 0.0750407063618241  | [{score: 0.9902029783523166, article: "Rough sets"}, {score: 0.035844641067320444, article: "A Comparison of Several Approaches to Missing Attribute Values in Data Mining"}, {score: 0.02144732083445816, article: "Rough Sets and Decision Algorithms"}, {score: 0.021390320597479695, article: "In Pursuit of Patterns in Data Reasoning from Data The Rough Set Way"}, {score: 0.014956113354443551, article: "Classification of Swallowing Sound Signals: A Rough Set Approach"}]
-| "On generalized rough fuzzy approximation operators"                                                                            | 2006   | 0.07477697500867433 | [{score: 0.9902029783523166, article: "Rough sets"}, {score: 0.041758364258647956, article: "Fuzzy Similarity Relation as a Basis for Rough Approximations"}, {score: 0.03769298055544847, article: "Approximation spaces and information granulation"}, {score: 0.026413597077633355, article: "Rough sets and information granulation"}]
-| "Lattices with Interior and Closure Operators and Abstract Approximation Spaces"                                                | 2009   | 0.0744702653891007  | [{score: 0.9902029783523166, article: "Rough sets"}, {score: 0.041758364258647956, article: "Fuzzy Similarity Relation as a Basis for Rough Approximations"}, {score: 0.024325550413735818, article: "Approximation Operators in Qualitative Data Analysis"}, {score: 0.014620683494817743, article: "Data with Missing Attribute Values: Generalization of Indiscernibility Relation and Rule Induction"}, {score: 0.005422906251659694, article: "Algebraic structures for rough sets"}]
-| "Matching 2d image segments with genetic algorithms and approximation spaces"                                                   | 2006   | 0.07366616864280165 | [{score: 0.9902029783523166, article: "Rough sets"}, {score: 0.03769298055544847, article: "Approximation spaces and information granulation"}, {score: 0.026413597077633355, article: "Rough sets and information granulation"}, {score: 0.009770098766631386, article: "K-means Indiscernibility Relation over Pixels"}, {score: 0.005654813541238416, article: "Rough ethology: towards a biologically-inspired study of collective behavior in intelligent systems with approximation spaces"}]
-| "Hybridization of rough sets and statistical learning theory"                                                                   | 2011   | 0.07294503038007422 | [{score: 0.9902029783523166, article: "Rough sets"}, {score: 0.03769298055544847, article: "Approximation spaces and information granulation"}, {score: 0.026468590983875946, article: "RSES and RSESlib - A Collection of Tools for Rough Set Computations"}, {score: 0.009874519599615833, article: "Accuracy and Coverage in Rough Set Rule Induction"}, {score: 0.004976524367039553, article: "Generalized indiscernibility relations: applications for missing values and analysis of structural objects"}]
+| a.title                                                                                                                         | a.year | hub   | topAuthorities
+
+| "Rough ethology: towards a biologically-inspired study of collective behavior in intelligent systems with approximation spaces" | 2005   | 0.083 | [{score: 0.99, article: "Rough sets"}, {score: 0.042, article: "Toward Intelligent Systems: Calculi of Information Granules"}, {score: 0.038, article: "Approximation spaces and information granulation"}, {score: 0.037, article: "Layered learning for concept synthesis"}, {score: 0.026, article: "Rough sets and information granulation"}]
+| "Some Issues on Rough Sets"                                                                                                     | 2004   | 0.082 | [{score: 0.99, article: "Rough sets"}, {score: 0.042, article: "Toward Intelligent Systems: Calculi of Information Granules"}, {score: 0.042, article: "Fuzzy Similarity Relation as a Basis for Rough Approximations"}, {score: 0.038, article: "Approximation spaces and information granulation"}, {score: 0.036, article: "A Comparison of Several Approaches to Missing Attribute Values in Data Mining"}]
+| "A treatise on rough sets"                                                                                                      | 2005   | 0.079 | [{score: 0.99, article: "Rough sets"}, {score: 0.042, article: "Fuzzy Similarity Relation as a Basis for Rough Approximations"}, {score: 0.038, article: "Approximation spaces and information granulation"}, {score: 0.037, article: "Layered learning for concept synthesis"}, {score: 0.026, article: "Rough sets and information granulation"}]
+| "Approximate boolean reasoning: foundations and applications in data mining"                                                    | 2006   | 0.079 | [{score: 0.99, article: "Rough sets"}, {score: 0.042, article: "Fuzzy Similarity Relation as a Basis for Rough Approximations"}, {score: 0.037, article: "Layered learning for concept synthesis"}, {score: 0.026, article: "RSES and RSESlib - A Collection of Tools for Rough Set Computations"}, {score: 0.021, article: "Some Issues on Rough Sets"}]
+| "Multimodal classification: case studies"                                                                                       | 2006   | 0.075 | [{score: 0.99, article: "Rough sets"}, {score: 0.037, article: "Layered learning for concept synthesis"}, {score: 0.026, article: "A New Version of Rough Set Exploration System"}, {score: 0.015, article: "The rough set exploration system"}, {score: 0.01, article: "Rough Set Methods in Approximation of Hierarchical Concepts"}]
+| "The rough set exploration system"                                                                                              | 2005   | 0.075 | [{score: 0.99, article: "Rough sets"}, {score: 0.036, article: "A Comparison of Several Approaches to Missing Attribute Values in Data Mining"}, {score: 0.021, article: "Rough Sets and Decision Algorithms"}, {score: 0.021, article: "In Pursuit of Patterns in Data Reasoning from Data The Rough Set Way"}, {score: 0.015, article: "Classification of Swallowing Sound Signals: A Rough Set Approach"}]
+| "On generalized rough fuzzy approximation operators"                                                                            | 2006   | 0.075 | [{score: 0.99, article: "Rough sets"}, {score: 0.042, article: "Fuzzy Similarity Relation as a Basis for Rough Approximations"}, {score: 0.038, article: "Approximation spaces and information granulation"}, {score: 0.026, article: "Rough sets and information granulation"}]
+| "Lattices with Interior and Closure Operators and Abstract Approximation Spaces"                                                | 2009   | 0.074 | [{score: 0.99, article: "Rough sets"}, {score: 0.042, article: "Fuzzy Similarity Relation as a Basis for Rough Approximations"}, {score: 0.024, article: "Approximation Operators in Qualitative Data Analysis"}, {score: 0.015, article: "Data with Missing Attribute Values: Generalization of Indiscernibility Relation and Rule Induction"}, {score: 0.005, article: "Algebraic structures for rough sets"}]
+| "Matching 2d image segments with genetic algorithms and approximation spaces"                                                   | 2006   | 0.074 | [{score: 0.99, article: "Rough sets"}, {score: 0.038, article: "Approximation spaces and information granulation"}, {score: 0.026, article: "Rough sets and information granulation"}, {score: 0.01, article: "K-means Indiscernibility Relation over Pixels"}, {score: 0.006, article: "Rough ethology: towards a biologically-inspired study of collective behavior in intelligent systems with approximation spaces"}]
+| "Hybridization of rough sets and statistical learning theory"                                                                   | 2011   | 0.073 | [{score: 0.99, article: "Rough sets"}, {score: 0.038, article: "Approximation spaces and information granulation"}, {score: 0.026, article: "RSES and RSESlib - A Collection of Tools for Rough Set Computations"}, {score: 0.01, article: "Accuracy and Coverage in Rough Set Rule Induction"}, {score: 0.005, article: "Generalized indiscernibility relations: applications for missing values and analysis of structural objects"}]
 
 |===
 
