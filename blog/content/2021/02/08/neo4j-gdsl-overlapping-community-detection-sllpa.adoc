@@ -484,9 +484,9 @@ https://twitter.com/jessitron[@jessitron^] and https://twitter.com/wardcunningha
 https://twitter.com/arcadeanalytics[@arcadeanalytics^], https://twitter.com/arangodb[@arangodb^], and https://twitter.com/CluedInHQ[@CluedInHQ] all do work around graph databases, so they end up overlapping communities 119 (Data Science/Popular Tech) and 57 (Neo4j).
 
 It would be interesting to see how strongly they belong in each community.
-The algorithm does compute an association strength score per node per community, but that score isn't returned (at the moment at least!).
+The algorithm does compute an association strength score per node per community, but that score isn't returned (at least at the moment!).
 
-== Using overlapping community detection
+== How do we use overlapping community detection?
 
 So how do we use the results that we get from this algorithm?
 One way is to use this algorithm to work out which users to follow to learn about other communities.
