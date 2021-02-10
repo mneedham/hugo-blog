@@ -9,7 +9,7 @@ image="uploads/2021/02/sllpa-banner.png"
 +++
 
 The https://neo4j.com/product/graph-data-science-library/[Neo4j Graph Data Science Library^] provides efficiently implemented, parallel versions of common graph algorithms for Neo4j, exposed as Cypher procedures.
-It recently published the https://github.com/neo4j/graph-data-science/releases/tag/1.5.0-alpha04[preview release of version 1.5^], which introduces some fun new algorithms.
+It recently published https://github.com/neo4j/graph-data-science/releases/tag/1.5.0[version 1.5^], which introduces some fun new algorithms.
 
 image::{{<siteurl>}}/uploads/2021/02/sllpa-banner.png[]
 
@@ -25,7 +25,7 @@ We're going to run Neo4j with the Graph Data Science Library using the following
 version: '3.7'
 services:
   neo4j:
-    image: neo4j:4.2-enterprise
+    image: neo4j:4.2.3-enterprise
     container_name: "neo4j4.2-gds1.5-exploration"
     volumes:
       - ./plugins-4.2:/plugins
@@ -36,23 +36,10 @@ services:
     environment:
       - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
       - NEO4J_AUTH=neo4j/neo
-
-      # We can use the line below once GDS 1.5.0 is released
-      # - NEO4JLABS_PLUGINS=["apoc", "graph-data-science"]
-
-      # We can use the lines below until GDS 1.5.0 is released
-      - NEO4JLABS_PLUGINS=["apoc"]
-      - "NEO4J_dbms_security_procedures_unrestricted=apoc.*,gds.*"
+      - NEO4JLABS_PLUGINS=["apoc", "graph-data-science"]
 ----
 
 If you want to follow along with the examples used in the blog post, you can copy the configuration above to a file titled `docker-compose.yml`
-
-[NOTE]
-====
-Until GDS 1.5.0 is released we'll need to manually put the preview jar for the GDS plugin into the `plugins-4.2` directory.
-We can https://github.com/neo4j/graph-data-science/releases/download/1.5.0-alpha04/neo4j-graph-data-science-1.5.0-alpha04.jar[download the file from GitHub releases^].
-====
-
 We can now launch the Neo4j server by running the following command:
 
 [source, bash]
@@ -84,7 +71,7 @@ docker exec -it neo4j4.2-gds1.5-exploration bin/cypher-shell -u neo4j -p neo
 .Output
 [source,text]
 ----
-Connected to Neo4j 4.2.0 at neo4j://localhost:7687 as user neo4j.
+Connected to Neo4j using Bolt protocol version 4.2 at neo4j://localhost:7687 as user neo4j.
 Type :help for a list of available commands or :exit to exit the shell.
 Note that Cypher queries must end with a semicolon.
 neo4j@neo4j>
