@@ -13,7 +13,7 @@ It recently published https://github.com/neo4j/graph-data-science/releases/tag/1
 
 image::{{<siteurl>}}/uploads/2021/02/gds-v1.5-hits.png[]
 
-In this blog post, we're going to explore the newly added https://neo4j.com/docs/graph-data-science/1.5-preview/algorithms/hits/[HITS algorithm^] with the help of a citations dataset.
+In this blog post, we're going to explore the newly added https://neo4j.com/docs/graph-data-science/1.5/algorithms/hits/[HITS algorithm^] with the help of a citations dataset.
 
 == Launching Neo4j
 
@@ -160,7 +160,7 @@ DETACH DELETE a;
 
 == HITS Algorithm
 
-The https://neo4j.com/docs/graph-data-science/1.5-preview/algorithms/hits/[HITs algorithm^], like many other graph algorithms, was invented to do link analysis on web pages.
+The https://neo4j.com/docs/graph-data-science/1.5/algorithms/hits/[HITs algorithm^], like many other graph algorithms, was invented to do link analysis on web pages.
 It is a centrality algorithm, which means that it indicates node importance based on some metric.
 We can learn more about it from the https://en.wikipedia.org/wiki/HITS_algorithm[HITS Wikipedia page^]:
 

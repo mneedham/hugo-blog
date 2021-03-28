@@ -13,7 +13,7 @@ It recently published https://github.com/neo4j/graph-data-science/releases/tag/1
 
 image::{{<siteurl>}}/uploads/2021/02/sllpa-banner.png[]
 
-In this blog post, we're going to explore the newly added https://neo4j.com/docs/graph-data-science/1.5-preview/algorithms/sllpa/[Speaker-Listener Label Propagation  algorithm^] with the help of a twitter dataset.
+In this blog post, we're going to explore the newly added https://neo4j.com/docs/graph-data-science/1.5/algorithms/sllpa/[Speaker-Listener Label Propagation  algorithm^] with the help of a twitter dataset.
 
 == Launching Neo4j
 
@@ -143,7 +143,7 @@ image::{{<siteurl>}}/uploads/2021/02/twitter-graph-imported.svg[]
 
 == Speaker Listener Label Propagation Algorithm
 
-The https://neo4j.com/docs/graph-data-science/1.5-preview/algorithms/sllpa/[Speaker Listener Label Propagation (SLLPA)^] algorithm is a variation of the Label Propagation Algorithm, where instead of returning one community per node, it can return multiple communities per node.
+The https://neo4j.com/docs/graph-data-science/1.5/algorithms/sllpa/[Speaker Listener Label Propagation (SLLPA)^] algorithm is a variation of the Label Propagation Algorithm, where instead of returning one community per node, it can return multiple communities per node.
 We can alternatively say that the SLLPA algorithm detects overlapping communities.
 
 We can find out the name of the SLLPA procedures in the GDS library by running the following query:
@@ -378,7 +378,7 @@ image::{{<siteurl>}}/uploads/2021/02/overlapping-communities.svg[]
 
 The biggest overlap is between community 119 (Data Science/Popular Tech) and communities 34 (Spring) and 157 (Neo4j). 
 The absolute overlap numbers between communities are much lower after that. 
-We can compute similarity scores between the communities using the https://neo4j.com/docs/graph-data-science/1.5-preview/alpha-algorithms/jaccard/[Jaccard Similarity algorithm^], as shown below:
+We can compute similarity scores between the communities using the https://neo4j.com/docs/graph-data-science/1.5/alpha-algorithms/jaccard/[Jaccard Similarity algorithm^], as shown below:
 
 
 [source,cypher]
