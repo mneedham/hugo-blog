@@ -19,7 +19,7 @@ The DataFrame that we're working with looks like the one below:
 ----
 df = pd.DataFrame({
     "date": ["2021-03-25", "2021-03-25", "2021-03-25"], 
-    "dose": ["firstDose", "secondDose", "totalDo\\\ses"], 
+    "dose": ["firstDose", "secondDose", "totalDoses"], 
     "vaccinations": [324942, 234382, 559324]
 })
 ----

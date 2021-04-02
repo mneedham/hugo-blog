@@ -1,0 +1,98 @@
++++
+draft = false
+date="2021-04-02 00:44:37"
+title="Altair - Remove margin/padding on discrete X axis"
+tag=['python', 'altair', 'pandas']
+category=['python']
+description="In this post we'll learn how to remove padding on the X axis of an Altair visualisation."
++++
+
+One of the Altair charts on https://share.streamlit.io/mneedham/covid-vaccines/main/analyse.py[my Covid Vaccine Dashboards Streamlit app^] shows the % of first doses, but when I first created it there was some padding on the X axis that I wanted to remove.
+In this blog post we'll learn how to do that. 
+
+== Pre requisites
+
+Let's start by installing the following libraries:
+
+[source, bash]
+----
+pip install pandas altair altair_viewer
+----
+
+Let's import them, as shown below:
+
+[source, python]
+----
+import pandas as pd
+import altair as alt
+----
+
+== Visualising % of first doses
+
+Now we're going to create a DataFrame that contains two columns - one contains the year and week number, the other the percentage of 1st doses administered.
+
+[source, python]
+----
+df = pd.DataFrame({
+    'dateWeek': ['2021-02', '2021-03', '2021-04', '2021-05', '2021-06', '2021-07', '2021-08', '2021-09', '2021-10', '2021-11', '2021-12', '2021-13'],
+    'percentageFirstDose': [95.53223579198118, 99.05357715009595, 99.29015227195728, 99.3040526396809, 99.17822125167659, 97.17701207004448, 93.13782375333588, 86.52577108509273, 80.75997640077365, 84.62332165884469, 67.53684465759456, 46.83433617577248]
+})
+df
+----
+
+.Results
+[opts="header", cols="1,20,20"]
+|===
+|    |dateWeek  |percentageFirstDose
+| 0  | 2021-02  |          95.532236
+| 1  | 2021-03  |          99.053577
+| 2  | 2021-04  |          99.290152
+| 3  | 2021-05  |          99.304053
+| 4  | 2021-06  |          99.178221
+| 5  | 2021-07  |          97.177012
+| 6  | 2021-08  |          93.137824
+| 7  | 2021-09  |          86.525771
+| 8  | 2021-10  |          80.759976
+| 9  | 2021-11  |          84.623322
+| 10 | 2021-12  |          67.536845
+| 11 | 2021-13  |          46.834336
+
+|===
+
+Next we'll create a line chart using the Altair visualisation libray:
+
+[source, python]
+----
+chart = (alt.Chart(df, padding={"left": 10, "top": 10, "right": 10, "bottom": 10})
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("dateWeek"),
+            y=alt.Y('percentageFirstDose', axis=alt.Axis(title='% first dose')))
+        .properties(title="% of first doses by week"))
+chart.show()
+----
+
+.Chart showing % of first doses by week
+image::{{<siteurl>}}/uploads/2021/04/altair-padding.png[]
+
+As we can see, this diagram has a padding/margin on either side of the X axis that I wanted to remove.
+
+After trying out a lot of things that didn't solve the problem, I came across https://github.com/altair-viz/altair/issues/558#issuecomment-371262131[a suggestion^] by Eitan Lees to set the `Scale` of the X axis. 
+We can remove all padding by setting that value to 0, as shown below:
+
+
+[source, python]
+----
+chart = (alt.Chart(df, padding={"left": 10, "top": 10, "right": 10, "bottom": 10})
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("dateWeek", scale=alt.Scale(padding=0)),
+            y=alt.Y('percentageFirstDose', axis=alt.Axis(title='% first dose')))
+        .properties(title="% of first doses by week"))
+chart.show()
+----
+
+.Chart showing % of first doses by week
+image::{{<siteurl>}}/uploads/2021/04/altair-no-padding.png[]
+
+Job done!
