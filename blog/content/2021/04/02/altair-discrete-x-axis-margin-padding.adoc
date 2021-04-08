@@ -19,7 +19,7 @@ Let's start by installing the following libraries:
 pip install pandas altair altair_viewer
 ----
 
-Let's import them, as shown below:
+Next let's import them, as shown below:
 
 [source, python]
 ----
@@ -73,7 +73,7 @@ chart.show()
 ----
 
 .Chart showing % of first doses by week
-image::{{<siteurl>}}/uploads/2021/04/altair-padding.png[]
+image::{{<siteurl>}}/uploads/2021/04/altair-padding.svg[]
 
 As we can see, this diagram has a padding/margin on either side of the X axis that I wanted to remove.
 
@@ -93,6 +93,6 @@ chart.show()
 ----
 
 .Chart showing % of first doses by week
-image::{{<siteurl>}}/uploads/2021/04/altair-no-padding.png[]
+image::{{<siteurl>}}/uploads/2021/04/altair-no-padding.svg[]
 
 Job done!

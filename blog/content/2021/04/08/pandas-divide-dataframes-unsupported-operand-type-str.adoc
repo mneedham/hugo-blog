@@ -1,0 +1,209 @@
++++
+draft = true
+date="2021-04-08 00:44:37"
+title="Pandas - Dividing two DataFrames (TypeError: unsupported operand type(s) for /: 'str' and 'str')"
+tag=['python', 'pandas']
+category=['python']
+description="In this post we'll learn how to divide only the numeric columns in two Pandas DataFrames."
++++
+
+I've been doing some more exploration of the UK Coronavirus vaccine data, this time looking at the https://www.england.nhs.uk/statistics/statistical-work-areas/covid-19-vaccinations/[number of people vaccinated by Local Tier Local Authority^]. 
+The government publish data showing the number of people vaccinated in each authority by age group, as well as population estimates for each cohort. 
+
+Having loaded that data into two Pandas DataFrames, I wanted to work out the % of people vaccinated per age group per local area.
+In this blog post we'll see how to do that, including my missteps along the way. 
+
+Let's start by importing Pandas:
+
+[source, python]
+----
+import pandas as pd
+----
+
+And now we're going to create DataFrames with a subset of the data from the Public Health England spreadsheet as of 1st April 2021. 
+First for the number of vaccinations given:
+
+[source, python]
+----
+vaccinations = pd.DataFrame({
+    "LTLA Code": ["E07000032", "E07000170", "E07000171"],
+    "LTLA Name": ["Amber Valley", "Ashfield", "Bassetlaw"],
+    "Under 50": [16498, 17418, 13068],
+    "50-54": [9002, 8399, 7858]   
+})
+vaccinations
+----
+
+.vaccinations DataFrame
+[opts="header", cols="1,10,20,20,20"]
+|===
+|    |LTLA Code  |   LTLA Name | Under 50  |50-54
+|0 | E07000032 | Amber Valley   |  16498  | 9002
+|1  |E07000170   |   Ashfield   |  17418  | 8399
+|2  |E07000171    | Bassetlaw   |  13068  | 7858
+|===
+
+And now the population estimates:
+
+[source,python]
+----
+population = pd.DataFrame({
+    "LTLA Code": ["E07000032", "E07000170", "E07000171"],
+    "LTLA Name": ["Amber Valley", "Ashfield", "Bassetlaw"],
+    "Under 50": [72179, 77988, 70832],
+    "50-54": [10194, 9795, 9354]    
+})
+population
+----
+
+.population DataFrame
+[opts="header", cols="1,10,20,20,20"]
+|===
+|    |LTLA Code  |   LTLA Name | Under 50  |50-54
+|0 | E07000032 | Amber Valley   |  72179  | 10194
+|1  |E07000170   |   Ashfield   | 77988  | 9795
+|2  |E07000171    | Bassetlaw   |   70832  | 9354
+|===
+
+For my first attempt at working out the % of people vaccinated per age group, I optimistically tried dividing the DataFrames, as shown below:
+
+[source, python]
+----
+vaccinations / population
+----
+
+.Output
+[source, text]
+----
+Traceback (most recent call last):
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/ops/array_ops.py", line 142, in _na_arithmetic_op
+    result = expressions.evaluate(op, left, right)
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/computation/expressions.py", line 235, in evaluate
+    return _evaluate(op, op_str, a, b)  # type: ignore[misc]
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/computation/expressions.py", line 69, in _evaluate_standard
+    return op(a, b)
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/ops/common.py", line 65, in new_method
+    return method(self, other)
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/arraylike.py", line 113, in __truediv__
+    return self._arith_method(other, operator.truediv)
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/frame.py", line 5982, in _arith_method
+    new_data = self._dispatch_frame_op(other, op, axis=axis)
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/frame.py", line 6018, in _dispatch_frame_op
+    bm = self._mgr.operate_blockwise(right._mgr, array_op)
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/internals/managers.py", line 374, in operate_blockwise
+    return operate_blockwise(self, other, array_op)
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/internals/ops.py", line 54, in operate_blockwise
+    res_values = array_op(lvals, rvals)
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/ops/array_ops.py", line 189, in arithmetic_op
+    res_values = _na_arithmetic_op(lvalues, rvalues, op)
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/ops/array_ops.py", line 149, in _na_arithmetic_op
+    result = _masked_arith_op(left, right, op)
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/ops/array_ops.py", line 91, in _masked_arith_op
+    result[mask] = op(xrav[mask], yrav[mask])
+TypeError: unsupported operand type(s) for /: 'str' and 'str'
+----
+
+That doesn't work so well because we still have `LTLA Code` and `LTLA Name`, which aren't numeric values and therefore can't be divided. 
+
+What we can do instead is use the `divide` function, which lets us pass in a mask that will exclude non-numeric columns.
+I learnt about this thanks to https://stackoverflow.com/a/49412743/1093511[a StackOverflow answer^] by cs95.
+
+Before we try that, we need to check the types of our columns so that we can exclude the right ones. 
+We can do this using the following code:
+
+[source,python]
+----
+vaccinations.dtypes
+----
+
+.Output
+[source,text]
+----
+LTLA Code    object
+LTLA Name    object
+Under 50      int64
+50-54         int64
+dtype: object
+----
+
+[source,python]
+----
+population.dtypes
+----
+
+.Output
+[source,text]
+----
+LTLA Code    object
+LTLA Name    object
+Under 50      int64
+50-54         int64
+dtype: object
+----
+
+So it looks like 'object' is the type that we need to exclude. 
+
+[NOTE]
+====
+While playing around with this I found that sometimes columns containing strings might have the type `string`, in which case we'd need to exclude that type instead.
+====
+
+Let's now try to divide the DataFrames, excluding any columns of type `object`:
+
+[source, python]
+----
+vaccinations.select_dtypes(exclude='object').div(population.select_dtypes(exclude='object'))
+----
+
+.Results
+[opts="header", cols="1,20,20"]
+|===
+|    |Under 50  |50-54
+|0 | 0.228571 | 0.883068
+|1  |0.223342  |0.857478
+|2  |0.184493 | 0.840068
+|===
+
+Cool!
+That's what we hoped to see, but it would be good if we could also have the `LTLA Code` and `LTLA Name` columns back as well. 
+We can do this using the `combine_first` function:
+
+[source, python]
+----
+vaccinations.select_dtypes(exclude='object').div(population.select_dtypes(exclude='object')).combine_first(population)
+----
+
+.Results
+[opts="header", cols="1,15,15,15,15"]
+|===
+ |  |   50-54 | LTLA Code |    LTLA Name  |Under 50
+|0 | 0.883068 | E07000032  |Amber Valley  |0.228571
+|1  |0.857478  |E07000170     | Ashfield  |0.223342
+|2  |0.840068  |E07000171    | Bassetlaw  |0.184493
+
+|===
+
+That's got the columns back, but the order is a bit messed up.
+Luckily it's not too difficult to retain the column order:
+
+[source, python]
+----
+vaccinations.select_dtypes(exclude='object').div(population.select_dtypes(exclude='object')).combine_first(population)[vaccinations.columns]
+----
+
+.Results
+[opts="header", cols="1,15,15,20,20"]
+|===
+  || LTLA Code |    LTLA Name  |Under 50   |  50-54
+|0  |E07000032  |Amber Valley  |0.228571  |0.883068
+|1  |E07000170  |    Ashfield  |0.223342 | 0.857478
+|2 | E07000171    | Bassetlaw  |0.184493  |0.840068
+
+
+|===
