@@ -2,12 +2,12 @@
 draft = false
 date="2021-04-02 00:44:37"
 title="Altair - Remove margin/padding on discrete X axis"
-tag=['python', 'altair', 'pandas']
+tag=['python', 'altair', 'pandas', 'covid-vaccines']
 category=['python']
 description="In this post we'll learn how to remove padding on the X axis of an Altair visualisation."
 +++
 
-One of the Altair charts on https://share.streamlit.io/mneedham/covid-vaccines/main/analyse.py[my Covid Vaccine Dashboards Streamlit app^] shows the % of first doses, but when I first created it there was some padding on the X axis that I wanted to remove.
+One of the Altair charts on https://share.streamlit.io/mneedham/covid-vaccines/main/app.py[my Covid Vaccine Dashboards Streamlit app^] shows the % of first doses, but when I first created it there was some padding on the X axis that I wanted to remove.
 In this blog post we'll learn how to do that. 
 
 == Pre requisites

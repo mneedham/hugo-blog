@@ -1,0 +1,239 @@
++++
+draft = false
+date="2021-04-11 00:44:37"
+title="Pandas - Format DataFrame numbers with commas and control decimal places"
+tag=['python', 'pandas', 'covid-vaccines']
+category=['python']
+description="In this post we'll learn how to format numbers in Pandas DataFrames."
++++
+
+I'm still playing around with the UK's COVID-19 vaccination data and in this blog post we'll learn how to format a DataFrame that contains a mix of string and numeric values. 
+
+We'll be using Pandas' styling functionality, which generates CSS and HTML, so if you want to follow along you'll need to install Pandas and Jupyter:
+
+[source, bash]
+----
+pip install pandas jupyter
+----
+
+Next, launch Jupyter and create a notebook:
+
+[source, bash]
+----
+jupyter notebook
+----
+
+Let's start by importing Pandas:
+
+[source, python]
+----
+import pandas as pd
+----
+
+And now we'll create a DataFrame containing the data that we want to format:
+
+[source, python]
+----
+df = pd.DataFrame({
+    "LTLA Name": ["Amber Valley", "Ashfield", "Bassetlaw"],
+    "Population": [72179, 77988, 70832], 
+    "PercentageVaccinated": [0.228571, 0.223342, 0.184493]
+})
+----
+
+.Results
+[opts="header", cols="1,20,20,20"]
+|===
+||      LTLA Name | Population  | PercentageVaccinated
+|0  |Amber Valley |      72179  |             0.228571
+|1  |    Ashfield |      77988  |             0.223342
+|2 |    Bassetlaw |      70832  |             0.184493
+
+|===
+
+[source, python]
+----
+df.loc[:, "Population"] = df["Population"].map('{:,d}'.format)
+df.loc[:, "PercentageVaccinated"] = df["PercentageVaccinated"].map('{:.2f}'.format)
+----
+
+.Results
+[opts="header", cols="1,20,20,20"]
+|===
+||      LTLA Name | Population  | PercentageVaccinated
+|0  |Amber Valley |      72,179  |             0.23
+|1  |    Ashfield |      77,988  |             0.22
+|2 |    Bassetlaw |      70,832  |             0.18
+|===
+
+This works, but it changes the underlying values in the DataFrame to be objects, which we can see by calling the `dtypes` function:
+
+[source, python]
+----
+df.dtypes
+----
+
+.Output
+[source, text]
+----
+LTLA Name               object
+Population              object
+PercentageVaccinated    object
+dtype: object
+----
+
+This means that we can't do any number based computations anymore. 
+For example, if we try to multiple the `Population` and `PercentageVaccinated` columns:
+
+[source, python]
+----
+df.Population * df.PercentageVaccinated
+----
+
+.Output
+[source, text]
+----
+Traceback (most recent call last):
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/ops/array_ops.py", line 142, in _na_arithmetic_op
+    result = expressions.evaluate(op, left, right)
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/computation/expressions.py", line 235, in evaluate
+    return _evaluate(op, op_str, a, b)  # type: ignore[misc]
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/computation/expressions.py", line 69, in _evaluate_standard
+    return op(a, b)
+TypeError: can't multiply sequence by non-int of type 'str'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/ops/common.py", line 65, in new_method
+    return method(self, other)
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/arraylike.py", line 105, in __mul__
+    return self._arith_method(other, operator.mul)
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/series.py", line 4998, in _arith_method
+    result = ops.arithmetic_op(lvalues, rvalues, op)
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/ops/array_ops.py", line 189, in arithmetic_op
+    res_values = _na_arithmetic_op(lvalues, rvalues, op)
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/ops/array_ops.py", line 149, in _na_arithmetic_op
+    result = _masked_arith_op(left, right, op)
+  File "/home/markhneedham/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/core/ops/array_ops.py", line 91, in _masked_arith_op
+    result[mask] = op(xrav[mask], yrav[mask])
+TypeError: can't multiply sequence by non-int of type 'str'
+----
+
+So if we want to use the underlying data for anything else, formatting like this isn't a good solution.
+
+Instead we can use Pandas styling functionality. 
+The documentation is a bit overwhelming, but Chris Moffitt https://pbpython.com/styling-pandas.html[has a great introductory article on the styling API^].
+
+If we want to apply the same formatting to every column, we can pass a style to `style.format`.
+e.g. we could restrict every column to 2 decimal places, as shown below:
+
+[source, python]
+----
+df.style.format("{.2f")
+----
+
+[NOTE]
+====
+For a description of valid format values, see the https://docs.python.org/3/library/string.html#format-specification-mini-language[Format Specification Mini-Language^] documentation or https://mkaz.blog/code/python-string-format-cookbook/[Python String Format Cookbook^].
+====
+
+[source, output]
+----
+---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+~/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/IPython/core/formatters.py in __call__(self, obj)
+    343             method = get_real_method(obj, self.print_method)
+    344             if method is not None:
+--> 345                 return method()
+    346             return None
+    347         else:
+
+~/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/io/formats/style.py in _repr_html_(self)
+    203         Hooks into Jupyter notebook rich display system.
+    204         """
+--> 205         return self.render()
+    206 
+    207     @doc(
+
+~/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/io/formats/style.py in render(self, **kwargs)
+    619         self._compute()
+    620         # TODO: namespace all the pandas keys
+--> 621         d = self._translate()
+    622         # filter out empty styles, every cell will have a class
+    623         # but the list of props may just be [['', '']].
+
+~/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/io/formats/style.py in _translate(self)
+    403                     "value": value,
+    404                     "class": " ".join(cs),
+--> 405                     "display_value": formatter(value),
+    406                     "is_visible": (c not in hidden_columns),
+    407                 }
+
+~/.local/share/virtualenvs/covid-vaccines-xEbcGJTy/lib/python3.8/site-packages/pandas/io/formats/style.py in <lambda>(x)
+   1715 ) -> Callable:
+   1716     if isinstance(formatter, str):
+-> 1717         formatter_func = lambda x: formatter.format(x)
+   1718     elif callable(formatter):
+   1719         formatter_func = formatter
+
+ValueError: Unknown format code 'f' for object of type 'str'
+----
+
+That doesn't work because the `LTLA Name` column contains string values, which can't be formatted as a number.
+We can work around that problem by dropping the `LTLA Name` column:
+
+[source, python]
+----
+df.drop(["LTLA Name"], axis=1).style.format("{:.2f}")
+----
+
+.Results
+[opts="header", cols="1,20,20"]
+|===
+|    | Population  | PercentageVaccinated
+|0|	72179.00|	0.23
+|1	|77988.00|	0.22
+|2|	70832.00|	0.18
+|===
+
+This works, but we've lost the `LTLA Name` column and the `Population` column isn't formatted how we'd like.
+Instead of passing a single style to `style.format`, we can instead pass a dictionary of `{"column: "style"}`.
+So to style `Population` with a comma as thousands separator and `PercentageVaccinated` with two decimal places, we can do the following:
+
+[source, python]
+----
+df.style.format({
+    "Population": "{:,d}",
+    "PercentageVaccinated": "{:.2f}"
+})
+----
+
+.Results
+[opts="header", cols="1,20,20,20"]
+|===
+||      LTLA Name | Population  | PercentageVaccinated
+|0  |Amber Valley |      72,179  |             0.23
+|1  |    Ashfield |      77,988  |             0.22
+|2 |    Bassetlaw |      70,832  |             0.18
+|===
+
+And if we go one step further, we can also use the `hide_index` function to get rid of the index column:
+
+[source, python]
+----
+df.style.format({
+    "Population": "{:,d}",
+    "PercentageVaccinated": "{:.2f}"
+}).hide_index()
+----
+
+.Results
+[opts="header", cols="20,20,20"]
+|===
+| LTLA Name | Population  | PercentageVaccinated
+|Amber Valley |      72,179  |             0.23
+|   Ashfield |      77,988  |             0.22
+|    Bassetlaw |      70,832  |             0.18
+|===

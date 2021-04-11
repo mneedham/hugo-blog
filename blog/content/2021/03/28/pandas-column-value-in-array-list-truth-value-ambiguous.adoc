@@ -2,7 +2,7 @@
 draft = false
 date="2021-03-28 00:44:37"
 title="Pandas: Filter column value in array/list - ValueError: The truth value of a Series is ambiguous"
-tag=['python', 'pandas']
+tag=['python', 'pandas', 'covid-vaccines']
 category=['python']
 description="In this post we'll learn how to filter a Pandas DataFrame based on a column value existing in an array/list."
 +++

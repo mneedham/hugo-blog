@@ -1,8 +1,8 @@
 +++
-draft = true
+draft = false
 date="2021-04-08 00:44:37"
 title="Pandas - Dividing two DataFrames (TypeError: unsupported operand type(s) for /: 'str' and 'str')"
-tag=['python', 'pandas']
+tag=['python', 'pandas', 'covid-vaccines']
 category=['python']
 description="In this post we'll learn how to divide only the numeric columns in two Pandas DataFrames."
 +++
