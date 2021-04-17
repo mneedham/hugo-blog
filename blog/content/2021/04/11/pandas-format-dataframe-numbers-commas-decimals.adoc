@@ -51,11 +51,15 @@ df = pd.DataFrame({
 
 |===
 
+One way to do this is to format the values in place, as shown below:
+
 [source, python]
 ----
 df.loc[:, "Population"] = df["Population"].map('{:,d}'.format)
 df.loc[:, "PercentageVaccinated"] = df["PercentageVaccinated"].map('{:.2f}'.format)
 ----
+
+After this transformation, the DataFrame looks like this:
 
 .Results
 [opts="header", cols="1,20,20,20"]

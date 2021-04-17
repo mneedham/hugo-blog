@@ -1,0 +1,345 @@
++++
+draft = false
+date="2021-04-17 00:44:37"
+title="Exploring England's Covid Vaccination Rates: The Data (cleanup)"
+tag=['python', 'pandas', 'covid-vaccines', 'altair']
+category=['python']
+description="In this post we'll learn how to extract data about England's Covid vaccinations from a Public Health England spreadsheet."
++++
+
+Over the last 13 months I've spent countless hours looking at dashboards that showed Coronavirus infection rates, death rates, and numbers of people vaccinated.
+The UK government host a dashboard at https://coronavirus.data.gov.uk[coronavirus.data.gov.uk^], which contains charts and tables showing all of the above.
+One thing I haven't been able to find, however, is a drill down of vaccinations by local area and age group.
+
+This is the first in a series of blog posts showing how to build one, and we'll be looking at how to get the data and get it into a format that's easier to process.
+
+== The Data
+
+First, we need to find the data!
+I haven't found anywhere that contains the data for the whole of the United Kingdom, but Public Health England do https://www.england.nhs.uk/statistics/statistical-work-areas/covid-19-vaccinations/[post the data^] about vaccinations every Thursday.
+
+image::{{<siteurl>}}/uploads/2021/04/phe.png[title="Public Health England Data"]
+
+This page contains various PDFs and spreadsheets and the 'Weekly data' spreadsheet is the one that we want.
+This spreadsheet contains data on vaccinations by local area and age group, as well as the populations of those areas and age groups.
+
+== Reading Excel Sheets with Pandas
+
+We're going to use Python's Pandas library to read the data from the spreadsheet, but we'll also need to install some other libraries that deal with reading `xlsx` files:
+
+[source,bash]
+----
+pip install numpy pandas xlrd openpyxl
+----
+
+Once we've done that, let's import pandas and numpy:
+
+[source, python]
+----
+import pandas as pd
+import numpy as np
+----
+
+== Vaccinations
+
+We're going to start by extracting vaccination data.
+This is stored in the `LTLA` sheet:
+
+image::{{<siteurl>}}/uploads/2021/04/ltla-spreadsheet-vaccinations.png[title="Vaccinations - LTLA Spreadsheet"]
+
+From visually inspecting the spreadsheet, we can see that columns B to M contain the data we're interested in.
+We can extract just those columns by using the `usecols` parameter, as shown below:
+
+[source, python]
+----
+spreadsheet = "data/COVID-19-weekly-announced-vaccinations-15-April-2021.xlsx"
+vaccinations = pd.read_excel(spreadsheet, "LTLA", usecols="B:M")
+vaccinations.head()
+----
+
+.vaccinations DataFrame
+[opts="header"]
+|===
+| Unnamed: 1   | Unnamed: 2                                                                                                                                                                                                                                                                                                                 |   Unnamed: 3 |   Unnamed: 4 |   Unnamed: 5 |   Unnamed: 6 |   Unnamed: 7 |   Unnamed: 8 |   Unnamed: 9 |   Unnamed: 10 |   Unnamed: 11 |   Unnamed: 12
+| Title:       | COVID-19 Vaccinations By Lower Tier Local Authority (LTLA) of Residence and Age Group                                                                                                                                                                                                                                      |          nan |          nan |          nan |          nan |          nan |          nan |          nan |           nan |           nan |           nan
+| Summary:     | The number of people who have been vaccinated for COVID-19, split by LTLA of residence and age group. All figures are presented by date of vaccination as recorded on the National Immunisation Management Service (NIMS) database. NIMS vaccination counts and populations by LTLA are provided by Public Health England. |          nan |          nan |          nan |          nan |          nan |          nan |          nan |           nan |           nan |           nan
+| Period:      | 8th December 2020 to 11th April 2021                                                                                                                                                                                                                                                                                       |          nan |          nan |          nan |          nan |          nan |          nan |          nan |           nan |           nan |           nan
+| Source:      | National Immunisation Management Service (NIMS), Public Health England                                                                                                                                                                                                                                                     |          nan |          nan |          nan |          nan |          nan |          nan |          nan |           nan |           nan |           nan
+| Basis:       | England                                                                                                                                                                                                                                                                                                                    |          nan |          nan |          nan |          nan |          nan |          nan |          nan |           nan |           nan |           nan
+|===
+
+We clearly still have some cleanup work to do.
+We already filtered on columns when loading the sheet, so let's now select just the rows that we need:
+
+[source,python]
+----
+spreadsheet = "data/COVID-19-weekly-announced-vaccinations-15-April-2021.xlsx"
+vaccinations = pd.read_excel(spreadsheet, "LTLA", usecols="B:M")
+vaccinations = vaccinations.loc[14:327,]
+----
+
+
+.vaccinations DataFrame
+[opts="header"]
+|===
+| Unnamed: 1   | Unnamed: 2    | Unnamed: 3   | Unnamed: 4   |   Unnamed: 5 |   Unnamed: 6 |   Unnamed: 7 |   Unnamed: 8 |   Unnamed: 9 |   Unnamed: 10 |   Unnamed: 11 |   Unnamed: 12
+| E12000004    | East Midlands | E07000032    | Amber Valley |        20018 |         9225 |         9212 |         8078 |         7294 |          7968 |          5798 |          6808
+| E12000004    | East Midlands | E07000170    | Ashfield     |        18535 |         8581 |         8581 |         7189 |         6358 |          6465 |          5163 |          6070
+| E12000004    | East Midlands | E07000171    | Bassetlaw    |        17562 |         8208 |         8629 |         7450 |         6589 |          7098 |          5247 |          6428
+| E12000004    | East Midlands | E07000129    | Blaby        |        16281 |         6770 |         6647 |         6004 |         5157 |          5601 |          4166 |          5559
+| E12000004    | East Midlands | E07000033    | Bolsover     |        11594 |         5819 |         5644 |         4967 |         4213 |          4249 |          3411 |          3825
+|===
+
+That's looking better already, but those column names aren't great.
+Let's extract those and set them on our DataFrame:
+
+[source,python]
+----
+spreadsheet = "data/COVID-19-weekly-announced-vaccinations-15-April-2021.xlsx"
+vaccinations = pd.read_excel(spreadsheet, "LTLA", usecols="B:M")
+columns = np.concatenate((vaccinations.loc[10,:][:4].values, vaccinations.loc[11,:][4:].values), axis=None)
+vaccinations = vaccinations.loc[14:327,]
+vaccinations.columns = columns
+----
+
+.vaccinations DataFrame
+[opts="header"]
+|===
+| Region Code (Administrative)   | Region Name (administrative)   | LTLA Code   | LTLA Name    |   Under 50 |   50-54 |   55-59 |   60-64 |   65-69 |   70-74 |   75-79 |   80+
+| E12000004    | East Midlands | E07000032    | Amber Valley |        20018 |         9225 |         9212 |         8078 |         7294 |          7968 |          5798 |          6808
+| E12000004    | East Midlands | E07000170    | Ashfield     |        18535 |         8581 |         8581 |         7189 |         6358 |          6465 |          5163 |          6070
+| E12000004    | East Midlands | E07000171    | Bassetlaw    |        17562 |         8208 |         8629 |         7450 |         6589 |          7098 |          5247 |          6428
+| E12000004    | East Midlands | E07000129    | Blaby        |        16281 |         6770 |         6647 |         6004 |         5157 |          5601 |          4166 |          5559
+| E12000004    | East Midlands | E07000033    | Bolsover     |        11594 |         5819 |         5644 |         4967 |         4213 |          4249 |          3411 |          3825
+|===
+
+This is all looking good, but there's one final bit of cleanup that we need to do.
+The `dtypes` function returns the data type of each column.
+Let's check what it returns for our DataFrame:
+
+[source,python]
+----
+vaccinations.dtypes
+----
+
+.Output
+[source,text]
+----
+Region Code (Administrative)    object
+Region Name (administrative)    object
+LTLA Code                       object
+LTLA Name                       object
+Under 50                        object
+50-54                           object
+55-59                           object
+60-64                           object
+65-69                           object
+70-74                           object
+75-79                           object
+80+                             object
+dtype: object
+----
+
+Hmmm, every column is an object, when we know that some columns only have numeric values.
+We can fix column types by calling the `convert_dtypes` function:
+
+[source, python]
+----
+vaccinations.convert_dtypes().dtypes
+----
+
+.Output
+[source,text]
+----
+Region Code (Administrative)    string
+Region Name (administrative)    string
+LTLA Code                       string
+LTLA Name                       string
+Under 50                         Int64
+50-54                            Int64
+55-59                            Int64
+60-64                            Int64
+65-69                            Int64
+70-74                            Int64
+75-79                            Int64
+80+                              Int64
+dtype: object
+----
+
+Looks good.
+Let's now wrap all of that code into a function:
+
+[source, python]
+----
+def vaccinations_dataframe(spreadsheet):
+    vaccinations = pd.read_excel(spreadsheet, "LTLA", usecols="B:M")
+    columns = np.concatenate((vaccinations.loc[10,:][:4].values, vaccinations.loc[11,:][4:].values), axis=None)
+    vaccinations = vaccinations.loc[14:327,]
+    vaccinations.columns = columns
+    vaccinations = vaccinations.convert_dtypes()
+    return vaccinations
+----
+
+== Population
+
+Now we'll do the same for each Local Tier Local Authority's population, which we can find in the `Population estimates (NIMS)` sheet.
+
+image::{{<siteurl>}}/uploads/2021/04/ltla-spreadsheet-population.png[title="Population - LTLA Spreadsheet"]
+
+We'll skip straight to the final function for creating the DataFrame:
+
+[source, python]
+----
+def population_dataframe(spreadsheet):
+    population = pd.read_excel(spreadsheet, "Population estimates (NIMS)", usecols="B:L")
+    population_columns = np.concatenate((population.loc[10,:][:2], population.loc[11, :][2:]), axis=None)
+    population = population.loc[14:327,]
+    population.columns = population_columns
+    population.insert(loc=2, column="Under 50", value=population["Under 16"] + population["16-49"])
+    population = population.drop(["Under 16", "16-49"], axis=1)
+    population = population.convert_dtypes()
+    return population
+----
+
+One extra thing we had to do was add the `Under 50` column, since that didn't exist in the spreadsheet.
+We need that column to exist so that we can directly map the population with the number of people vaccinated per age group per area.
+
+Now let's use that function to extract the population for each area:
+
+[source, python]
+----
+spreadsheet = "data/COVID-19-weekly-announced-vaccinations-15-April-2021.xlsx"
+population = population_dataframe(spreadsheet)
+----
+
+.population DataFrame
+[opts="header"]
+|===
+| LTLA Code   | LTLA Name    |   Under 50 |   50-54 |   55-59 |   60-64 |   65-69 |   70-74 |   75-79 |   80+
+| E07000032   | Amber Valley |      72286 |   10198 |   10139 |    8672 |    7633 |    8242 |    5928 |  7010
+| E07000170   | Ashfield     |      78053 |    9798 |    9503 |    7886 |    6752 |    6769 |    5357 |  6316
+| E07000171   | Bassetlaw    |      70918 |    9376 |    9572 |    8099 |    6997 |    7367 |    5414 |  6636
+| E07000129   | Blaby        |      62265 |    7595 |    7395 |    6528 |    5465 |    5801 |    4290 |  5781
+| E07000033   | Bolsover     |      48519 |    6660 |    6280 |    5376 |    4498 |    4445 |    3501 |  3947
+|===
+
+We've now got DataFrames that contain vaccination and population data.
+Next we're going to compute the vaccination rate per age group per area.
+
+== Combining Vaccinations and Populations
+
+We can compute the vaccination rate by dividing the non string columns in `vaccinations` by the non string columns in `population` and then multiplying by 100.
+We can see how to do this in the following code:
+
+[source,python]
+----
+vaccination_rates = (vaccinations.select_dtypes(exclude='string').div(population.select_dtypes(exclude='string')) * 100)
+----
+
+.Vaccination Rates
+[opts="header"]
+|===
+|   Under 50 |   50-54 |   55-59 |   60-64 |   65-69 |   70-74 |   75-79 |     80+
+|    27.6928 | 90.4589 | 90.8571 | 93.1504 | 95.5588 | 96.6756 | 97.807  | 97.1184
+|    23.7467 | 87.5791 | 90.2978 | 91.1616 | 94.1647 | 95.5089 | 96.3786 | 96.1051
+|    24.7638 | 87.5427 | 90.1483 | 91.9867 | 94.1689 | 96.3486 | 96.9154 | 96.8656
+|    26.1479 | 89.1376 | 89.8851 | 91.973  | 94.3641 | 96.5523 | 97.1096 | 96.1598
+|    23.8958 | 87.3724 | 89.8726 | 92.3921 | 93.6639 | 95.5906 | 97.4293 | 96.909
+|===
+
+That looks good, but we've lost the area names, which we can get back by calling the https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.combine_first.html[`combine_first`^] function:
+
+[source,python]
+----
+vaccination_rates = ((vaccinations.select_dtypes(exclude='string').div(population.select_dtypes(exclude='string')) * 100).combine_first(vaccinations)[vaccinations.columns])
+vaccination_rates = vaccination_rates.convert_dtypes()
+----
+
+.Vaccination Rates
+[opts="header"]
+|===
+| Region Code (Administrative)   | Region Name (administrative)   | LTLA Code   | LTLA Name    |   Under 50 |   50-54 |   55-59 |   60-64 |   65-69 |   70-74 |   75-79 |     80+
+| E12000004                      | East Midlands                  | E07000032   | Amber Valley |    27.6928 | 90.4589 | 90.8571 | 93.1504 | 95.5588 | 96.6756 | 97.807  | 97.1184
+| E12000004                      | East Midlands                  | E07000170   | Ashfield     |    23.7467 | 87.5791 | 90.2978 | 91.1616 | 94.1647 | 95.5089 | 96.3786 | 96.1051
+| E12000004                      | East Midlands                  | E07000171   | Bassetlaw    |    24.7638 | 87.5427 | 90.1483 | 91.9867 | 94.1689 | 96.3486 | 96.9154 | 96.8656
+| E12000004                      | East Midlands                  | E07000129   | Blaby        |    26.1479 | 89.1376 | 89.8851 | 91.973  | 94.3641 | 96.5523 | 97.1096 | 96.1598
+| E12000004                      | East Midlands                  | E07000033   | Bolsover     |    23.8958 | 87.3724 | 89.8726 | 92.3921 | 93.6639 | 95.5906 | 97.4293 | 96.909
+|===
+
+== Exploring vaccination rates
+
+Now that we've compute vaccination rates, let's do a bit of exploration of the data.
+We can find the maximum rates in each age group using the `max` function:
+
+[source,python]
+----
+vaccination_rates.max()
+----
+
+.Vaccination Rates Maximums
+[source, text]
+----
+Region Code (Administrative)                   E12000009
+Region Name (administrative)    Yorkshire and The Humber
+LTLA Code                                      E09000033
+LTLA Name                                           York
+Under 50                                       39.916551
+50-54                                          91.650635
+55-59                                          93.316424
+60-64                                          94.840627
+65-69                                          96.086819
+70-74                                          99.305556
+75-79                                          98.061389
+80+                                            99.386503
+dtype: object
+----
+
+We can ignore the values for the string columns, they don't really mean anything.
+But if we look at the age categories, we can see that in one area 99.38% of over 80s have received one doses of the vaccine and the best area for under 50s has vaccinated almost 40% of that cohort.
+
+We can find out which areas those are by sorting on the appropriate column.
+For example, these are the top areas for vaccinating Under 50s:
+
+[source, python]
+----
+vaccination_rates.sort_values(["Under 50"], ascending=False).head()
+----
+
+.Vaccination Rates - Best for Under 50s
+[opts="header"]
+|===
+| Region Code (Administrative)   | Region Name (administrative)   | LTLA Code   | LTLA Name       |   Under 50 |   50-54 |   55-59 |   60-64 |   65-69 |   70-74 |   75-79 |     80+
+| E12000009                      | South West                     | E06000053   | Isles of Scilly |    39.9166 | 89.8734 | 89.4444 | 91.1765 | 95.2381 | 99.3056 | 95.4545 | 99.3865
+| E12000008                      | South East                     | E07000090   | Havant          |    28.4815 | 89.6867 | 91.423  | 93.2137 | 94.7948 | 95.7627 | 96.7189 | 96.7105
+| E12000004                      | East Midlands                  | E07000034   | Chesterfield    |    28.4194 | 87.8095 | 89.4942 | 92.7704 | 94.8408 | 95.9601 | 96.4349 | 96.7665
+| E12000004                      | East Midlands                  | E07000032   | Amber Valley    |    27.6928 | 90.4589 | 90.8571 | 93.1504 | 95.5588 | 96.6756 | 97.807  | 97.1184
+| E12000002                      | North West                     | E07000128   | Wyre            |    27.56   | 87.7091 | 89.6141 | 92.7322 | 94.5789 | 95.7072 | 96.8809 | 96.7518
+|===
+
+We could also group by `Region Name` and compute the average vaccination rate per age group:
+
+[source, python]
+----
+average_rates = vaccination_rates.groupby(["Region Name (administrative)"]).mean()
+average_rates.insert(0, "Region", list(average_rates.index))
+----
+
+.Vaccination Rates - Vaccination Rates by Region
+[opts="header",cols="2,1,1,1,1,1,1,1,1  "]
+|===
+| Region          |   Under 50 |   50-54 |   55-59 |   60-64 |   65-69 |   70-74 |   75-79 |     80+
+| East Midlands   |    21.3713 | 86.2392 | 88.4962 | 90.6407 | 93.2752 | 95.3722 | 96.3283 | 96.1347
+| East of England |    18.4956 | 85.1457 | 87.6499 | 89.4512 | 91.7769 | 94.2033 | 95.3887 | 95.6347
+| London          |    14.4234 | 69.3903 | 73.0272 | 76.6469 | 80.2523 | 83.9104 | 85.1132 | 84.9085
+| North East      |    18.7766 | 84.5177 | 88.4894 | 91.2096 | 93.7479 | 95.6958 | 96.8194 | 96.4659
+| North West      |    19.751  | 83.3976 | 86.5955 | 89.3941 | 91.9802 | 94.3731 | 95.5474 | 95.4938
+|===
+
+Most of the country is doing really well, but it's interesting to see that London has much lower vaccination rates across every category.
+I assume this is due to a combination of vaccine hesitancy or difficulty getting to the vaccination centres.
+
+We could do some further analysis to figure out the specific areas that have lower uptake, but I think that can wait for another post!
+
+////
+print(tabulate(vaccinations.head().values,vaccinations.columns, tablefmt="pipe"))
+////
