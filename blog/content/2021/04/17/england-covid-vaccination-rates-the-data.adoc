@@ -5,13 +5,18 @@ title="Exploring England's Covid Vaccination Rates: The Data (cleanup)"
 tag=['python', 'pandas', 'covid-vaccines', 'altair']
 category=['python']
 description="In this post we'll learn how to extract data about England's Covid vaccinations from a Public Health England spreadsheet."
+image="uploads/2021/04/covid-vaccines.png"
 +++
 
 Over the last 13 months I've spent countless hours looking at dashboards that showed Coronavirus infection rates, death rates, and numbers of people vaccinated.
 The UK government host a dashboard at https://coronavirus.data.gov.uk[coronavirus.data.gov.uk^], which contains charts and tables showing all of the above.
-One thing I haven't been able to find, however, is a drill down of vaccinations by local area and age group.
 
-This is the first in a series of blog posts showing how to build one, and we'll be looking at how to get the data and get it into a format that's easier to process.
+One thing I haven't been able to find, however, is a drill down of vaccinations by local area and age group.
+So I'm going to try to build my own!
+
+image::{{<siteurl>}}/uploads/2021/04/covid-vaccines.png[]
+
+This is the first in a series of blog posts showing how to do that, in this post we'll find the data and get it into a format that's easier to process.
 
 == The Data
 
@@ -324,21 +329,97 @@ average_rates = vaccination_rates.groupby(["Region Name (administrative)"]).mean
 average_rates.insert(0, "Region", list(average_rates.index))
 ----
 
-.Vaccination Rates - Vaccination Rates by Region
-[opts="header",cols="2,1,1,1,1,1,1,1,1  "]
+.Vaccination Rates - By Region
+[opts="header",cols="2,1,1,1,1,1,1,1,1"]
 |===
-| Region          |   Under 50 |   50-54 |   55-59 |   60-64 |   65-69 |   70-74 |   75-79 |     80+
-| East Midlands   |    21.3713 | 86.2392 | 88.4962 | 90.6407 | 93.2752 | 95.3722 | 96.3283 | 96.1347
-| East of England |    18.4956 | 85.1457 | 87.6499 | 89.4512 | 91.7769 | 94.2033 | 95.3887 | 95.6347
-| London          |    14.4234 | 69.3903 | 73.0272 | 76.6469 | 80.2523 | 83.9104 | 85.1132 | 84.9085
-| North East      |    18.7766 | 84.5177 | 88.4894 | 91.2096 | 93.7479 | 95.6958 | 96.8194 | 96.4659
-| North West      |    19.751  | 83.3976 | 86.5955 | 89.3941 | 91.9802 | 94.3731 | 95.5474 | 95.4938
+| Region                   |   Under 50 |   50-54 |   55-59 |   60-64 |   65-69 |   70-74 |   75-79 |     80+ 
+| East Midlands            |    21.3713 | 86.2392 | 88.4962 | 90.6407 | 93.2752 | 95.3722 | 96.3283 | 96.1347 
+| East of England          |    18.4956 | 85.1457 | 87.6499 | 89.4512 | 91.7769 | 94.2033 | 95.3887 | 95.6347 
+| London                   |    14.4234 | 69.3903 | 73.0272 | 76.6469 | 80.2523 | 83.9104 | 85.1132 | 84.9085 
+| North East               |    18.7766 | 84.5177 | 88.4894 | 91.2096 | 93.7479 | 95.6958 | 96.8194 | 96.4659 
+| North West               |    19.751  | 83.3976 | 86.5955 | 89.3941 | 91.9802 | 94.3731 | 95.5474 | 95.4938 
+| South East               |    18.0919 | 85.6189 | 87.8544 | 89.6232 | 91.963  | 94.2038 | 95.2525 | 95.4839 
+| South West               |    19.7912 | 87.5552 | 89.477  | 90.7873 | 93.1417 | 95.1491 | 96.0111 | 96.4188 
+| West Midlands            |    20.426  | 85.6018 | 87.7443 | 90.4331 | 92.825  | 94.8981 | 95.8844 | 95.4323 
+| Yorkshire and The Humber |    19.7412 | 85.6536 | 88.9223 | 90.8691 | 93.3894 | 95.4119 | 96.4073 | 96.2381 
 |===
 
 Most of the country is doing really well, but it's interesting to see that London has much lower vaccination rates across every category.
-I assume this is due to a combination of vaccine hesitancy or difficulty getting to the vaccination centres.
+I assume this is due to a combination of vaccine hesitancy, difficulty getting to the vaccination centres, or perhaps there's an error with the data.
 
-We could do some further analysis to figure out the specific areas that have lower uptake, but I think that can wait for another post!
+This isn't a perfect calculation though because we're assigning equal weight to each local area, which will vary in size. 
+That means that we might be giving too much weight to smaller places with especially high or low vaccine uptake.
+
+Let's instead sum together the vaccinations given and populations per region and compute the percentages again.
+First we'll create DataFrames for each region:
+
+[source, python]
+----
+population.loc[:, "Region Name (administrative)"] = vaccinations["Region Name (administrative)"]
+
+population_by_region = population.groupby(["Region Name (administrative)"]).sum()
+population_by_region.insert(0, "Region", list(population_by_region.index))
+
+vaccinations_by_region = vaccinations.groupby(["Region Name (administrative)"]).sum()
+vaccinations_by_region.insert(0, "Region", list(vaccinations_by_region.index))
+----
+
+.population_by_region DataFrame
+[opts="header",cols="2,1,1,1,1,1,1,1,1"]
+|===
+| Region                   |   Under 50 |   50-54 |   55-59 |   60-64 |   65-69 |   70-74 |   75-79 |    80+ 
+| East Midlands            |    3170332 |  364235 |  356411 |  304211 |  261878 |  265843 |  193933 | 249586 
+| East of England          |    4165578 |  470144 |  456846 |  387478 |  331616 |  344449 |  252007 | 346692 
+| London                   |    7592384 |  664924 |  587034 |  458373 |  342329 |  293428 |  204762 | 297433 
+| North East               |    1687882 |  193270 |  200330 |  180677 |  154636 |  150338 |  102373 | 140390 
+| North West               |    4953735 |  549622 |  544180 |  465484 |  389203 |  388096 |  274374 | 364876 
+| South East               |    6112065 |  695721 |  676804 |  570183 |  480072 |  493718 |  365478 | 510052 
+| South West               |    3496476 |  415359 |  424070 |  374972 |  333106 |  349326 |  260864 | 355024 
+| West Midlands            |    4019092 |  439809 |  418626 |  356127 |  304688 |  300890 |  230075 | 308908 
+| Yorkshire and The Humber |    3670427 |  404075 |  392613 |  341298 |  289223 |  289865 |  204261 | 277539 
+|===
+
+.vaccinations_by_region DataFrame
+[opts="header",cols="2,1,1,1,1,1,1,1,1"]
+|===
+| Region                   |   Under 50 |   50-54 |   55-59 |   60-64 |   65-69 |   70-74 |   75-79 |    80+ 
+| East Midlands            |     658569 |  310156 |  312653 |  274052 |  243321 |  253103 |  186500 | 239377 
+| East of England          |     755452 |  399663 |  400596 |  347169 |  305122 |  325649 |  241126 | 332207 
+| London                   |    1097594 |  459513 |  428659 |  352909 |  276040 |  248388 |  176083 | 255922 
+| North East               |     313030 |  164486 |  178221 |  165482 |  145496 |  144315 |   99336 | 135749 
+| North West               |     937404 |  451446 |  466463 |  412713 |  356303 |  365507 |  261756 | 347927 
+| South East               |    1078781 |  594115 |  594208 |  511143 |  442087 |  466018 |  348965 | 487877 
+| South West               |     668237 |  361313 |  377659 |  339592 |  309999 |  332055 |  250762 | 342276 
+| West Midlands            |     763887 |  361823 |  357134 |  315110 |  278568 |  283073 |  218910 | 291583 
+| Yorkshire and The Humber |     694645 |  339544 |  344640 |  307351 |  268164 |  275646 |  196338 | 266059 
+|===
+
+And now we can compute the vaccination rate per region:
+
+[source, python]
+----
+vaccination_rates_by_region = ((vaccinations_by_region.select_dtypes(exclude='object').div(population_by_region.select_dtypes(exclude='object')) * 100).combine_first(vaccinations_by_region)[vaccinations_by_region.columns])
+vaccination_rates_by_region = vaccination_rates_by_region.convert_dtypes()
+----
+
+.vaccinations_by_region DataFrame
+[opts="header",cols="2,1,1,1,1,1,1,1,1"]
+|===
+| Region                   |   Under 50 |   50-54 |   55-59 |   60-64 |   65-69 |   70-74 |   75-79 |    80+ 
+| East Midlands            |    20.7729 | 85.1527 | 87.7226 | 90.0862 | 92.9139 | 95.2077 | 96.1672 | 95.9096 
+| East of England          |    18.1356 | 85.0086 | 87.6873 | 89.5971 | 92.0106 | 94.542  | 95.6823 | 95.8219 
+| London                   |    14.4565 | 69.1076 | 73.0212 | 76.9917 | 80.6359 | 84.6504 | 85.994  | 86.0436 
+| North East               |    18.5457 | 85.1068 | 88.9637 | 91.59   | 94.0893 | 95.9937 | 97.0334 | 96.6942 
+| North West               |    18.9232 | 82.1375 | 85.7185 | 88.6632 | 91.5468 | 94.1795 | 95.4012 | 95.3549 
+| South East               |    17.65   | 85.3956 | 87.7962 | 89.6454 | 92.0876 | 94.3895 | 95.4818 | 95.6524 
+| South West               |    19.1117 | 86.9881 | 89.0558 | 90.5646 | 93.0632 | 95.0559 | 96.1275 | 96.4093 
+| West Midlands            |    19.0065 | 82.2682 | 85.311  | 88.4825 | 91.4273 | 94.0786 | 95.1472 | 94.3915 
+| Yorkshire and The Humber |    18.9255 | 84.0299 | 87.7811 | 90.0536 | 92.7188 | 95.0946 | 96.1211 | 95.8636 
+|===
+
+London is doing slightly better on some of the age groups measured like this, but still seems to be behind the other regions.
+
+We could do some further analysis to figure out if there are specific areas in London that have lower uptake, but I think that can wait for another post.
 
 ////
 print(tabulate(vaccinations.head().values,vaccinations.columns, tablefmt="pipe"))
