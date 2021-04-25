@@ -3,7 +3,7 @@ draft = false
 date="2010-04-12 18:21:41"
 title="F#: The 'defaultArg' function"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 While reading through http://codebetter.com/blogs/matthew.podwysocki/archive/2009/04/13/from-imperative-to-functional-transposing-maps.aspx[an old blog post by Matthew Podwysocki about writing F# code in a functional rather than imperative way] I came across the 'defaultArg' function which I haven't seen previously.

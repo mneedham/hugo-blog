@@ -3,7 +3,7 @@ draft = false
 date="2009-05-10 08:58:48"
 title="F#: Regular expressions/active patterns"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 http://robotoverlords.blogspot.com/[Josh] has been http://twitter.com/markhneedham/status/1723697152[teaching me how to do regular expressions in Javascript this week] and intrigued as to how you would do this in F# I came across a couple of blog posts by Chris Smith talking about http://blogs.msdn.com/chrsmith/archive/2008/02/21/Introduction-to-F_2300_-Active-Patterns.aspx[active patterns] and http://blogs.msdn.com/chrsmith/archive/2008/02/22/regular-expressions-via-active-patterns.aspx[regular expressions via active patterns].

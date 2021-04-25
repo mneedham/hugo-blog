@@ -3,7 +3,7 @@ draft = false
 date="2010-02-10 23:06:14"
 title="F#: Inline functions and statically resolved type parameters"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 One thing which I've often wondered when playing around with F# is that when writing the following function the type of the function is inferred to be 'int \-> int \-> int' rather than allowing any values which can be added together:

@@ -3,7 +3,7 @@ draft = false
 date="2009-06-29 00:28:14"
 title="F#: Setting properties like named parameters"
 tag=['f', 'objects']
-category=['F#']
+category=['fsharp']
 +++
 
 One of the most frustrating things for me lately about interacting with C# libraries from F# has been setting up objects through the use of properties.

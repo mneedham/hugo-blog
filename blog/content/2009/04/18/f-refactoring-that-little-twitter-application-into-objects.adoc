@@ -3,7 +3,7 @@ draft = false
 date="2009-04-18 08:47:06"
 title="F#: Refactoring that little twitter application into objects"
 tag=['f', 'refactoring']
-category=['F#']
+category=['fsharp']
 +++
 
 I previously wrote about a http://www.markhneedham.com/blog/2009/04/13/f-a-day-of-writing-a-little-twitter-application/[little twitter application I've been writing to go through my twitter feed and find only the tweets with links it] and while it works I realised that I was finding it quite difficult to add any additional functionality to it.

@@ -3,7 +3,7 @@ draft = false
 date="2009-05-02 14:38:36"
 title="F#: Stuff I get confused about"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 Coming from the world of C# I've noticed that there are a couple of things that I sometimes get confused about when playing around with stuff in F# land.

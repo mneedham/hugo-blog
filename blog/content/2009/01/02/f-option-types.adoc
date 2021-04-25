@@ -3,7 +3,7 @@ draft = false
 date="2009-01-02 22:35:31"
 title="F# Option Types"
 tag=['net', 'f', 'null-handling']
-category=['.NET', 'F#']
+category=['.NET', 'fsharp']
 +++
 
 I've been spending a bit of time working through the http://manning.com/petricek/[Real World Functional Programming] book to learn a bit about F# and one of the cool features I came across today (while reading http://blogs.msdn.com/chrsmith/archive/2008/07/10/mastering-f-lists.aspx[Chris Smith's post on F# lists]) is the Option type.

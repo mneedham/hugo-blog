@@ -3,7 +3,7 @@ draft = false
 date="2010-05-10 23:24:39"
 title="F#: Tacit programming"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 I recently came across the idea of http://en.wikipedia.org/wiki/Tacit_programming[tacit programming] which is described as such:

@@ -3,7 +3,7 @@ draft = false
 date="2009-04-16 18:20:50"
 title="Coding Dojo #12: F#"
 tag=['coding-dojo', 'f']
-category=['Coding Dojo', 'F#']
+category=['Coding Dojo', 'fsharp']
 +++
 
 In our latest coding dojo we worked on trying to port some of the functionality of some http://bitbucket.org/codingdojosydney/to_fsharp/src/tip/Chaos/[C# 1.0 brain models], and in particular one around simulating http://en.wikipedia.org/wiki/Logistic_map[chaos behaviour], that http://www.twitter.com/davcamer[Dave] worked on at university.

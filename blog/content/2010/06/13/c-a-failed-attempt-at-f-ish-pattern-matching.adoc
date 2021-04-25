@@ -3,7 +3,7 @@ draft = false
 date="2010-06-13 22:35:14"
 title="C#: A failed attempt at F#-ish pattern matching"
 tag=['c', 'f']
-category=['.NET', 'F#']
+category=['.NET', 'fsharp']
 +++
 
 A few weeks ago we had some http://www.markhneedham.com/blog/2010/04/20/functional-c-an-imperative-to-declarative-example/[C# code around calcuations] which had got a bit too imperative in nature.

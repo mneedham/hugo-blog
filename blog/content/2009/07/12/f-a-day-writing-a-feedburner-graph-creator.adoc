@@ -3,7 +3,7 @@ draft = false
 date="2009-07-12 17:14:13"
 title="F#: A day writing a Feedburner graph creator"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 I've spent a bit of the day writing a little application to take the xml from my https://feedburner.google.com/api/awareness/1.0/GetFeedData?uri=markneedham&dates=2009-03-01,2009-03-27[Feedburner RSS feed] and create a graph showing the daily & weekly average subscribers.

@@ -3,7 +3,7 @@ draft = false
 date="2009-05-02 01:53:56"
 title="F#: Erlang style messaging passing"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 As I mentioned in my previous post about over loading methods in F# I've been trying to refactor my twitter application into a state where it can concurrently process twitter statuses while continuing to retrieve more of them from the twitter website.

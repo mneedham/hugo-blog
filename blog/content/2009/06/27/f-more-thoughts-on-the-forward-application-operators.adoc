@@ -3,7 +3,7 @@ draft = false
 date="2009-06-27 22:55:02"
 title="F#: More thoughts on the forward & application operators"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 I've been spending a bit of time reading through the http://code.google.com/p/fake/source/checkout[Fake source code] to try and understand how it works and one of the things which I quite like about it is the way the authors have made use of different F# operators to make expressions easier to read by reducing the number of brackets that need to be written and reordering the functions/values depending on the particular context.

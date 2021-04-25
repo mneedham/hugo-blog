@@ -3,7 +3,7 @@ draft = false
 date="2009-06-07 08:19:01"
 title="F#: Explicit interface implementation"
 tag=['f', 'interfaces']
-category=['F#']
+category=['fsharp']
 +++
 
 I've been writing some code to map between CouchDB documents and F# objects and something which I re-learned while doing this is the way that interfaces work in F#.

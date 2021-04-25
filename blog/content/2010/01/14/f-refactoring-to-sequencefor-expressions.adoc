@@ -3,7 +3,7 @@ draft = false
 date="2010-01-14 08:01:29"
 title="F#: Refactoring to sequence/for expressions"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 Since I started playing around with F# one of the things I've been trying to do is not use the 'for' keyword because I was trying to avoid writing code in an imperative way and for loops are a big part of this for me.

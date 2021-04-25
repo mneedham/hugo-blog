@@ -3,7 +3,7 @@ draft = false
 date="2009-04-25 22:12:43"
 title="F#: Not equal/Not operator"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 While continuing playing with http://www.markhneedham.com/blog/2009/04/18/f-refactoring-that-little-twitter-application-into-objects/[my F# twitter application] I was trying to work out how to exclude the tweets that I posted from the list that gets displayed.

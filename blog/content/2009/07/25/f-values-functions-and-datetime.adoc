@@ -3,7 +3,7 @@ draft = false
 date="2009-07-25 14:10:45"
 title="F#: Values, functions and DateTime"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 One of the things I've noticed recently in my playing around with F# is that when we decide to http://www.markhneedham.com/blog/2009/07/12/f-wrapping-net-library-calls/[wrap calls] to the .NET DateTime methods there is a need to be quite careful that we are wrapping those calls with an F# function and not an F# value.

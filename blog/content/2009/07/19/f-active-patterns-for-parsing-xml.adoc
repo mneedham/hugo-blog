@@ -3,7 +3,7 @@ draft = false
 date="2009-07-19 12:12:13"
 title="F#: Active patterns for parsing xml"
 tag=['f', 'active-patterns']
-category=['F#']
+category=['fsharp']
 +++
 
 I decided to spend some time doing some refactoring on the http://www.markhneedham.com/blog/2009/07/12/f-a-day-writing-a-feedburner-graph-creator/[FeedBurner application] that I started working on last week and the first area I worked on was cleaning up the way that the xml we get from FeedBurner is parsed.

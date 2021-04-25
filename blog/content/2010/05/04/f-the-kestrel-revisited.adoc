@@ -3,7 +3,7 @@ draft = false
 date="2010-05-04 18:36:58"
 title="F#: The Kestrel Revisited"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 A couple of days I wrote about http://www.markhneedham.com/blog/2010/05/03/coding-the-kestrel/[a 'returning' function] that I'd written to simplify a bit of F# code that I've been working on.

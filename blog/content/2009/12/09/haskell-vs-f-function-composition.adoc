@@ -3,7 +3,7 @@ draft = false
 date="2009-12-09 22:10:27"
 title="Haskell vs F#: Function composition"
 tag=['f', 'haskell']
-category=['F#']
+category=['fsharp']
 +++
 
 I'm reading through John Hughes' 'http://www.cs.chalmers.se/~rjmh/Papers/whyfp.html[Why functional programming matters]' paper and one thing I've come across which is a bit counter intuitive to me is the Haskell function composition operator.

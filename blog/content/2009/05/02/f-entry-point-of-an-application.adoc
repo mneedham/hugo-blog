@@ -3,7 +3,7 @@ draft = false
 date="2009-05-02 01:56:09"
 title="F#: Entry point of an application"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 In an attempt to see whether or not the http://www.markhneedham.com/blog/2009/05/02/f-erlang-style-messaging-passing/[mailboxes I've been working on for my twitter application] were actually processing messages on different threads I ran into the problem of defining the entry point of an F# application.

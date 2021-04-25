@@ -3,7 +3,7 @@ draft = false
 date="2009-04-13 22:09:37"
 title="F#: A day of writing a little twitter application"
 tag=['net', 'f']
-category=['.NET', 'F#']
+category=['.NET', 'fsharp']
 +++
 
 I spent most of the bank holiday Monday here in Sydney writing a little application to scan through http://twitter.com[my twitter feed] and find me just the tweets which have links in them since for me that's where http://www.markhneedham.com/blog/2008/12/07/twitter-as-a-learning-tool/[a lot of the value of twitter lies].

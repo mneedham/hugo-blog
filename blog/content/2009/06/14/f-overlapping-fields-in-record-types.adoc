@@ -3,7 +3,7 @@ draft = false
 date="2009-06-14 00:37:01"
 title="F#: Overlapping fields in record types"
 tag=['f', 'records']
-category=['F#']
+category=['fsharp']
 +++
 
 A problem which has confused me for a while is how to create instances of record types whose fields overlap with another record defined further down in an F# file.

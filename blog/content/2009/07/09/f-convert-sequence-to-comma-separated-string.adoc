@@ -3,7 +3,7 @@ draft = false
 date="2009-07-09 22:32:55"
 title="F#: Convert sequence to comma separated string"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 I've been continuing playing around with http://www.markhneedham.com/blog/2009/07/08/f-parsing-cruise-build-data/[parsing Cruise data] as I mentioned yesterday with the goal today being to create a graph from the build data.

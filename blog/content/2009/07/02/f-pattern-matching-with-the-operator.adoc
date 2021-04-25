@@ -3,7 +3,7 @@ draft = false
 date="2009-07-02 23:10:19"
 title="F#: Pattern matching with the ':?' operator"
 tag=['f', 'pattern-matching']
-category=['F#']
+category=['fsharp']
 +++
 
 I've been doing a bit more reading of the http://code.google.com/p/fake/[Fake] source code and one interesting thing which I came across which I hadn't seen was an active pattern which was making use of the ':?' operator to match the input type against .NET types.

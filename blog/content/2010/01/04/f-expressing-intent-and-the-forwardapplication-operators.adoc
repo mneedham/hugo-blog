@@ -3,7 +3,7 @@ draft = false
 date="2010-01-04 11:11:10"
 title="F#: Expressing intent and the forward/application operators"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 A while ago I wrote about F#'s http://www.markhneedham.com/blog/2009/06/27/f-more-thoughts-on-the-forward-application-operators/[forward and application operators] where I'd looked at how these could be used to simplify code and while trying out http://osherove.com/tdd-kata-1/[Roy Osherove's TDD Kata] I realised that perhaps the choice of which of these to use or whether to use them at all depends on what intent we're expressing.

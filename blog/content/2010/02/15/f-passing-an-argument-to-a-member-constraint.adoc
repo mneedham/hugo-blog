@@ -3,7 +3,7 @@ draft = false
 date="2010-02-15 00:05:17"
 title="F#: Passing an argument to a member constraint"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 I've written previously about http://www.markhneedham.com/blog/2009/04/28/f-overloading-functionspattern-matching/[function overloading in F# and my struggles working out how to do it] and last week I came across the concept of http://www.markhneedham.com/blog/2010/02/10/f-inline-functions-and-statically-resolved-type-parameters/[inline functions and statically resolved parameters] as a potential way to solve that problem.

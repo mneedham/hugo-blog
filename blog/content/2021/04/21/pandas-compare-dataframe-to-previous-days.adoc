@@ -1,0 +1,125 @@
++++
+draft = false
+date="2021-04-21 00:44:37"
+title="Pandas: Compare values in DataFrame to previous days"
+tag=['python', 'pandas', 'altair']
+category=['python']
+description="In this post we'll learn how to compare values from earlier rows in a Pandas DataFrame."
++++
+
+I'm still playing around with Covid vaccine data, this time exploring how the number of doses varies week by week.
+I want to know how many more (or less) vaccines have been done on a given day compared to that same day last week.
+
+We'll be using Pandas in this blog post, so let's first install that library and import it:
+
+.Install Pandas
+[source, bash]
+----
+pip install pandas
+----
+
+.Import module
+[source,python]
+----
+import pandas as pd
+----
+
+And now let's create a DataFrame containing a subset of the data that I'm working with:
+
+[source,python]
+----
+df = pd.DataFrame([
+    {'date': '2021-01-11', 'vaccinations': 165844.0}, 
+    {'date': '2021-01-18', 'vaccinations': 208641.0}, 
+    {'date': '2021-01-25', 'vaccinations': 281725.0}, 
+    {'date': '2021-02-01', 'vaccinations': 352935.0}, 
+    {'date': '2021-02-08', 'vaccinations': 356291.0}
+])
+----
+
+.Output
+[format="csv", options="header"]
+|===
+include::content/2021/04/21/data/initial.csv[]
+|===
+
+I've filtered the data to include the data for 5 Mondays start from the beginning of January. 
+In the real data set we have the data for every day from January until today.
+
+I want to add a column that shows the number of vaccinations done on the previous week.
+So:
+
+* for `2021-01-18`, we'd have the value for `2021-01-11`
+* for `2021-01-25`, we'd have the value for `2021-02-18`
+
+and so on.
+
+It took me a while to find the function to do this, but it turns out that https://pandas.pydata.org/docs/reference/api/pandas.Series.shift.html[`pandas.Series.shift`] is what we want. 
+This function shifts the index by the desired number of periods. 
+We'll pass in `periods=1` because we want to shift every row down by 1:
+
+[source, python]
+----
+df["vaccinations"].shift(periods=1)
+----
+
+[NOTE]
+====
+I should note that for the real DataFrame I had data for every day and therefore wanted to compare the data from 7 rows earlier in the DataFrame,which meant I had to use `periods=7`.  
+If we wanted to compare the data from 3 days earlier, we could use `periods=3`, and so on. 
+====
+
+.Output
+[format="csv", options="header"]
+|===
+include::content/2021/04/21/data/shift_standalone.csv[]
+|===
+
+We can then add a new column to our DataFrame using the following code:
+
+[source, python]
+----
+df.loc[:, "lastWeekVaccinations"] = df["vaccinations"].shift(periods=1)
+----
+
+.Output
+[format="csv", options="header"]
+|===
+include::content/2021/04/21/data/shift.csv[]
+|===
+
+If we then wanted to compute the difference between this week and last week, we could compute this by writing the following code:
+
+[source, python]
+----
+df["vaccinations"] - df["lastWeekVaccinations"]
+----
+
+Or we could use the https://pandas.pydata.org/docs/reference/api/pandas.Series.diff.html[`pandas.Series.diff`] function, which achieves the same thing:
+
+[source, python]
+----
+df.loc[:, "lastWeekVaccinationsDiff"] = df["vaccinations"].diff(periods=1)
+----
+
+.Output
+[format="csv", options="header"]
+|===
+include::content/2021/04/21/data/diff.csv[]
+|===
+
+We can also compute the percentage change between the weeks using https://pandas.pydata.org/docs/reference/api/pandas.Series.pct_change.html[`pandas.Series.pct_change`]:
+
+
+[source, python]
+----
+df.loc[:, "lastWeekVaccinationsChange"] = df["vaccinations"].pct_change(periods=1)
+----
+
+.Output
+[format="csv", options="header"]
+|===
+include::content/2021/04/21/data/change.csv[]
+|===
+
+With these functions I've been able to do exactly what I wanted and could then create a chart based on this data.

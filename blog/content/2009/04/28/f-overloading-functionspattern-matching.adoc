@@ -3,7 +3,7 @@ draft = false
 date="2009-04-28 23:43:22"
 title="F#: Overloading functions/pattern matching"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 While trying to http://www.markhneedham.com/blog/2009/04/18/f-refactoring-that-little-twitter-application-into-objects/[refactor my twitter application] into a state where I could use Erlang style message passing to process some requests asynchronously while still hitting twitter to get more messages I came across the problem of wanting to overload a method.

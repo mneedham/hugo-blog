@@ -3,7 +3,7 @@ draft = false
 date="2010-01-10 01:46:07"
 title="Roy Osherove's TDD Kata: An F# attempt"
 tag=['tdd', 'f']
-category=['F#']
+category=['fsharp']
 +++
 
 As I've mentioned in a few of my recent posts I've been having http://www.markhneedham.com/blog/2009/12/25/roy-osheroves-tdd-kata-my-first-attempt/[another go] at http://osherove.com/tdd-kata-1/[Roy Osherove's TDD Kata] but this time in F#.

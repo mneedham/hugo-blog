@@ -3,7 +3,7 @@ draft = false
 date="2009-05-19 01:38:31"
 title="F#: Object expressions"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 One of the things I miss a bit from the Java world is the ability to create anonymous inner classes which implement a certain interface.

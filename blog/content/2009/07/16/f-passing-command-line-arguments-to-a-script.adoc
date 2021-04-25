@@ -3,7 +3,7 @@ draft = false
 date="2009-07-16 07:40:18"
 title="F#: Passing command line arguments to a script"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 I've been doing a bit of refactoring of http://www.markhneedham.com/blog/2009/07/12/f-a-day-writing-a-feedburner-graph-creator/[my FeedBurner application] so that I can call it from the command line with the appropriate arguments and one of the problems I came across is working out how to pass arguments from the command line into an http://www.markhneedham.com/blog/2009/06/09/f-useful-for-scripting/[F# script].

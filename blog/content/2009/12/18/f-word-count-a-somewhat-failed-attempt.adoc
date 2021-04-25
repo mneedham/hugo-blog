@@ -3,7 +3,7 @@ draft = false
 date="2009-12-18 02:58:34"
 title="F#: Word Count - A somewhat failed attempt"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 I came across http://blogs.sourceallies.com/2009/12/word-counts-example-in-ruby-and-scala/[Zach Cox's word count problem] via http://twitter.com/samaaron/status/6701378774[Sam Aaron] and http://twitter.com/olabini/status/6705741285[Ola Bini's] twitter streams and I thought it'd be interesting to try it out in F# to see what the solution would be like.

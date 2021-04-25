@@ -3,7 +3,7 @@ draft = false
 date="2009-01-06 00:19:52"
 title="F#: Forward Operator"
 tag=['net', 'f']
-category=['.NET', 'F#']
+category=['.NET', 'fsharp']
 +++
 
 Continuing on my F# journey I came across a post by Ben Hall describing the http://blog.benhall.me.uk/2008/12/learning-new-language-write-some-tests.html[approach he takes when learning a new programming language].

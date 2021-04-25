@@ -3,7 +3,7 @@ draft = false
 date="2010-05-06 23:36:26"
 title="F#: My current coding approach"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 I spent a bit of time over the weekend coding http://code.google.com/p/yetanotherbuilder/[a simple generic builder for test objects] in F# and I noticed that although there were similarity with the ways I drive code in C# or Java my approach didn't seem to be exactly the same.

@@ -3,7 +3,7 @@ draft = false
 date="2010-02-14 01:03:34"
 title="F#: Unexpected identifier in implementation file"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 I've been playing around with some F# code this evening and one of the bits of code needs to make a HTTP call and return the result.

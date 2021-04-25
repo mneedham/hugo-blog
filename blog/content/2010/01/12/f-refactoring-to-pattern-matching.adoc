@@ -3,7 +3,7 @@ draft = false
 date="2010-01-12 01:33:58"
 title="F#: Refactoring to pattern matching"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 I was looking through some of the F# code I've written recently and I realised that I was very much writing C# in F# with respect to the number of if statements I've been using.

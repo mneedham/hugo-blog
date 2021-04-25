@@ -3,7 +3,7 @@ draft = false
 date="2009-05-30 20:38:02"
 title="F#: Testing asynchronous calls to MailBoxProcessor"
 tag=['f', 'xunitnet', 'asynchronous']
-category=['F#']
+category=['fsharp']
 +++
 
 Continuing with my attempts to test some of the code in my http://www.markhneedham.com/blog/2009/04/13/f-a-day-of-writing-a-little-twitter-application/[twitter] http://www.markhneedham.com/blog/2009/04/18/f-refactoring-that-little-twitter-application-into-objects/[application] I've been trying to work out how to test the http://www.markhneedham.com/blog/2009/05/02/f-erlang-style-messaging-passing/[Erlang style messaging] which I set up to process tweets when I had captured them using the http://code.google.com/p/tweetsharp/[TweetSharp API].

@@ -3,7 +3,7 @@ draft = false
 date="2009-06-09 23:29:15"
 title="F#: Useful for scripting"
 tag=['f', 'scripting']
-category=['F#']
+category=['fsharp']
 +++
 
 We had the need to do a bit of scripting recently to change the names of the folders where we store our artifacts to signify which artifacts were created from our build's production branch and which were generated from the main branch.

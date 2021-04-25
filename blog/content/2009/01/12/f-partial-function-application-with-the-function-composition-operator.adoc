@@ -3,7 +3,7 @@ draft = false
 date="2009-01-12 22:22:43"
 title="F#: Partial Function Application with the Function Composition Operator"
 tag=['net', 'f', 'currying', 'functional-programming']
-category=['.NET', 'F#']
+category=['.NET', 'fsharp']
 +++
 
 In my continued reading of F# one of the ideas I've come across recently is that of partial function application.

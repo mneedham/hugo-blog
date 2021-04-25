@@ -3,7 +3,7 @@ draft = false
 date="2010-01-05 23:10:56"
 title="F#: String.Split with a multi character delimeter"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 In my continued efforts at http://osherove.com/tdd-kata-1/[Roy Osherove's TDD Kata] I've been trying to work out how to split a string based on a delimeter which contains more than one character.

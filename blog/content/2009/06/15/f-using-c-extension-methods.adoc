@@ -3,7 +3,7 @@ draft = false
 date="2009-06-15 20:03:34"
 title="F#: Using C# extension methods"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 An interesting thing I noticed about referencing C# libraries from F# is that you can't access C# extension methods on generic open types in the same way that you would be able to if you were using the library from C# code.

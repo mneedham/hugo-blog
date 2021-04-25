@@ -1,0 +1,15 @@
++++
+draft = true
+date="2021-04-16 00:44:37"
+title="Vaccinating England: How's it going?"
+tag=['python', 'pandas', 'covid-vaccines', 'altair']
+category=['python']
+description="In this post we'll learn how to extract data about England's Covid vaccinations"
++++
+
+
+
+== Visualising
+
+Map of the country showing the areas shaded by % of people vaccinated
+Bar charts showing 

@@ -3,7 +3,7 @@ draft = false
 date="2009-07-11 03:20:25"
 title="F#: Downloading a file from behind a proxy"
 tag=['f', 'proxy']
-category=['F#']
+category=['fsharp']
 +++
 
 I've been continuing working on a little script to http://www.markhneedham.com/blog/2009/07/08/f-parsing-cruise-build-data/[parse Cruise build data] and the latest task was to work out how to download my Google Graph API created image onto the local disk.

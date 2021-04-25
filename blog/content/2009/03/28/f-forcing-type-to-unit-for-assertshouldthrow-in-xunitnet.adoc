@@ -3,7 +3,7 @@ draft = false
 date="2009-03-28 02:35:27"
 title="F#: Forcing type to unit for Assert.ShouldThrow in XUnit.NET"
 tag=['net', 'f']
-category=['F#']
+category=['fsharp']
 +++
 
 I've started playing around with F# again and decided to try and create some unit tests around the examples I'm following from http://manning.com/petricek/[Real World Functional Programming]. After reading http://weblogs.asp.net/podwysocki/archive/2008/06/04/language-oriented-programming-and-functional-unit-testing-in-f.aspx[Matt Podwysocki's blog post about XUnit.NET] I decided that would probably be the best framework for me to use.

@@ -3,7 +3,7 @@ draft = false
 date="2010-01-07 23:31:37"
 title="F#: Refactoring to active patterns"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 I've been playing around with more F# code and after realising that I'd peppered the code with if statements I thought it would be interesting to try and refactor it to make use of active patterns.

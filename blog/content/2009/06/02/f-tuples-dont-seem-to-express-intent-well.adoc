@@ -3,7 +3,7 @@ draft = false
 date="2009-06-02 22:01:52"
 title="F#: Tuples don't seem to express intent well"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 Tuples are one of the data types that I learnt about at university but never actually got to use for anything until I started playing around with F# which has this type in the language.

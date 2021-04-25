@@ -1,7 +1,7 @@
 +++
 draft = false
 date="2021-04-17 00:44:37"
-title="Exploring England's Covid Vaccination Rates: The Data (cleanup)"
+title="Vaccinating England: The Data (cleanup)"
 tag=['python', 'pandas', 'covid-vaccines', 'altair']
 category=['python']
 description="In this post we'll learn how to extract data about England's Covid vaccinations from a Public Health England spreadsheet."
@@ -102,7 +102,8 @@ Let's extract those and set them on our DataFrame:
 ----
 spreadsheet = "data/COVID-19-weekly-announced-vaccinations-15-April-2021.xlsx"
 vaccinations = pd.read_excel(spreadsheet, "LTLA", usecols="B:M")
-columns = np.concatenate((vaccinations.loc[10,:][:4].values, vaccinations.loc[11,:][4:].values), axis=None)
+columns = np.concatenate(
+    (vaccinations.loc[10,:][:4].values, vaccinations.loc[11,:][4:].values), axis=None)
 vaccinations = vaccinations.loc[14:327,]
 vaccinations.columns = columns
 ----
@@ -178,11 +179,18 @@ Let's now wrap all of that code into a function:
 ----
 def vaccinations_dataframe(spreadsheet):
     vaccinations = pd.read_excel(spreadsheet, "LTLA", usecols="B:M")
-    columns = np.concatenate((vaccinations.loc[10,:][:4].values, vaccinations.loc[11,:][4:].values), axis=None)
+    columns = np.concatenate(
+        (vaccinations.loc[10,:][:4].values, vaccinations.loc[11,:][4:].values), axis=None)
     vaccinations = vaccinations.loc[14:327,]
     vaccinations.columns = columns
     vaccinations = vaccinations.convert_dtypes()
     return vaccinations
+----
+
+[source, python]
+----
+spreadsheet = "data/COVID-19-weekly-announced-vaccinations-15-April-2021.xlsx"
+vaccinations = vaccinations_dataframe(spreadsheet)
 ----
 
 == Population
@@ -197,10 +205,14 @@ We'll skip straight to the final function for creating the DataFrame:
 ----
 def population_dataframe(spreadsheet):
     population = pd.read_excel(spreadsheet, "Population estimates (NIMS)", usecols="B:L")
-    population_columns = np.concatenate((population.loc[10,:][:2], population.loc[11, :][2:]), axis=None)
+    population_columns = np.concatenate(
+        (population.loc[10,:][:2], population.loc[11, :][2:]), axis=None)
     population = population.loc[14:327,]
     population.columns = population_columns
-    population.insert(loc=2, column="Under 50", value=population["Under 16"] + population["16-49"])
+    population.insert(
+        loc=2, 
+        column="Under 50", 
+        value=population["Under 16"] + population["16-49"])
     population = population.drop(["Under 16", "16-49"], axis=1)
     population = population.convert_dtypes()
     return population
@@ -238,7 +250,8 @@ We can see how to do this in the following code:
 
 [source,python]
 ----
-vaccination_rates = (vaccinations.select_dtypes(exclude='string').div(population.select_dtypes(exclude='string')) * 100)
+vaccination_rates = (vaccinations.select_dtypes(exclude='string')
+                                 .div(population.select_dtypes(exclude='string')) * 100)
 ----
 
 .Vaccination Rates
@@ -256,7 +269,10 @@ That looks good, but we've lost the area names, which we can get back by calling
 
 [source,python]
 ----
-vaccination_rates = ((vaccinations.select_dtypes(exclude='string').div(population.select_dtypes(exclude='string')) * 100).combine_first(vaccinations)[vaccinations.columns])
+vaccination_rates = (
+    (vaccinations.select_dtypes(exclude='string')
+                 .div(population.select_dtypes(exclude='string')) * 100)
+                 .combine_first(vaccinations)[vaccinations.columns])
 vaccination_rates = vaccination_rates.convert_dtypes()
 ----
 
@@ -398,7 +414,10 @@ And now we can compute the vaccination rate per region:
 
 [source, python]
 ----
-vaccination_rates_by_region = ((vaccinations_by_region.select_dtypes(exclude='object').div(population_by_region.select_dtypes(exclude='object')) * 100).combine_first(vaccinations_by_region)[vaccinations_by_region.columns])
+vaccination_rates_by_region = ((vaccinations_by_region
+    .select_dtypes(exclude='object')
+    .div(population_by_region.select_dtypes(exclude='object')) * 100)
+    .combine_first(vaccinations_by_region)[vaccinations_by_region.columns])
 vaccination_rates_by_region = vaccination_rates_by_region.convert_dtypes()
 ----
 

@@ -3,7 +3,7 @@ draft = false
 date="2010-02-07 02:54:13"
 title="F#: function keyword"
 tag=['f']
-category=['F#']
+category=['fsharp']
 +++
 
 I've been browsing through Chris Smith's http://www.amazon.com/gp/product/0596153643?ie=UTF8&tag=marneesblo-20&linkCode=as2&camp=1789&creative=390957&creativeASIN=0596153643[Programming F#] book and in the chapter on pattern matching he describes the 'function' key word which I haven't used before.

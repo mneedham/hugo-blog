@@ -3,7 +3,7 @@ draft = false
 date="2009-06-16 18:55:38"
 title="C#/F#: Using .NET framework classes"
 tag=['c', 'net', 'f']
-category=['.NET', 'F#']
+category=['.NET', 'fsharp']
 +++
 
 I was recently discussing F# with a couple of colleagues and one thing that came up is the slightly different ways that we might choose to interact with certain .NET framework classes compared to how we use those same classes in C# code.
