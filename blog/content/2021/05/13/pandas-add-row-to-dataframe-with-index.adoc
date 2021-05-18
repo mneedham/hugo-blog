@@ -1,0 +1,96 @@
++++
+draft = false
+date="2021-05-13 00:44:37"
+title="Pandas: Add row to DataFrame"
+tag=['python', 'pandas']
+category=['python']
+description="In this post we'll add a new row to a Pandas DataFrame."
++++
+
+Usually when I'm working with Pandas DataFrames I want to add new columns of data, but I recently wanted to add a row to an existing DataFrame.
+It turns out there are more than one ways to do that, which we'll explore in this blog post. 
+
+Let's start by importing Pandas into our Python script:
+
+[source, bash]
+----
+import pandas as pd
+----
+
+We'll start from a DataFrame that has two rows and the columns `name` and `age`:
+
+
+[source, python]
+----
+df = pd.DataFrame(data=[{"name": "Mark", "age": 37}, {"name": "David", "age": 36}])
+----
+
+.DataFrame with no explicit index
+[format="csv", options="header"]
+|===
+include::content/2021/05/13/data/no_index.csv[]
+|===
+
+One way to add rows to this DataFrame is by creating a new DataFrame and joining it with our initial DataFrame using the `append` function:
+
+[source, python]
+----
+to_append = pd.DataFrame([
+    {"name": "Ryan", "age": 42},
+    {"name": "John", "age": 25}
+])
+append_df = df.append(to_append)
+----
+
+.DataFrame with new row
+[format="csv", options="header"]
+|===
+include::content/2021/05/13/data/no_index_append.csv[]
+|===
+
+The index for the new rows start again from 0, so we now have multiple rows with the index 0 and 1.
+
+Another way that we can append a new row is using the `loc` function:
+
+[source, python]
+----
+df.loc[2] = ["Ryan", 42]
+df.loc[3] = ["John", 25]
+----
+
+If we take this approach we need to explicitly specify the index of the row.
+We can put whatever value we want, but let's create indexes that increment the existing values:
+
+.DataFrame with new row
+[format="csv", options="header"]
+|===
+include::content/2021/05/13/data/no_index_individual.csv[]
+|===
+
+What if we have an explicit index set on the DataFrame?
+We can convert the `name` column into an index by running the following code:
+
+[source, python]
+----
+df_with_index = df.set_index("name")
+----
+
+.DataFrame with `name` index
+[format="csv", options="header"]
+|===
+include::content/2021/05/13/data/index.csv[]
+|===
+
+And now if we want to add a new row the index identifier should be a name instead of a numeric value:
+
+[source, python]
+----
+df_with_index.loc["Ryan"] = [42]
+df_with_index.loc["John"] = [25]
+----
+
+.DataFrame with `name` index with new row
+[format="csv", options="header"]
+|===
+include::content/2021/05/13/data/index_with_row.csv[]
+|===

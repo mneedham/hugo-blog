@@ -1,3 +1,4 @@
+
 +++
 draft = false
 date="2013-07-27 09:30:26"
@@ -118,13 +119,35 @@ I'd actually made use of parameters in such a way that only one person got creat
 
 I tweaked the code to pass in http://docs.neo4j.org/chunked/snapshot/query-create.html#create-create-multiple-nodes-from-map[an array of maps] instead of strings like so:
 
-~~~ruby require 'neography' params = { :people \=> [] } (1..500).each do |value| params[:people] << { :name \=> "person#\{value}"} end Neography::Rest.new.execute_query("CREATE (:Person \{people})", params) ~~~
+[source,ruby]
+----
+require 'neography' 
+params = { :people \=> [] } (1..500).each do |value| 
+  params[:people] << { :name \=> "person#\{value}"} 
+end 
+Neography::Rest.new.execute_query("CREATE (:Person \{people})", params)
+----
 
-I ran my script to populate the database before querying it again: ~~~text neo4j-sh (0)$ MATCH p:Person RETURN p; =\=> +-----------------------------+ =\=> | p | =\=> +-----------------------------+ =\=> | Node[1]{name:"person1"} | =\=> | Node[2]{name:"person2"} | =\=> | Node[3]{name:"person3"} | =\=> | Node[4]{name:"person4"} | =\=> | Node[5]{name:"person5"} | =\=> | Node[6]{name:"person6"} | =\=> | Node[7]{name:"person7"} | =\=> | Node[8]{name:"person8"} | =\=> | Node[9]{name:"person9"} | =\=> | Node[10]{name:"person10"} | =\=> | Node[11]{name:"person11"} | \... =\=> +-----------------------------+ =\=> 500 rows =\=> 1081 ms ~~~
+I ran my script to populate the database before querying it again: 
 
-This time I got the expected result so the only thing to do was to quickly check how long it had taken to get the parameterised data into the database: ~~~bash $ time bundle exec ruby people.rb real 0m0.993s user 0m0.733s sys 0m0.097s ~~~
+[source, text]
+----
+ neo4j-sh (0)$ MATCH p:Person RETURN p; 
+ =\=> +-----------------------------+ =\=> | p | =\=> +-----------------------------+ =\=> | Node[1]{name:"person1"} | =\=> | Node[2]{name:"person2"} | =\=> | Node[3]{name:"person3"} | =\=> | Node[4]{name:"person4"} | =\=> | Node[5]{name:"person5"} | =\=> | Node[6]{name:"person6"} | =\=> | Node[7]{name:"person7"} | =\=> | Node[8]{name:"person8"} | =\=> | Node[9]{name:"person9"} | =\=> | Node[10]{name:"person10"} | =\=> | Node[11]{name:"person11"} | \... =\=> +-----------------------------+ =\=> 500 rows =\=> 1081 ms
+----
 
-And the winner is\...Michael, by about 26 seconds per run.
+This time I got the expected result so the only thing to do was to quickly check how long it had taken to get the parameterised data into the database: 
+
+[source, bash]
+----
+ $ time bundle exec ruby people.rb 
+ 
+ real 0m0.993s 
+ user 0m0.733s 
+ sys 0m0.097s
+----
+
+And the winner is...Michael, by about 26 seconds per run.
 
 In this version cypher creates a query plan the first time it encounters the CREATE statement but after that it can use the query plan for the subsequent calls which leads to a massive performance improvement.
 
