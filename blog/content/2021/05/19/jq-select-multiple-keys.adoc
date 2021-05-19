@@ -1,0 +1,311 @@
++++
+draft = false
+date="2021-05-19 00:44:37"
+title="jq: Select multiple keys"
+tag=['jq']
+category=['jq']
+description="In this post we'll learn how to extract multiple keys from a Swagger JSON file using the jq JSON processing library."
++++
+
+
+I recently started a new job, working for a FinTech company called Finbourne, who build a data platform for investment data. 
+It's an API first product that publishes a Swagger API JSON file that I've been trying to parse to get a list of the end points and their operation ids.
+In this blog post I'll show how I've been parsing that file using https://stedolan.github.io/jq/manual/[jq^], my favourite tool for parsing JSON files.
+
+Every LUSID user gets their own tenant/subdomain that has its own Swagger file.
+We'll download my one by running the following command:
+
+[source, bash]
+----
+wget https://markn.lusid.com/api/swagger/v0/swagger.json
+----
+
+This file has lots of stuff that we're not interested in, so let's clean it up.
+We'll remove the parts of the file that we aren't interested in and write the rest to `swagger-clean.json`:
+
+[source,bash]
+----
+cat swagger.json  | \
+jq 'del(.paths[] [] | .requestBody,.responses,.parameters,.security,.tags) | 
+    del (.info,.servers)' \
+> swagger-clean.json
+----
+
+And now let's have a look at what we've got left:
+
+[source,bash]
+----
+cat swagger-clean.json | jq -r '.paths'
+----
+
+
+[source, json]
+----
+{
+  "/api/aggregation/$valuation": {
+    "post": {
+      "summary": "[BETA] Perform valuation for a list of portfolios and/or portfolio groups",
+      "description": "Perform valuation on specified list of portfolio and/or portfolio groups for a set of dates.",
+      "operationId": "GetValuation",
+      "x-fbn-apistatus": "Beta"
+    }
+  },
+  "/api/allocations": {
+    "get": {
+      "summary": "[EXPERIMENTAL] List Allocations",
+      "description": "Fetch the last pre-AsAt date version of each allocation in scope (does not fetch the entire history).",
+      "operationId": "ListAllocations",
+      "x-fbn-apistatus": "Experimental"
+    },
+    "post": {
+      "summary": "[EXPERIMENTAL] Upsert Allocations",
+      "description": "Upsert; update existing allocations with given ids, or create new allocations otherwise.",
+      "operationId": "UpsertAllocations",
+      "x-fbn-apistatus": "Experimental"
+    }
+  },
+  "/api/allocations/{scope}/{code}": {
+    "get": {
+      "summary": "[EXPERIMENTAL] Get Allocation",
+      "description": "Fetch an Allocation matching the provided identifier",
+      "operationId": "GetAllocation",
+      "x-fbn-apistatus": "Experimental"
+    },
+    "delete": {
+      "summary": "[EXPERIMENTAL] Delete allocation",
+      "description": "Delete an allocation. Deletion will be valid from the allocation's creation datetime.\r\nThis means that the allocation will no longer exist at any effective datetime from the asAt datetime of deletion.",
+      "operationId": "DeleteAllocation",
+      "x-fbn-apistatus": "Experimental"
+    }
+  },
+...
+}
+----
+
+It's a nested structure, keyed by endpoint URIs, which can then support multiple HTTP verbs.
+So given this subset of the file, we want to extract the URI, `summary`, and `operationId` for each endpoint.
+
+The first slightly tricky thing is getting hold of the URIs.
+If we use the `paths[]` selector to get an array of paths, we lose the URI, as shown below:
+
+[source, bash]
+----
+cat swagger-clean.json | jq -r '.paths[]'
+----
+
+[source, json]
+----
+{
+  "post": {
+    "summary": "[BETA] Perform valuation for a list of portfolios and/or portfolio groups",
+    "description": "Perform valuation on specified list of portfolio and/or portfolio groups for a set of dates.",
+    "operationId": "GetValuation",
+    "x-fbn-apistatus": "Beta"
+  }
+}
+
+{
+  "get": {
+    "summary": "[EXPERIMENTAL] List Allocations",
+    "description": "Fetch the last pre-AsAt date version of each allocation in scope (does not fetch the entire history).",
+    "operationId": "ListAllocations",
+    "x-fbn-apistatus": "Experimental"
+  },
+  "post": {
+    "summary": "[EXPERIMENTAL] Upsert Allocations",
+    "description": "Upsert; update existing allocations with given ids, or create new allocations otherwise.",
+    "operationId": "UpsertAllocations",
+    "x-fbn-apistatus": "Experimental"
+  }
+}
+
+{
+  "get": {
+    "summary": "[EXPERIMENTAL] Get Allocation",
+    "description": "Fetch an Allocation matching the provided identifier",
+    "operationId": "GetAllocation",
+    "x-fbn-apistatus": "Experimental"
+  },
+  "delete": {
+    "summary": "[EXPERIMENTAL] Delete allocation",
+    "description": "Delete an allocation. Deletion will be valid from the allocation's creation datetime.\r\nThis means that the allocation will no longer exist at any effective datetime from the asAt datetime of deletion.",
+    "operationId": "DeleteAllocation",
+    "x-fbn-apistatus": "Experimental"
+  }
+}
+----
+
+Luckily we can access the URI using the `keys` function in combination with the `.paths` selector (instead of `.paths[]`): 
+
+[source, bash]
+----
+cat swagger-clean.json | jq -r '.paths | keys[]'
+----
+
+[source, json]
+----
+"/api/aggregation/$valuation",
+"/api/allocations",
+"/api/allocations/{scope}/{code}",
+----
+
+We can then alias the keys and drill down into each one. 
+So if we want to extract the `operationId` and `summary` for `post` requests, we can do it like this:
+
+
+[source, bash]
+----
+cat swagger-clean.json | jq -r '.paths | keys[] as $k | [$k, (.[$k] .post.operationId), (.[$k] .post.summary)]'
+----
+
+[source, json]
+----
+[
+  "/api/aggregation/$valuation",
+  "GetValuation",
+  "[BETA] Perform valuation for a list of portfolios and/or portfolio groups"
+]
+[
+  "/api/allocations",
+  "UpsertAllocations",
+  "[EXPERIMENTAL] Upsert Allocations"
+]
+[
+  "/api/calendars/businessday/{scope}/{code}",
+  null,
+  null
+]
+----
+
+That works to some extent, but it doesn't work if the key is `get` or `delete`. 
+So it turns out that we want to get all of the keys, which we can do using the `keys` function again!
+This leaves us with the following nested query:
+
+
+[source, bash]
+----
+cat swagger-clean.json | jq -r '.paths | keys[] as $k | [
+    (.[$k] | 
+     keys[] as $k1 | 
+     [$k, $k1, .[$k1].operationId, .[$k1].summary]
+    )
+  ]'
+----
+
+
+[source, json]
+----
+[
+  [
+    "/api/aggregation/$valuation",
+    "post",
+    "GetValuation",
+    "[BETA] Perform valuation for a list of portfolios and/or portfolio groups"
+  ]
+]
+
+[
+  [
+    "/api/allocations",
+    "get",
+    "ListAllocations",
+    "[EXPERIMENTAL] List Allocations"
+  ],
+  [
+    "/api/allocations",
+    "post",
+    "UpsertAllocations",
+    "[EXPERIMENTAL] Upsert Allocations"
+  ]
+]
+[
+  [
+    "/api/allocations/{scope}/{code}",
+    "delete",
+    "DeleteAllocation",
+    "[EXPERIMENTAL] Delete allocation"
+  ],
+  [
+    "/api/allocations/{scope}/{code}",
+    "get",
+    "GetAllocation",
+    "[EXPERIMENTAL] Get Allocation"
+  ]
+]
+
+----
+
+And then to flatten it out into single arrays instead of nested ones, we can pipe the result through the `.[]` selector:
+
+[source, bash]
+----
+cat swagger-clean.json | jq -r '.paths | keys[] as $k | [
+    (.[$k] | 
+     keys[] as $k1 | 
+     [$k, $k1, .[$k1].operationId, .[$k1].summary]
+    )
+  ] | .[]'
+----
+
+
+[source, json]
+----
+[
+  "/api/aggregation/$valuation",
+  "post",
+  "GetValuation",
+  "[BETA] Perform valuation for a list of portfolios and/or portfolio groups"
+]
+[
+  "/api/allocations",
+  "get",
+  "ListAllocations",
+  "[EXPERIMENTAL] List Allocations"
+]
+[
+  "/api/allocations",
+  "post",
+  "UpsertAllocations",
+  "[EXPERIMENTAL] Upsert Allocations"
+]
+[
+  "/api/allocations/{scope}/{code}",
+  "delete",
+  "DeleteAllocation",
+  "[EXPERIMENTAL] Delete allocation"
+]
+[
+  "/api/allocations/{scope}/{code}",
+  "get",
+  "GetAllocation",
+  "[EXPERIMENTAL] Get Allocation"
+]
+----
+
+And then if we want to go one step further, we could even convert that all into a CSV file using the `@csv` operator:
+
+[source, bash]
+----
+cat swagger-clean.json | jq -r '.paths | keys[] as $k | [
+    (.[$k] | 
+     keys[] as $k1 | 
+     [$k, $k1, .[$k1].operationId, .[$k1].summary]
+    )
+  ] | .[] | @csv'
+----
+
+[format="csv", cols="55,5,20,20"]
+|===
+"/api/aggregation/$valuation","post","GetValuation","[BETA] Perform valuation for a list of portfolios and/or portfolio groups"
+"/api/aggregation/$valuationinlined","post","GetValuationOfWeightedInstruments","[BETA] Perform valuation for an inlined portfolio"
+"/api/aggregation/{scope}/{code}/$generateconfigurationrecipe","post","GenerateConfigurationRecipe","[EXPERIMENTAL] Generates a recipe sufficient to perform valuations for the given portfolio."
+"/api/allocations","get","ListAllocations","[EXPERIMENTAL] List Allocations"
+"/api/allocations","post","UpsertAllocations","[EXPERIMENTAL] Upsert Allocations"
+"/api/allocations/{scope}/{code}","delete","DeleteAllocation","[EXPERIMENTAL] Delete allocation"
+"/api/allocations/{scope}/{code}","get","GetAllocation","[EXPERIMENTAL] Get Allocation"
+"/api/calendars/businessday/{scope}/{code}","get","IsBusinessDateTime","[EXPERIMENTAL] Check whether a DateTime is a ""Business DateTime"""
+"/api/calendars/generic","get","ListCalendars","[EXPERIMENTAL] List Calenders"
+"/api/calendars/generic","post","CreateCalendar","[EXPERIMENTAL] Create a calendar in its generic form"
+|===
+
+Job done and jq to the rescue again!
