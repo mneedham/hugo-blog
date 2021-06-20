@@ -38,7 +38,7 @@ And now let's have a look at what we've got left:
 cat swagger-clean.json | jq -r '.paths'
 ----
 
-
+.Results
 [source, json]
 ----
 {
@@ -93,6 +93,7 @@ If we use the `paths[]` selector to get an array of paths, we lose the URI, as s
 cat swagger-clean.json | jq -r '.paths[]'
 ----
 
+.Results
 [source, json]
 ----
 {
@@ -142,6 +143,7 @@ Luckily we can access the URI using the `keys` function in combination with the 
 cat swagger-clean.json | jq -r '.paths | keys[]'
 ----
 
+.Results
 [source, json]
 ----
 "/api/aggregation/$valuation",
@@ -158,6 +160,7 @@ So if we want to extract the `operationId` and `summary` for `post` requests, we
 cat swagger-clean.json | jq -r '.paths | keys[] as $k | [$k, (.[$k] .post.operationId), (.[$k] .post.summary)]'
 ----
 
+.Results
 [source, json]
 ----
 [
@@ -192,7 +195,7 @@ cat swagger-clean.json | jq -r '.paths | keys[] as $k | [
   ]'
 ----
 
-
+.Results
 [source, json]
 ----
 [
@@ -247,7 +250,7 @@ cat swagger-clean.json | jq -r '.paths | keys[] as $k | [
   ] | .[]'
 ----
 
-
+.Results
 [source, json]
 ----
 [
@@ -294,7 +297,8 @@ cat swagger-clean.json | jq -r '.paths | keys[] as $k | [
   ] | .[] | @csv'
 ----
 
-[format="csv", cols="55,5,20,20"]
+.Results
+[format="csv", cols="45,5,20,30"]
 |===
 "/api/aggregation/$valuation","post","GetValuation","[BETA] Perform valuation for a list of portfolios and/or portfolio groups"
 "/api/aggregation/$valuationinlined","post","GetValuationOfWeightedInstruments","[BETA] Perform valuation for an inlined portfolio"
