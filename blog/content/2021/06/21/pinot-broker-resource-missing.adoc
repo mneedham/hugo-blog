@@ -1,0 +1,178 @@
++++
+draft = false
+date="2021-06-21 00:44:37"
+title="Apache Pinot: {'errorCode': 410, 'message': 'BrokerResourceMissingError'}"
+tag=['pinot']
+category=['Pinot']
+description="In this post we'll learn about the Apache Pinot BrokerResourceMissingError error message."
++++
+
+I've recently been playing around with https://pinot.apache.org/[Apache Pinot^], a realtime analytical data store that's used for user facing analytics use cases.
+In this blog post I want to walk through some challenges I had connecting to Pinot using the Python driver and how I got things working.
+
+I'm running Pinot locally using the Docker image, which I setup in a Docker compose file:
+
+.docker-compose.yml
+[source,yaml]
+----
+version: '3.7'
+services:
+  pinot:
+    image: apachepinot/pinot:0.7.1
+    command: "QuickStart -type batch"
+    container_name: "pinot-quickstart"
+    volumes:
+      - ./config:/config
+      - ./data:/opt/pinot/data
+    ports:
+      - "9000:9000"      
+      - "8000:8000"
+      - "8099:8099"
+----
+
+I launched that using the following command:
+
+[source, bash]
+----
+docker-compose up
+----
+
+And waited for this line in the output:
+
+[source, bash]
+----
+pinot-quickstart | You can always go to http://localhost:9000 to play around in the query console
+----
+
+If we navigate to that URL we can run queries against Pinot from the web app, but I want to run some queries from Python, so we'll now install the https://docs.pinot.apache.org/users/clients/python[Python driver^]:
+
+[source, bash]
+----
+pip install pinotdb
+----
+
+We'll import the module into our Python script:
+
+[source, python]
+----
+from pinotdb import connect
+----
+
+Now let's see if we can connect to the database using https://github.com/python-pinot-dbapi/pinot-dbapi[a sample query from the GitHub repository^]:
+
+[source, python]
+----
+conn = connect(host='localhost', port=8099, path='/query/sql', scheme='http')
+curs = conn.cursor()
+curs.execute("""
+    SELECT * 
+    FROM airlineStats 
+    LIMIT 5
+""")
+for row in curs:
+    print(row)
+----
+
+If we run this query, we'll see the following output:
+
+.Output
+[source, text]
+----
+Traceback (most recent call last):
+  File "blog.py", line 5, in <module>
+    curs.execute("""
+  File "/home/markhneedham/.local/share/virtualenvs/pinot-playground-V0PLiJ36/lib/python3.8/site-packages/pinotdb/db.py", line 44, in g
+    return f(self, *args, **kwargs)
+  File "/home/markhneedham/.local/share/virtualenvs/pinot-playground-V0PLiJ36/lib/python3.8/site-packages/pinotdb/db.py", line 270, in execute
+    r = requests.post(self.url, headers=headers, json=payload)
+  File "/home/markhneedham/.local/share/virtualenvs/pinot-playground-V0PLiJ36/lib/python3.8/site-packages/requests/api.py", line 119, in post
+    return request('post', url, data=data, json=json, **kwargs)
+  File "/home/markhneedham/.local/share/virtualenvs/pinot-playground-V0PLiJ36/lib/python3.8/site-packages/requests/api.py", line 61, in request
+    return session.request(method=method, url=url, **kwargs)
+  File "/home/markhneedham/.local/share/virtualenvs/pinot-playground-V0PLiJ36/lib/python3.8/site-packages/requests/sessions.py", line 542, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/home/markhneedham/.local/share/virtualenvs/pinot-playground-V0PLiJ36/lib/python3.8/site-packages/requests/sessions.py", line 655, in send
+    r = adapter.send(request, **kwargs)
+  File "/home/markhneedham/.local/share/virtualenvs/pinot-playground-V0PLiJ36/lib/python3.8/site-packages/requests/adapters.py", line 516, in send
+    raise ConnectionError(e, request=request)
+requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=8099): Max retries exceeded with url: /query/sql (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7f5e585f84f0>: Failed to establish a new connection: [Errno 111] Connection refused'))
+----
+
+Hmmm, we can't even connect to port 8099, so that must be the wrong one.
+I noticed port 8000 mentioned in some documentation, so perhaps we'll fare better querying on that port:
+
+[source, python]
+----
+conn = connect(host='localhost', port=8000, path='/query/sql', scheme='http')
+curs = conn.cursor()
+curs.execute("""
+    SELECT * 
+    FROM airlineStats 
+    LIMIT 5
+""")
+for row in curs:
+    print(row)
+----
+
+If we run this query we'll see the following output:
+
+.Output
+[source, text]
+----
+---------------------------------------------------------------------------
+DatabaseError                             Traceback (most recent call last)
+<ipython-input-182-7ce88c8878a1> in <module>
+      1 curs = conn.cursor()
+----> 2 curs.execute("""
+      3     SELECT * FROM airlineStats LIMIT 5
+      4 """)
+      5 for row in curs:
+
+/opt/conda/lib/python3.8/site-packages/pinotdb/db.py in g(self, *args, **kwargs)
+     42         if self.closed:
+     43             raise exceptions.Error(f"{self.__class__.__name__} already closed")
+---> 44         return f(self, *args, **kwargs)
+     45 
+     46     return g
+
+/opt/conda/lib/python3.8/site-packages/pinotdb/db.py in execute(self, operation, parameters)
+    301         if query_exceptions:
+    302             msg = "\n".join(pformat(exception) for exception in query_exceptions)
+--> 303             raise exceptions.DatabaseError(msg)
+    304 
+    305         rows = []  # array of array, where inner array is array of column values
+
+DatabaseError: {'errorCode': 410, 'message': 'BrokerResourceMissingError'}
+----
+
+We're able to connect this time, but still can't execute the query.
+
+The error message indicates that it https://docs.pinot.apache.org/basics/getting-started/frequent-questions/query-faq#i-get-the-following-error-when-running-a-query-what-does-it-mean[can't find a broker to process the query].
+This is true - we don't actually have a table called `airlineStats`, so there wouldn't be a broker that could process a query against that table.
+
+We do have a table called `baseballStats`, so let's query that instead:
+
+[source, python]
+----
+conn = connect(host='localhost', port=8000, path='/query/sql', scheme='http')
+curs = conn.cursor()
+curs.execute("""
+    SELECT * 
+    FROM baseballStats 
+    LIMIT 5
+""")
+for row in curs:
+    print(row)
+----
+
+.Output
+[source, text]
+----
+[0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 'NL', 11, 11, 'aardsda01', 'David Allan', 1, 0, 0, 0, 0, 0, 0, 'SFN', 0, 2004]
+[2, 45, 0, 0, 0, 0, 0, 0, 0, 0, 'NL', 45, 43, 'aardsda01', 'David Allan', 1, 0, 0, 0, 1, 0, 0, 'CHN', 0, 2006]
+[0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 'AL', 25, 2, 'aardsda01', 'David Allan', 1, 0, 0, 0, 0, 0, 0, 'CHA', 0, 2007]
+[1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 'AL', 47, 5, 'aardsda01', 'David Allan', 1, 0, 0, 0, 0, 0, 1, 'BOS', 0, 2008]
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'AL', 73, 3, 'aardsda01', 'David Allan', 1, 0, 0, 0, 0, 0, 0, 'SEA', 0, 2009]
+----
+
+Success!
