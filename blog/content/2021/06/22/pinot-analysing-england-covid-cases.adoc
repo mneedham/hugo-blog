@@ -20,7 +20,7 @@ My understanding is that Pinot is a really good fit for datasets where:
 Kenny Bastani has some cool blog posts showing how to do this with https://medium.com/apache-pinot-developer-blog/analyzing-wikipedia-in-real-time-with-apache-kafka-and-pinot-4b4e5e36936b[Wikipedia^] and https://medium.com/apache-pinot-developer-blog/using-apache-pinot-and-kafka-to-analyze-github-events-93cdcb57d5f7[GitHub^], and Jackie Jiang showed how to https://www.youtube.com/watch?v=TQoXSoKHLp8[analyse Meetup's RSVP stream^] in last week's Pinot meeetup.
 
 
-In this blog post I'm going to show how we can use Pinot to analyse Coronavirus case date in England that I https://coronavirus.data.gov.uk/details/download[downloaded from the UK's Covid dashboard^].
+In this blog post I'm going to show how we can use Pinot to analyse Coronavirus case data in England that I https://coronavirus.data.gov.uk/details/download[downloaded from the UK's Covid dashboard^].
 This dataset is static, so it would fit in the first category of datasets.
 
 The code used in this post is all included in the https://github.com/mneedham/pinot-covid-cases[github.com/mneedham/pinot-covid-cases] GitHub repository.
@@ -310,8 +310,8 @@ conn = connect(host='pinot-covid-cases', port=8000, path='/query/sql', scheme='h
 
 curs = conn.cursor()
 curs.execute("""
-    SELECT count(*)
-    FROM cases 
+SELECT count(*)
+FROM cases 
 """)
 for row in curs:
     print(row)
@@ -331,11 +331,11 @@ First up, which areas have had the most cases:
 [source, python]
 ----
 curs.execute("""
-    SELECT areaName, sum(cases) AS totalCases
-    FROM cases 
-    GROUP BY areaName
-    ORDER BY totalCases DESC    
-    LIMIT 10
+SELECT areaName, sum(cases) AS totalCases
+FROM cases 
+GROUP BY areaName
+ORDER BY totalCases DESC    
+LIMIT 10
 """)
 
 df_by_area = pd.DataFrame(curs, columns=["areaName", "numberOfCases"])
@@ -441,10 +441,11 @@ The most cases happened at the end of December 2020/beginning of January 2020, w
 == In Summary
 
 I appreciate that we've only brushed the surface of what Pinot can do in this blog post, but I had to start somewhere and it's been a fun tool to play with.
+
 I think my next dataset needs to have more columns per row and preferably have more than one metrics column.
 I also need to learn more about indexing and in particular the https://docs.pinot.apache.org/basics/indexing/star-tree-index[Star-Tree Index^] that https://www.startree.ai/[the company behind Pinot^] is named after.
 
 
-I should also say that I found the https://communityinviter.com/apps/apache-pinot/apache-pinot[Pinot Community Slack^] really in helpful for getting up to speed. 
+I should also say that I found the https://communityinviter.com/apps/apache-pinot/apache-pinot[Pinot Community Slack^] really helpful for getting up to speed. 
 Special thanks to https://twitter.com/nehapawar18[Neha Pawar^] and https://www.linkedin.com/in/mayankshriv/[Mayank Shrivastava^] for answering my questions!   
 
