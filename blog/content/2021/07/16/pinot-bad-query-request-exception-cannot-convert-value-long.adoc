@@ -1,0 +1,102 @@
++++
+draft = false
+date="2021-07-16 00:44:37"
+title="Apache Pinot: BadQueryRequestException - Cannot convert value to type: LONG"
+tag=['pinot']
+category=['Pinot']
+description="In this post we'll learn how to work around an error message in Apache Pinot when filtering by timestamp."
++++
+
+In my continued exploration of Apache Pinot I've been trying out the https://docs.pinot.apache.org/basics/recipes/github-events-stream[GitHub events recipe ^], which imports data from the GitHub events stream into Pinot.
+In this blog post I want to show how I worked around an exception I was getting when trying to filter the data by one of the timestamp's column.
+
+== Setup
+
+We're going to spin up a local instance of Pinot using the following Docker compose config:
+
+
+.docker-compose.yml
+[source, yaml]
+----
+
+version: '3'
+services:
+  pinot:
+    image: apachepinot/pinot:0.7.1
+    command: "GitHubEventsQuickStart -personalAccessToken ${GITHUB_TOKEN}"
+    container_name: "pinot-github-events-quick-start"
+    ports:
+      - "9000:9000"      
+      - "8000:8000"
+----
+
+I then created a personal access token and made it available via the `GITHUB_TOKEN` environment variable.
+
+We can launch the container by running the following command:
+
+
+[source, bash]
+----
+docker-compose up
+----
+
+== Querying Pinot
+
+Once that's ready, we'll navigate to http://localhost:9000/#/query, where we'll see the following screen:
+
+
+image::{{<siteurl>}}/uploads/2021/07/pinot-controller.png[]
+
+You can see we have a `pullRequestMergedEvents` table, which contains the most recent events from GitHub.
+I wanted to count how many events happened in the last 60 minutes, which I did by writing the following query:
+
+[source, sql]
+----
+select count(*)
+from pullRequestMergedEvents 
+where createdTimeMillis < (now() - 1000*60*60)
+limit 10
+----
+
+If we run that query we'll get the following output:
+
+[source, text]
+----
+[
+  {
+    "errorCode": 200,
+    "message": "QueryExecutionError:\norg.apache.pinot.core.query.exception.BadQueryRequestException: Cannot convert value: '1.626415601834E12' to type: LONG\n\tat org.apache.pinot.core.query.pruner.ColumnValueSegmentPruner.convertValue(ColumnValueSegmentPruner.java:261)\n\tat org.apache.pinot.core.query.pruner.ColumnValueSegmentPruner.pruneRangePredicate(ColumnValueSegmentPruner.java:191)\n\tat org.apache.pinot.core.query.pruner.ColumnValueSegmentPruner.pruneSegment(ColumnValueSegmentPruner.java:105)\n\tat org.apache.pinot.core.query.pruner.ColumnValueSegmentPruner.prune(ColumnValueSegmentPruner.java:76)\n\tat org.apache.pinot.core.query.pruner.SegmentPruner.prune(SegmentPruner.java:45)\n\tat org.apache.pinot.core.query.pruner.SegmentPrunerService.prune(SegmentPrunerService.java:63)\n\tat org.apache.pinot.core.query.executor.ServerQueryExecutorV1Impl.processQuery(ServerQueryExecutorV1Impl.java:271)\n\tat org.apache.pinot.core.query.executor.ServerQueryExecutorV1Impl.processQuery(ServerQueryExecutorV1Impl.java:215)\n\tat org.apache.pinot.core.query.executor.QueryExecutor.processQuery(QueryExecutor.java:60)\n\tat org.apache.pinot.core.query.scheduler.QueryScheduler.processQueryAndSerialize(QueryScheduler.java:157)\n\tat org.apache.pinot.core.query.scheduler.QueryScheduler.lambda$createQueryFutureTask$0(QueryScheduler.java:141)\n\tat java.util.concurrent.FutureTask.run(FutureTask.java:266)\n\tat java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)\n\tat shaded.com.google.common.util.concurrent.TrustedListenableFutureTask$TrustedFutureInterruptibleTask.runInterruptibly(TrustedListenableFutureTask.java:111)"
+  }
+]
+----
+
+If the WHERE clause read `where createdTimeMillis < now()` it was working fine, so the issue was with my attempts to subtract from that timestamp.
+https://medium.com/@xiangfu0[Xiang Fu ^] suggested that `(now() - 1000*60*60)` was resulting in a double value, which we can work around by casting it to a long, as shown below:
+
+[source, sql]
+----
+select count(*)
+from pullRequestMergedEvents 
+where createdTimeMillis > now() - CAST(1000*60*60 AS long)
+limit 10
+----
+
+If we run that query we'll now get a result:
+
+.Result
+[options="header"]
+[source, csv]
+----
+count(*)
+178
+----
+
+I found that I could also put the `CAST` function around the whole `(now() - 1000*60*60)` expression, instead of just the `1000*60*60` part:
+
+[source, sql]
+----
+select count(*)
+from pullRequestMergedEvents 
+where createdTimeMillis > CAST(now() - 1000*60*60 AS long)
+limit 10
+----
