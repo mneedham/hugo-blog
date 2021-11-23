@@ -54,7 +54,7 @@ services:
 This will spin up a ZooKeeper instance that will store all of Pinot's metadata.
 We'll also spin up a Pinot Controller to manage the metadata, a Pinot Server to host the data and serve queries, and a Pinot Broker that receives queries from clients and sends them to the right server.
 
-We can launch the container by running the following command:
+We can launch the containers by running the following command:
 
 [source, bash]
 ----
