@@ -1,0 +1,181 @@
++++
+draft = false
+date="2021-11-23 00:44:37"
+title="Apache Pinot: org.apache.helix.HelixException: Cluster structure is not set up for cluster: PinotCluster"
+tag=['pinot']
+category=['Pinot']
+description="In this post we'll learn how to work around an error message when starting up an Apache Pinot cluster."
++++
+
+In my continued exploration of Apache Pinot, I wanted to spin up all the components individually rather than relying on one of the QuickStarts that takes care of that for me.
+In doing so I came across an interesting error that we'll explore in this post.
+
+== Setup
+
+We're going to spin up a local instance of Pinot using the following Docker compose config:
+
+[source, yaml]
+----
+version: '3.7'
+services:
+  zookeeper:
+    image: zookeeper:3.5.6
+    hostname: zookeeper
+    container_name: manual-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+  pinot-controller:
+    image: apachepinot/pinot:0.9.0
+    command: "StartController -zkAddress manual-zookeeper:2181"
+    container_name: "manual-pinot-controller"
+    ports:
+      - "9000:9000"
+    depends_on:
+      - zookeeper
+  pinot-broker:
+    image: apachepinot/pinot:0.9.0
+    command: "StartBroker -zkAddress manual-zookeeper:2181"
+    container_name: "manual-pinot-broker"
+    ports:
+      - "8099:8099"
+    depends_on:
+      - pinot-controller
+  pinot-server:
+    image: apachepinot/pinot:0.9.0
+    command: "StartServer -zkAddress manual-zookeeper:2181"
+    container_name: "manual-pinot-server"
+    depends_on:
+      - pinot-broker
+----
+
+This will spin up a ZooKeeper instance that will store all of Pinot's metadata.
+We'll also spin up a Pinot Controller to manage the metadata, a Pinot Server to host the data and serve queries, and a Pinot Broker that receives queries from clients and sends them to the right server.
+
+We can launch the container by running the following command:
+
+[source, bash]
+----
+docker-compose up
+----
+
+If we wait a few seconds we'll eventually see the following exception:
+
+[source, text]
+----
+manual-pinot-broker | 2021/11/23 13:20:02.792 ERROR [ZKHelixManager] [Start a Pinot [BROKER]] fail to createClient.
+manual-pinot-broker | org.apache.helix.HelixException: Cluster structure is not set up for cluster: PinotCluster
+manual-pinot-broker | 	at org.apache.helix.manager.zk.ZKHelixManager.handleNewSession(ZKHelixManager.java:1124) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.helix.manager.zk.ZKHelixManager.createClient(ZKHelixManager.java:701) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.helix.manager.zk.ZKHelixManager.connect(ZKHelixManager.java:738) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.broker.broker.helix.BaseBrokerStarter.start(BaseBrokerStarter.java:195) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.tools.service.PinotServiceManager.startBroker(PinotServiceManager.java:147) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.tools.service.PinotServiceManager.startRole(PinotServiceManager.java:96) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.tools.admin.command.StartServiceManagerCommand$1.lambda$run$0(StartServiceManagerCommand.java:276) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.tools.admin.command.StartServiceManagerCommand.startPinotService(StartServiceManagerCommand.java:302) [pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.tools.admin.command.StartServiceManagerCommand$1.run(StartServiceManagerCommand.java:276) [pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+----
+
+The problem here is that the broker is unable to start because the cluster structure hasn't been set up yet.
+
+I found that this only happened the first time that I ran `docker-compose up`.
+If I killed everything and ran the command again it would work fine. 
+This made me suspicious that some data was being written to ZooKeeper the first time that everything started up on my machine and that it was being kept around for subsequent runs.
+I was able to confirm that by running `docker-compose rm` to delete everything before I ran `docker-compose up` again.
+
+After spending a bit of time reading the Pinot code, I could see that the Broker was trying to read metadata from ZooKeeper before the Controller had written it:
+
+.Race condition - ZooKeeper metadata
+image::{{<siteurl>}}/uploads/2021/11/pinot-zookeeper.png[]
+
+One way to work around this would be to stop the Broker from starting until the Controller was ready, but there isn't really a clean way to do this in Docker.
+Instead what we can do is use the https://docs.docker.com/config/containers/start-containers-automatically/[`restart: unless-stopped`^] config parameter, which was shown to me by Diogo Baeder on the Pinot user Slack.
+
+.Docker restart policy
+image::{{<siteurl>}}/uploads/2021/11/restart-policy.png[]
+
+Our Docker Compose file therefore looks like this:
+
+[source, yaml]
+----
+version: '3.7'
+services:
+  zookeeper:
+    image: zookeeper:3.5.6
+    hostname: zookeeper
+    container_name: manual-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+  pinot-controller:
+    image: apachepinot/pinot:0.9.0
+    command: "StartController -zkAddress manual-zookeeper:2181"
+    container_name: "manual-pinot-controller"
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    depends_on:
+      - zookeeper
+  pinot-broker:
+    image: apachepinot/pinot:0.9.0
+    command: "StartBroker -zkAddress manual-zookeeper:2181"
+    restart: unless-stopped
+    container_name: "manual-pinot-broker"
+    ports:
+      - "8099:8099"
+    depends_on:
+      - pinot-controller
+  pinot-server:
+    image: apachepinot/pinot:0.9.0
+    command: "StartServer -zkAddress manual-zookeeper:2181"
+    restart: unless-stopped
+    container_name: "manual-pinot-server"
+    depends_on:
+      - pinot-broker
+----
+
+And if we run `docker-compose up` now, we'll see the following:
+
+[source, text]
+----
+manual-pinot-broker | 2021/11/23 13:53:19.419 ERROR [PinotServiceManager] [Start a Pinot [BROKER]] Failed to start Pinot Broker
+manual-pinot-broker | org.apache.helix.HelixException: Cluster structure is not set up for cluster: PinotCluster
+manual-pinot-broker | 	at org.apache.helix.manager.zk.ZKHelixManager.handleNewSession(ZKHelixManager.java:1124) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.helix.manager.zk.ZKHelixManager.createClient(ZKHelixManager.java:701) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.helix.manager.zk.ZKHelixManager.connect(ZKHelixManager.java:738) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.broker.broker.helix.BaseBrokerStarter.start(BaseBrokerStarter.java:195) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.tools.service.PinotServiceManager.startBroker(PinotServiceManager.java:147) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.tools.service.PinotServiceManager.startRole(PinotServiceManager.java:96) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.tools.admin.command.StartServiceManagerCommand$1.lambda$run$0(StartServiceManagerCommand.java:276) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.tools.admin.command.StartServiceManagerCommand.startPinotService(StartServiceManagerCommand.java:302) [pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.tools.admin.command.StartServiceManagerCommand$1.run(StartServiceManagerCommand.java:276) [pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 2021/11/23 13:53:19.420 ERROR [StartServiceManagerCommand] [Start a Pinot [BROKER]] Failed to start a Pinot [BROKER] at 0.927 since launch
+manual-pinot-broker | org.apache.helix.HelixException: Cluster structure is not set up for cluster: PinotCluster
+manual-pinot-broker | 	at org.apache.helix.manager.zk.ZKHelixManager.handleNewSession(ZKHelixManager.java:1124) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.helix.manager.zk.ZKHelixManager.createClient(ZKHelixManager.java:701) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.helix.manager.zk.ZKHelixManager.connect(ZKHelixManager.java:738) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.broker.broker.helix.BaseBrokerStarter.start(BaseBrokerStarter.java:195) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.tools.service.PinotServiceManager.startBroker(PinotServiceManager.java:147) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.tools.service.PinotServiceManager.startRole(PinotServiceManager.java:96) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.tools.admin.command.StartServiceManagerCommand$1.lambda$run$0(StartServiceManagerCommand.java:276) ~[pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.tools.admin.command.StartServiceManagerCommand.startPinotService(StartServiceManagerCommand.java:302) [pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+manual-pinot-broker | 	at org.apache.pinot.tools.admin.command.StartServiceManagerCommand$1.run(StartServiceManagerCommand.java:276) [pinot-all-0.9.0-jar-with-dependencies.jar:0.9.0-cf8b84e8b0d6ab62374048de586ce7da21132906]
+....
+manual-pinot-broker | 2021/11/23 13:53:21.834 INFO [StartBrokerCommand] [main] Executing command: StartBroker -brokerHost null -brokerPort 8099 -zkAddress manual-zookeeper:2181
+manual-pinot-broker | 2021/11/23 13:53:21.850 INFO [StartServiceManagerCommand] [main] Executing command: StartServiceManager -clusterName PinotCluster -zkAddress manual-zookeeper:2181 -port -1 -bootstrapServices []
+manual-pinot-broker | 2021/11/23 13:53:21.850 INFO [StartServiceManagerCommand] [main] Starting a Pinot [SERVICE_MANAGER] at 0.603s since launch
+manual-pinot-broker | 2021/11/23 13:53:21.853 INFO [StartServiceManagerCommand] [main] Started Pinot [SERVICE_MANAGER] instance [ServiceManager_f165640a2780_-1] at 0.606s since launch
+manual-pinot-broker | 2021/11/23 13:53:21.860 INFO [StartServiceManagerCommand] [Start a Pinot [BROKER]] Starting a Pinot [BROKER] at 0.612s since launch
+manual-pinot-broker | Nov 23, 2021 1:53:27 PM org.glassfish.grizzly.http.server.NetworkListener start
+manual-pinot-broker | INFO: Started listener bound to [0.0.0.0:8099]
+manual-pinot-broker | Nov 23, 2021 1:53:27 PM org.glassfish.grizzly.http.server.HttpServer start
+manual-pinot-broker | INFO: [HttpServer] Started.
+manual-pinot-server | 2021/11/23 13:53:30.322 INFO [StartServiceManagerCommand] [Start a Pinot [SERVER]] Started Pinot [SERVER] instance [Server_192.168.144.5_8098] at 11.279s since launch
+manual-pinot-broker | 2021/11/23 13:53:32.578 INFO [StartServiceManagerCommand] [Start a Pinot [BROKER]] Started Pinot [BROKER] instance [Broker_192.168.144.4_8099] at 11.33s since launch
+----
+
+The Broker still has the same problem the first time that it starts, but when it restarts and tries again the cluster structure is ready to go.
