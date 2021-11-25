@@ -89,8 +89,6 @@ Let's say we have the following CSV file that contains two columns, one that con
 
 This CSV contains a subset of the https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-Present/ijzp-q8t2/data[crimes data from the Chicago Data Portal^].
 
-== 
-
 == Create Table
 
 We're going to create a `crimes` Pinot table and associated schema based on this CSV file:
