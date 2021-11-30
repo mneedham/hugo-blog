@@ -1,13 +1,14 @@
 +++
 draft = false
-date="2021-11-29 00:44:37"
-title="Apache Pinot: Exploring indexing techniques"
+date="2021-11-30 00:44:37"
+title="Apache Pinot: Exploring indexing techniques on Chicago Crimes"
 tag=['pinot']
 category=['Pinot']
-description="In this post we'll learn how to use differennt Apache Pinot indexes on a Chicago Crime dataset."
+description="In this post we'll learn how to use Apache Pinot indexes on a Chicago Crime dataset."
+image="uploads/2021/11/indexing-techniques.png"
 +++
 
-Exploring Apache Pinot indexes
+In Neha Pawar's recent blog post, https://www.startree.ai/blogs/what-makes-apache-pinot-fast-chapter-1/[What Makes Apache Pinot fast?], she summarises it with the following sentence:
 
 [quote, What makes Apache Pinot fast?, 'https://www.startree.ai/blogs/what-makes-apache-pinot-fast-chapter-1/'']
 ____
@@ -15,12 +16,28 @@ At the heart of the system, Pinot is a columnar store with several smart optimiz
 Some of the most commonly used and impactful optimizations are data partitioning strategies, segment assignment strategies, smart query routing techniques, a rich set of indexes for filter optimizations, and aggregation optimization techniques.
 ____
 
+In this blog post we're going to explore one of these techniques, the indexes used for filter optimizations.
+We'll do this with the help of one of my favourite datasets, the https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-Present/ijzp-q8t2/data[Chicago Crimes data set^], which contains just over 7 million reported incidents of crime since 2001. 
+
+image::{{<siteurl>}}/uploads/2021/11/indexing-techniques.png[]
+
+
+== How will we assess the impact of indexes?
+
+Before we look at this dataset, I want to recommend a video that Apache Pinot co-author Kishore Gopalakrishna recorded in December 2020, in which he explains how to know whether indexes that you've added are working.
+
 ++++
 <iframe width="560" height="315" src="https://www.youtube.com/embed/VdwVDiXOOVo?start=999" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 ++++
 
+Kishore goes through different query meta data properties that get returned, as shown in the screenshot below:
+
 .Apache Pinot Query Optimization
 image::{{<siteurl>}}/uploads/2021/11/query-optimization.png[Apache Pinot Query Optimization]
+
+Each of the properties is impacted by the smart optimisations that Neha mentioned in her blog post, but here we'll be focusing on `numEntriesScannedInFilter`.
+
+Let's get to it!
 
 == Setup
 
@@ -78,12 +95,17 @@ services:
 
 == Data
 
-We're going to import https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-Present/ijzp-q8t2/data[a CSV file that contains just over 7 million crimes committed in Chicago^] from 2001 until today.
+The Chicago Crimes dataset is available as https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-Present/ijzp-q8t2/data[a CSV file that contains just over 7 million crimes committed in Chicago^] from 2001 until today.
+A subset of the data is shown below:
 
 .Chicago Crimes Dataset
 image::{{<siteurl>}}/uploads/2021/11/chicago-crimes.png[Chicago Crimes Dataset]
 
 == Add Table
+
+We're going to import the data into a https://docs.pinot.apache.org/basics/components/table[Pinot table^].
+
+First we'll create a https://docs.pinot.apache.org/basics/components/schema[schema^] that defines the columns, types, and data types:
 
 ./config/schema.json
 [source, json]
@@ -157,6 +179,8 @@ image::{{<siteurl>}}/uploads/2021/11/chicago-crimes.png[Chicago Crimes Dataset]
 }
 ----
 
+And now a https://docs.pinot.apache.org/configuration-reference/table[table config^]:
+
 ./config/table-basic.json
 [source, json]
 ----
@@ -190,6 +214,11 @@ image::{{<siteurl>}}/uploads/2021/11/chicago-crimes.png[Chicago Crimes Dataset]
 }
 ----
 
+We're mostly using the defaults here, the only unusual thing that we're doing is specifying some `transformConfigs` to take care of column names containing spaces.
+If you want to learn more about these transformations, see my blog post on https://www.markhneedham.com/blog/2021/11/25/apache-pinot-csv-columns-spaces/[Importing CSV files with columns containing spaces].
+
+We can create the table by running the following command:
+
 [source, bash]
 ----
 docker exec -it manual-pinot-controller bin/pinot-admin.sh AddTable   \
@@ -198,6 +227,9 @@ docker exec -it manual-pinot-controller bin/pinot-admin.sh AddTable   \
 ----
 
 == Import CSV file
+
+Next we're going to import the CSV file. 
+To do this we'll define the following ingestion job spec:
 
 ./config/job-spec.yml
 [source, yaml]
@@ -232,9 +264,9 @@ docker exec \
   -jobSpecFile /config/job-spec.yml
 ----
 
-== Queries and Indexes
+== Querying Pinot
 
-We're going to run the following queries in the Query Console of the https://docs.pinot.apache.org/basics/components/exploring-pinot[Pinot Data Explorer^].
+We're going to run queries against Pinot using the Query Console of the https://docs.pinot.apache.org/basics/components/exploring-pinot[Pinot Data Explorer^].
 You can access this at http://localhost:9000/#/query. 
 
 We can write SQL queries in the SQL Editor and then run them by pressing 'Cmd + Enter'. 
@@ -244,6 +276,7 @@ You can see a screenshot below:
 .JSON Format
 image::{{<siteurl>}}/uploads/2021/11/show-json-format.png[JSON Format]
 
+.Query metadata
 [source, json]
 ----
 {
@@ -275,7 +308,9 @@ In the rest of this post we're only going to focus on the following properties:
 }
 ----
 
-=== No Indexes
+We're going to analyse a query that checks the equality of one column.  
+
+== Forward index
 
 Let's start with a query that counts the number of crimes committed where an arrest has happened:
 
@@ -283,34 +318,34 @@ Let's start with a query that counts the number of crimes committed where an arr
 ----
 select count(*)
 from crimes 
-WHERE Arrest = true
+WHERE Beat = '1434'
 ----
 
 .Results
 [source, json]
 ----
 {
-  "numDocsScanned": 1992434,
+  "numDocsScanned": 27973,
   "numEntriesScannedInFilter": 7434990,
   "numEntriesScannedPostFilter": 0,
-  "timeUsedMs": 84,
+  "timeUsedMs": 71
 }
 ----
 
-From these values we can see that the SQL engine has had to scan every document to check its value for the `Arrest` column and that there were 1,992,434 documents that matched this predicate.
+From these values we can see that the SQL engine has had to scan every document to check its value for the `Arrest` column and that there were 27,973 documents that matched this predicate.
 
-=== Inverted Index
+== Forward index + Inverted Index on Beat column
 
-Let's try adding the `Arrest` column as an https://docs.pinot.apache.org/basics/indexing/inverted-index[inverted index^].
+One optimisation that we can do is to add the `Arrest` column as an https://docs.pinot.apache.org/basics/indexing/inverted-index[inverted index^].
 With an inverted index, Pinot keeps a map from each unique value to a bitmap of rows, meaning that we'll no longer have to scan all the values in these column.
 
-We can add an inverted index as `tableIndexConfig.invertedIndexColumns`, as shown in the following config:
+We can add an inverted index as `tableIndexConfig.invertedIndexColumns`, as shown in the following table config:
 
 ./config/table-inverted-index.json
 [source, json]
 ----
 {
-    "tableName": "crimes",
+    "tableName": "crimes_inverted",
     "tableType": "OFFLINE",
     "segmentsConfig": {
       "replication": 1
@@ -322,7 +357,7 @@ We can add an inverted index as `tableIndexConfig.invertedIndexColumns`, as show
     "tableIndexConfig": {
       "loadMode": "MMAP",
       "invertedIndexColumns": [
-          "Arrest"
+          "Beat"
       ]
     },
     "ingestionConfig": {
@@ -341,26 +376,69 @@ We can add an inverted index as `tableIndexConfig.invertedIndexColumns`, as show
   }
 ----
 
-Run the following command to update the table config:
+We could apply that to our existing `crimes` table, but to make it easier to compare the different techniques we're going to create a new table for each technique.
+Run the following command to add a new table `crimes_inverted` based on this table config:
 
-.Update table config
+.Add table with inverted index
 [source, bash]
 ----
-curl 'http://localhost:9000/tables/crimes_OFFLINE' \
- -X 'PUT' \
- -H 'Content-Type: application/json' \
- --data-binary "@config/table-inverted-index.json"
+docker exec -it manual-pinot-controller bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table-basic.json   \
+  -schemaFile /config/schema.json -exec
 ----
 
-When we adjust the indexes in the table config we need to call the reload API to have these changes picked up. 
-We can do this by running the following:
+Now we're going to import the same CSV into this table, using the following ingestion job spec:
+
+./config/job-spec-inverted.yml
+[source, yaml]
+----
+executionFrameworkSpec:
+  name: 'standalone'
+  segmentGenerationJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentGenerationJobRunner'
+  segmentTarPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentTarPushJobRunner'
+  segmentUriPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentUriPushJobRunner'
+jobType: SegmentCreationAndTarPush
+inputDirURI: '/data'
+includeFileNamePattern: 'glob:**/Crimes_arrest_sorted.csv'
+outputDirURI: '/opt/pinot/data/crimes_inverted'
+overwriteOutput: true
+pinotFSSpecs:
+  - scheme: file
+    className: org.apache.pinot.spi.filesystem.LocalPinotFS
+recordReaderSpec:
+  dataFormat: 'csv'
+  className: 'org.apache.pinot.plugin.inputformat.csv.CSVRecordReader'
+  configClassName: 'org.apache.pinot.plugin.inputformat.csv.CSVRecordReaderConfig'
+tableSpec:
+  tableName: 'crimes_inverted'
+  schemaURI: 'http://localhost:9000/tables/crimes/schema'
+pinotClusterSpecs:
+  - controllerURI: 'http://localhost:9000'
+----
+
+Because our table name and schema name are different we need to explicitly specify the `schemaURI`, otherwise it will try to look for a non existent schema at http://localhost:9000/tables/crimes_inverted/schema. 
+We're also using a different `outputDirURI` than for the previous job spec. 
+We need to do this so that the segments from the `crimes` table don't get included in the `crimes_inverted` table.
+
+Run the ingestion job:
 
 [source, bash]
 ----
-curl -X 'POST' 'http://localhost:9000/segments/crimes_OFFLINE/reload?type=OFFLINE' 
+docker exec \
+  -it manual-pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob \
+  -jobSpecFile /config/job-spec-inverted.yml
 ----
 
-Once we've done this we can run our query again.
+
+Once the job has finished, we can run our query again:
+
+[source, sql]
+----
+select count(*)
+from crimes_inverted
+WHERE Beat = '1434'
+----
+
 We should see the following output:
 
 .Results
@@ -370,39 +448,40 @@ We should see the following output:
   "numDocsScanned": 1992434,
   "numEntriesScannedInFilter": 0,
   "numEntriesScannedPostFilter": 0,
-  "timeUsedMs": 31,
+  "timeUsedMs": 3,
 }
 ----
 
-Our query is almost 3x faster than it was before and the `numEntriesScannedInFilter` is down to 0. 
+Our query is almost 20x faster than it was before and the `numEntriesScannedInFilter` is down to 0. 
 
-=== Sorted Index
+=== Sorted Forward Index on Beat column
 
 We could instead create a https://docs.pinot.apache.org/basics/indexing/forward-index#sorted-forward-index-with-run-length-encoding[sorted index^].
 With a sorted index, Pinot keeps a mapping from unique values to start and end document/row ids.
 
-A table can only have one sorted column and for offline data ingestion, we'll need to make sure that the data in that column is sorted before we ingest it into Pinot.
+[NOTE]
+====
+The sorted (forward) index for the `Beat` column will replace the default forward index used in the 'No Indexes' example.
+====
 
+A table can only have one sorted column and, for offline data ingestion the data in that column must be sorted before we ingest it into Pinot.
+Since the CSV file isn't too big, we can sort it using Pandas and write the sorted data to a new CSV file, using the following script:
 
 [source,python]
 ----
 import pandas as pd
 
-df = pd.read_csv("data/Crimes_-_2001_to_Present.csv")
-df.sort_values(by=["Arrest"]).to_csv("data/Crimes_arrest_sorted.csv", index=False)
+df = pd.read_csv("data/Crimes_-_2001_to_Present.csv", dtype=object)
+df.sort_values(by=["Beat"]).to_csv("data/Crimes_beat_sorted.csv", index=False)
 ----
 
-.Drop crimes table segments
-[source, bash]
-----
-curl -X DELETE "http://localhost:9000/segments/crimes?type=OFFLINE" -H "accept: application/json"
-----
+Now let's create a new table, which we'll call `crimes_sorted`:
 
 ./config/table-sorted-index.json
 [source, json]
 ----
 {
-  "tableName": "crimes",
+  "tableName": "crimes_sorted",
   "tableType": "OFFLINE",
   "segmentsConfig": {
     "replication": 1
@@ -414,7 +493,7 @@ curl -X DELETE "http://localhost:9000/segments/crimes?type=OFFLINE" -H "accept: 
   "tableIndexConfig": {
     "loadMode": "MMAP",
     "sortedColumn": [
-        "Arrest"
+        "Beat"
     ]
   },
   "ingestionConfig": {
@@ -433,18 +512,17 @@ curl -X DELETE "http://localhost:9000/segments/crimes?type=OFFLINE" -H "accept: 
 }
 ----
 
-Now we can update the table config:
+Run the following command to add a new table `crimes_sorted` based on this table config:
 
-.Update table config
+.Add table with inverted index
 [source, bash]
 ----
-curl 'http://localhost:9000/tables/crimes_OFFLINE' \
- -X 'PUT' \
- -H 'Content-Type: application/json' \
- --data-binary "@config/table-sorted-index.json"
+docker exec -it manual-pinot-controller bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table-sorted-index.json   \
+  -schemaFile /config/schema.json -exec
 ----
 
-updated ingestion job:
+And finally let's create an ingestion job spec to import the CSV file:
 
 ./config/job-spec-sorted.yml
 [source, yaml]
@@ -456,8 +534,8 @@ executionFrameworkSpec:
   segmentUriPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentUriPushJobRunner'
 jobType: SegmentCreationAndTarPush
 inputDirURI: '/data'
-includeFileNamePattern: 'glob:**/Crimes_arrest_sorted.csv'
-outputDirURI: '/opt/pinot/data/crimes'
+includeFileNamePattern: 'glob:**/Crimes_beat_sorted.csv'
+outputDirURI: '/opt/pinot/data/crimes-sorted'
 overwriteOutput: true
 pinotFSSpecs:
   - scheme: file
@@ -467,10 +545,15 @@ recordReaderSpec:
   className: 'org.apache.pinot.plugin.inputformat.csv.CSVRecordReader'
   configClassName: 'org.apache.pinot.plugin.inputformat.csv.CSVRecordReaderConfig'
 tableSpec:
-  tableName: 'crimes'
+  tableName: 'crimes_sorted'
+  schemaURI: 'http://localhost:9000/tables/crimes/schema'
 pinotClusterSpecs:
   - controllerURI: 'http://localhost:9000'
 ----
+
+Again we need to specify the `schemaURI` since our table name and schema name differ.
+
+We can ingest the data by running the following command:
 
 [source, bash]
 ----
@@ -479,19 +562,105 @@ docker exec \
   -jobSpecFile /config/job-spec-sorted.yml
 ----
 
+Once the job has finished, we can run our query again:
+
+[source, sql]
+----
+select count(*)
+from crimes_sorted
+WHERE Beat = '1434'
+----
+
+We should see the following output:
+
 
 .Results
 [source, json]
 ----
 {
-  "numDocsScanned": 1992434,
+  "numDocsScanned": 27973,
   "numEntriesScannedInFilter": 0,
   "numEntriesScannedPostFilter": 0,
-  "timeUsedMs": 28,
+  "timeUsedMs": 3,
 }
 ----
 
 Again we don't have any `numEntriesScannedInFilter`, but the query time isn't all that different to when we used the inverted index.
+
+== Space vs Time Trade-off
+
+The disadvantage of adding extra indexes is that they take up more space on disk. 
+We can check how much space each of our tables consumes by running the following:
+
+.Compute table size
+[source, bash]
+----
+{
+  printf "%-20s%-12s\n" "Table" "Bytes"
+  for table in 'crimes' 'crimes_sorted' 'crimes_inverted'; do 
+    size=`curl -X GET "http://localhost:9000/tables/${table}/size?detailed=true" -H "accept: application/json" 2>/dev/null | jq '.reportedSizeInBytes'`; 
+    printf "%-20s%-12s\n" ${table} ${size};
+  done
+}
+----
+
+.Results
+[source, text]
+----
+Table               Bytes       
+crimes              340797740   
+crimes_sorted       332435811   
+crimes_inverted     355940552 
+----
+
+Looking at these numbers, we can see that:
+
+* The `crimes_inverted` table takes up the most space, but we shouldn't be too surprised because this is the only table that has two indexes for the `Beat` column: a default forward index and a inverted index.
+* The sorted forward index used by the `crimes_sorted` table for the `Beat` column actually takes up less space than the unsorted forward index that's used by default.
+
+If we want to see a break down of the space usage, we can do that by executing the following command:
+
+.Table space breakdown
+[source, bash]
+----
+for table in 'crimes' 'crimes_sorted' 'crimes_inverted'; do 
+  printf "Table: $table\n"
+  docker exec -it manual-pinot-server ls -l /tmp/data/pinotServerData/${table}_OFFLINE/${table}_OFFLINE_0/v3/
+  printf "\n"
+done
+----
+
+.Results
+[source, text]
+----
+Table: crimes
+total 332824
+-rw-r--r-- 1 root root 340783919 Nov 30 12:11 columns.psf
+-rw-r--r-- 1 root root        16 Nov 30 12:11 creation.meta
+-rw-r--r-- 1 root root      2335 Nov 30 12:11 index_map
+-rw-r--r-- 1 root root     11470 Nov 30 12:11 metadata.properties
+
+Table: crimes_sorted
+total 324656
+-rw-r--r-- 1 root root 332421987 Nov 30 14:02 columns.psf
+-rw-r--r-- 1 root root        16 Nov 30 14:02 creation.meta
+-rw-r--r-- 1 root root      2331 Nov 30 14:02 index_map
+-rw-r--r-- 1 root root     11477 Nov 30 14:02 metadata.properties
+
+Table: crimes_inverted
+total 347612
+-rw-r--r-- 1 root root 355926631 Nov 30 13:51 columns.psf
+-rw-r--r-- 1 root root        16 Nov 30 13:16 creation.meta
+-rw-r--r-- 1 root root      2417 Nov 30 13:51 index_map
+-rw-r--r-- 1 root root     11488 Nov 30 13:16 metadata.properties
+----
+
+== Conclusion
+
+In this post we've taken a brief look at two of Apache Pinot's indexing techniques and applied them to a query that counted the number of crimes on a specific beat.
+Our query runs 20x faster and we only had a small space increase when using an inverted index and actually saved space with the sorted forward index.
+
+In our next post we'll look at other indexes and apply them to queries that filter on more than one field.
 
 
 // Now let's start with a query that aggregates the types of crime where an arrest has happened:
