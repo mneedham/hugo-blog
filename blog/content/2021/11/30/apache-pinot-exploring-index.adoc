@@ -1,0 +1,528 @@
++++
+draft = false
+date="2021-11-29 00:44:37"
+title="Apache Pinot: Exploring indexing techniques"
+tag=['pinot']
+category=['Pinot']
+description="In this post we'll learn how to use differennt Apache Pinot indexes on a Chicago Crime dataset."
++++
+
+Exploring Apache Pinot indexes
+
+[quote, What makes Apache Pinot fast?, 'https://www.startree.ai/blogs/what-makes-apache-pinot-fast-chapter-1/'']
+____
+At the heart of the system, Pinot is a columnar store with several smart optimizations that can be applied at various stages of the query by the different Pinot components. 
+Some of the most commonly used and impactful optimizations are data partitioning strategies, segment assignment strategies, smart query routing techniques, a rich set of indexes for filter optimizations, and aggregation optimization techniques.
+____
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/VdwVDiXOOVo?start=999" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+++++
+
+.Apache Pinot Query Optimization
+image::{{<siteurl>}}/uploads/2021/11/query-optimization.png[Apache Pinot Query Optimization]
+
+== Setup
+
+We're going to spin up a local instance of Pinot using the following Docker compose config:
+
+.docker-compose.yml
+[source, yaml]
+----
+version: '3.7'
+services:
+  zookeeper:
+    image: zookeeper:3.5.6
+    hostname: zookeeper
+    container_name: manual-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+  pinot-controller:
+    image: apachepinot/pinot:0.9.0
+    command: "StartController -zkAddress manual-zookeeper:2181"
+    container_name: "manual-pinot-controller"
+    volumes:
+      - ./config:/config
+      - ./data:/data
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    depends_on:
+      - zookeeper
+  pinot-broker:
+    image: apachepinot/pinot:0.9.0
+    command: "StartBroker -zkAddress manual-zookeeper:2181"
+    restart: unless-stopped
+    container_name: "manual-pinot-broker"
+    volumes:
+      - ./config:/config
+      - ./data:/data
+    ports:
+      - "8099:8099"
+    depends_on:
+      - pinot-controller
+  pinot-server:
+    image: apachepinot/pinot:0.9.0
+    command: "StartServer -zkAddress manual-zookeeper:2181"
+    restart: unless-stopped
+    container_name: "manual-pinot-server"
+    volumes:
+      - ./config:/config
+      - ./data:/data    
+    depends_on:
+      - pinot-broker
+----
+
+== Data
+
+We're going to import https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-Present/ijzp-q8t2/data[a CSV file that contains just over 7 million crimes committed in Chicago^] from 2001 until today.
+
+.Chicago Crimes Dataset
+image::{{<siteurl>}}/uploads/2021/11/chicago-crimes.png[Chicago Crimes Dataset]
+
+== Add Table
+
+./config/schema.json
+[source, json]
+----
+{
+    "schemaName": "crimes",
+    "dimensionFieldSpecs": [
+      {
+        "name": "ID",
+        "dataType": "INT"
+      },
+      {
+        "name": "CaseNumber",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "Block",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "IUCR",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "PrimaryType",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "Arrest",
+        "dataType": "BOOLEAN"        
+      },
+      {
+        "name": "Domestic",
+        "dataType": "BOOLEAN"        
+      },
+      {
+        "name": "Beat",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "District",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "Ward",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "CommunityArea",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "FBICode",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "Latitude",
+        "dataType": "DOUBLE"
+      },
+      {
+        "name": "Longitude",
+        "dataType": "DOUBLE"
+      }
+    ],
+    "dateTimeFieldSpecs": [{
+      "name": "Date",
+      "dataType": "STRING",
+      "format" : "1:SECONDS:SIMPLE_DATE_FORMAT:MM/dd/yyyy HH:mm:ss a",
+      "granularity": "1:HOURS"
+    }]
+}
+----
+
+./config/table-basic.json
+[source, json]
+----
+{
+    "tableName": "crimes",
+    "tableType": "OFFLINE",
+    "segmentsConfig": {
+      "replication": 1
+    },
+    "tenants": {
+      "broker":"DefaultTenant",
+      "server":"DefaultTenant"
+    },
+    "tableIndexConfig": {
+      "loadMode": "MMAP"      
+    },
+    "nullHandlingEnabled": true,
+    "ingestionConfig": {
+      "batchIngestionConfig": {
+        "segmentIngestionType": "APPEND",
+        "segmentIngestionFrequency": "DAILY"
+      },
+      "transformConfigs": [
+        {"columnName": "CaseNumber", "transformFunction": "\"Case Number\"" },
+        {"columnName": "PrimaryType", "transformFunction": "\"Primary Type\"" },
+        {"columnName": "CommunityArea", "transformFunction": "\"Community Area\"" },
+        {"columnName": "FBICode", "transformFunction": "\"FBI Code\"" }
+      ]
+    },
+    "metadata": {}
+}
+----
+
+[source, bash]
+----
+docker exec -it manual-pinot-controller bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table-basic.json   \
+  -schemaFile /config/schema.json -exec
+----
+
+== Import CSV file
+
+./config/job-spec.yml
+[source, yaml]
+----
+executionFrameworkSpec:
+  name: 'standalone'
+  segmentGenerationJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentGenerationJobRunner'
+  segmentTarPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentTarPushJobRunner'
+  segmentUriPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentUriPushJobRunner'
+jobType: SegmentCreationAndTarPush
+inputDirURI: '/data'
+includeFileNamePattern: 'glob:**/Crimes_-_2001_to_Present.csv'
+outputDirURI: '/opt/pinot/data/crimes'
+overwriteOutput: true
+pinotFSSpecs:
+  - scheme: file
+    className: org.apache.pinot.spi.filesystem.LocalPinotFS
+recordReaderSpec:
+  dataFormat: 'csv'
+  className: 'org.apache.pinot.plugin.inputformat.csv.CSVRecordReader'
+  configClassName: 'org.apache.pinot.plugin.inputformat.csv.CSVRecordReaderConfig'
+tableSpec:
+  tableName: 'crimes'
+pinotClusterSpecs:
+  - controllerURI: 'http://localhost:9000'
+----
+
+[source, bash]
+----
+docker exec \
+  -it manual-pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob \
+  -jobSpecFile /config/job-spec.yml
+----
+
+== Queries and Indexes
+
+We're going to run the following queries in the Query Console of the https://docs.pinot.apache.org/basics/components/exploring-pinot[Pinot Data Explorer^].
+You can access this at http://localhost:9000/#/query. 
+
+We can write SQL queries in the SQL Editor and then run them by pressing 'Cmd + Enter'. 
+We'll then toggle "Show JSON Format" so that we can see the meta data of our query.
+You can see a screenshot below:
+
+.JSON Format
+image::{{<siteurl>}}/uploads/2021/11/show-json-format.png[JSON Format]
+
+[source, json]
+----
+{
+  "numServersQueried": 1,
+  "numServersResponded": 1,
+  "numSegmentsQueried": 1,
+  "numSegmentsProcessed": 1,
+  "numSegmentsMatched": 1,
+  "numConsumingSegmentsQueried": 0,
+  "numDocsScanned": 10,
+  "numEntriesScannedInFilter": 0,
+  "numEntriesScannedPostFilter": 150,
+  "numGroupsLimitReached": false,
+  "totalDocs": 7434990,
+  "timeUsedMs": 5
+}
+----
+
+From this meta data, the main thing that we learn is that there are 7,434,990 documents/rows in this table
+In the rest of this post we're only going to focus on the following properties:
+
+[source, json]
+----
+{
+  "numDocsScanned": 10,
+  "numEntriesScannedInFilter": 0,
+  "numEntriesScannedPostFilter": 150,  
+  "timeUsedMs": 5
+}
+----
+
+=== No Indexes
+
+Let's start with a query that counts the number of crimes committed where an arrest has happened:
+
+[source, sql]
+----
+select count(*)
+from crimes 
+WHERE Arrest = true
+----
+
+.Results
+[source, json]
+----
+{
+  "numDocsScanned": 1992434,
+  "numEntriesScannedInFilter": 7434990,
+  "numEntriesScannedPostFilter": 0,
+  "timeUsedMs": 84,
+}
+----
+
+From these values we can see that the SQL engine has had to scan every document to check its value for the `Arrest` column and that there were 1,992,434 documents that matched this predicate.
+
+=== Inverted Index
+
+Let's try adding the `Arrest` column as an https://docs.pinot.apache.org/basics/indexing/inverted-index[inverted index^].
+With an inverted index, Pinot keeps a map from each unique value to a bitmap of rows, meaning that we'll no longer have to scan all the values in these column.
+
+We can add an inverted index as `tableIndexConfig.invertedIndexColumns`, as shown in the following config:
+
+./config/table-inverted-index.json
+[source, json]
+----
+{
+    "tableName": "crimes",
+    "tableType": "OFFLINE",
+    "segmentsConfig": {
+      "replication": 1
+    },
+    "tenants": {
+      "broker":"DefaultTenant",
+      "server":"DefaultTenant"
+    },
+    "tableIndexConfig": {
+      "loadMode": "MMAP",
+      "invertedIndexColumns": [
+          "Arrest"
+      ]
+    },
+    "ingestionConfig": {
+      "batchIngestionConfig": {
+        "segmentIngestionType": "APPEND",
+        "segmentIngestionFrequency": "DAILY"
+      },
+      "transformConfigs": [
+        {"columnName": "CaseNumber", "transformFunction": "\"Case Number\"" },
+        {"columnName": "PrimaryType", "transformFunction": "\"Primary Type\"" },
+        {"columnName": "CommunityArea", "transformFunction": "\"Community Area\"" },
+        {"columnName": "FBICode", "transformFunction": "\"FBI Code\"" }
+      ]
+    },
+    "metadata": {}
+  }
+----
+
+Run the following command to update the table config:
+
+.Update table config
+[source, bash]
+----
+curl 'http://localhost:9000/tables/crimes_OFFLINE' \
+ -X 'PUT' \
+ -H 'Content-Type: application/json' \
+ --data-binary "@config/table-inverted-index.json"
+----
+
+When we adjust the indexes in the table config we need to call the reload API to have these changes picked up. 
+We can do this by running the following:
+
+[source, bash]
+----
+curl -X 'POST' 'http://localhost:9000/segments/crimes_OFFLINE/reload?type=OFFLINE' 
+----
+
+Once we've done this we can run our query again.
+We should see the following output:
+
+.Results
+[source, json]
+----
+{
+  "numDocsScanned": 1992434,
+  "numEntriesScannedInFilter": 0,
+  "numEntriesScannedPostFilter": 0,
+  "timeUsedMs": 31,
+}
+----
+
+Our query is almost 3x faster than it was before and the `numEntriesScannedInFilter` is down to 0. 
+
+=== Sorted Index
+
+We could instead create a https://docs.pinot.apache.org/basics/indexing/forward-index#sorted-forward-index-with-run-length-encoding[sorted index^].
+With a sorted index, Pinot keeps a mapping from unique values to start and end document/row ids.
+
+A table can only have one sorted column and for offline data ingestion, we'll need to make sure that the data in that column is sorted before we ingest it into Pinot.
+
+
+[source,python]
+----
+import pandas as pd
+
+df = pd.read_csv("data/Crimes_-_2001_to_Present.csv")
+df.sort_values(by=["Arrest"]).to_csv("data/Crimes_arrest_sorted.csv", index=False)
+----
+
+.Drop crimes table segments
+[source, bash]
+----
+curl -X DELETE "http://localhost:9000/segments/crimes?type=OFFLINE" -H "accept: application/json"
+----
+
+./config/table-sorted-index.json
+[source, json]
+----
+{
+  "tableName": "crimes",
+  "tableType": "OFFLINE",
+  "segmentsConfig": {
+    "replication": 1
+  },
+  "tenants": {
+    "broker":"DefaultTenant",
+    "server":"DefaultTenant"
+  },
+  "tableIndexConfig": {
+    "loadMode": "MMAP",
+    "sortedColumn": [
+        "Arrest"
+    ]
+  },
+  "ingestionConfig": {
+    "batchIngestionConfig": {
+      "segmentIngestionType": "APPEND",
+      "segmentIngestionFrequency": "DAILY"
+    },
+    "transformConfigs": [
+      {"columnName": "CaseNumber", "transformFunction": "\"Case Number\"" },
+      {"columnName": "PrimaryType", "transformFunction": "\"Primary Type\"" },
+      {"columnName": "CommunityArea", "transformFunction": "\"Community Area\"" },
+      {"columnName": "FBICode", "transformFunction": "\"FBI Code\"" }
+    ]
+  },
+  "metadata": {}
+}
+----
+
+Now we can update the table config:
+
+.Update table config
+[source, bash]
+----
+curl 'http://localhost:9000/tables/crimes_OFFLINE' \
+ -X 'PUT' \
+ -H 'Content-Type: application/json' \
+ --data-binary "@config/table-sorted-index.json"
+----
+
+updated ingestion job:
+
+./config/job-spec-sorted.yml
+[source, yaml]
+----
+executionFrameworkSpec:
+  name: 'standalone'
+  segmentGenerationJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentGenerationJobRunner'
+  segmentTarPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentTarPushJobRunner'
+  segmentUriPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentUriPushJobRunner'
+jobType: SegmentCreationAndTarPush
+inputDirURI: '/data'
+includeFileNamePattern: 'glob:**/Crimes_arrest_sorted.csv'
+outputDirURI: '/opt/pinot/data/crimes'
+overwriteOutput: true
+pinotFSSpecs:
+  - scheme: file
+    className: org.apache.pinot.spi.filesystem.LocalPinotFS
+recordReaderSpec:
+  dataFormat: 'csv'
+  className: 'org.apache.pinot.plugin.inputformat.csv.CSVRecordReader'
+  configClassName: 'org.apache.pinot.plugin.inputformat.csv.CSVRecordReaderConfig'
+tableSpec:
+  tableName: 'crimes'
+pinotClusterSpecs:
+  - controllerURI: 'http://localhost:9000'
+----
+
+[source, bash]
+----
+docker exec \
+  -it manual-pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob \
+  -jobSpecFile /config/job-spec-sorted.yml
+----
+
+
+.Results
+[source, json]
+----
+{
+  "numDocsScanned": 1992434,
+  "numEntriesScannedInFilter": 0,
+  "numEntriesScannedPostFilter": 0,
+  "timeUsedMs": 28,
+}
+----
+
+Again we don't have any `numEntriesScannedInFilter`, but the query time isn't all that different to when we used the inverted index.
+
+
+// Now let's start with a query that aggregates the types of crime where an arrest has happened:
+
+
+// [source, sql]
+// ----
+// select PrimaryType, count(*)
+// from crimes 
+// WHERE Arrest = true
+// GROUP BY PrimaryType
+// ORDER BY count(*) DESC
+// limit 10
+// ----
+
+// [source, json]
+// ----
+// {
+//   "numServersQueried": 1,
+//   "numServersResponded": 1,
+//   "numSegmentsQueried": 1,
+//   "numSegmentsProcessed": 1,
+//   "numSegmentsMatched": 1,
+//   "numConsumingSegmentsQueried": 0,
+//   "numDocsScanned": 1992434,
+//   "numEntriesScannedInFilter": 7434990,
+//   "numEntriesScannedPostFilter": 1992434,
+//   "numGroupsLimitReached": false,
+//   "totalDocs": 7434990,
+//   "timeUsedMs": 167,
+// }
+// ----  
+
+
