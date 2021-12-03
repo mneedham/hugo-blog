@@ -61,8 +61,31 @@ SyntaxException: Too many parameters for function 'collect' (line 2, column 11)
 
 As the error message suggests, the COLLECT function only takes one argument so we need to find another way to solve our problem.
 
-One way is to put the two values into a literal array which will result in an array of arrays as our return result: ~~~cypher $ MATCH (p:Person)-[:EVENT]\->(e) > RETURN p, COLLECT([e.name, e.timestamp]); +----------------------------------------------------------+ | p | COLLECT([e.name, e.timestamp]) | +----------------------------------------------------------+ | Node[0]{name:"Mark"} | [["Event1",1234],["Event2",4567]] | +----------------------------------------------------------+ 1 row ~~~
+One way is to put the two values into a literal array which will result in an array of arrays as our return result: 
 
-The annoying thing about this approach is that as you add more items you'll forget in which position you've put each bit of data so I think a preferable approach is to collect a map of items instead: ~~~cypher $ MATCH (p:Person)-[:EVENT]\->(e) > RETURN p, COLLECT({eventName: e.name, eventTimestamp: e.timestamp}); +--------------------------------------------------------------------------------------------------------------------------+ | p | COLLECT({eventName: e.name, eventTimestamp: e.timestamp}) | +--------------------------------------------------------------------------------------------------------------------------+ | Node[0]{name:"Mark"} | [{eventName \-> "Event1", eventTimestamp \-> 1234},{eventName \-> "Event2", eventTimestamp \-> 4567}] | +--------------------------------------------------------------------------------------------------------------------------+ 1 row ~~~
+[source,cypher]
+----
+$ MATCH (p:Person)-[:EVENT]->(e) 
+> RETURN p, COLLECT([e.name, e.timestamp]); 
++----------------------------------------------------------+ 
+| p | COLLECT([e.name, e.timestamp]) | 
++----------------------------------------------------------+ 
+| Node[0]{name:"Mark"} | [["Event1",1234],["Event2",4567]] | 
++----------------------------------------------------------+ 
+1 row 
+----
+The annoying thing about this approach is that as you add more items you'll forget in which position you've put each bit of data so I think a preferable approach is to collect a map of items instead: 
+
+[source,cypher]
+----
+$ MATCH (p:Person)-[:EVENT]->(e) 
+> RETURN p, COLLECT({eventName: e.name, eventTimestamp: e.timestamp}); 
++--------------------------------------------------------------------------------------------------------------------------+ 
+| p | COLLECT({eventName: e.name, eventTimestamp: e.timestamp}) | 
++--------------------------------------------------------------------------------------------------------------------------+ 
+| Node[0]{name:"Mark"} | [{eventName -> "Event1", eventTimestamp -> 1234},{eventName -> "Event2", eventTimestamp -> 4567}] 
+| +--------------------------------------------------------------------------------------------------------------------------+ 
+1 row 
+----
 
 During the http://www.meetup.com/graphdb-london/events/194308602/[Clojure Neo4j Hackathon] that we ran earlier this week this proved to be a particularly pleasing approach as we could easily destructure the collection of maps in our Clojure code.

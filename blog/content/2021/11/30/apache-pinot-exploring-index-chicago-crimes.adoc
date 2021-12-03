@@ -33,7 +33,7 @@ Before we look at this dataset, I want to recommend a video that Apache Pinot co
 Kishore goes through different query meta data properties that get returned, as shown in the screenshot below:
 
 .Apache Pinot Query Optimization
-image::{{<siteurl>}}/uploads/2021/11/query-optimization.png[Apache Pinot Query Optimization]
+image::{{<siteurl>}}/uploads/2021/11/query-optimization.png[Apache Pinot Query Optimization, role='medium-zoom-image']
 
 Each of the properties is impacted by the smart optimisations that Neha mentioned in her blog post, but here we'll be focusing on `numEntriesScannedInFilter`.
 
@@ -99,7 +99,7 @@ The Chicago Crimes dataset is available as https://data.cityofchicago.org/Public
 A subset of the data is shown below:
 
 .Chicago Crimes Dataset
-image::{{<siteurl>}}/uploads/2021/11/chicago-crimes.png[Chicago Crimes Dataset]
+image::{{<siteurl>}}/uploads/2021/11/chicago-crimes.png[Chicago Crimes Dataset, role='medium-zoom-image']
 
 == Add Table
 
