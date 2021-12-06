@@ -229,7 +229,9 @@ We can import the CSV file by running the following command:
 
 [source, bash]
 ----
-docker exec -it manual-pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob     -jobSpecFile /config/job-spec.yml
+docker exec \
+  -it manual-pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob \
+  -jobSpecFile /config/job-spec.yml
 ----
 
 Once we've run this we can navigate to the Query Console at http://localhost:9000/#/query and run the following query:
@@ -311,7 +313,9 @@ And finally, we can run the data ingestion job again:
 
 [source, bash]
 ----
-docker exec -it manual-pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob     -jobSpecFile /config/job-spec.yml
+docker exec \
+  -it manual-pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob \
+  -jobSpecFile /config/job-spec.yml
 ----
 
 Now if we run a query against this table we'll see populated values for the `CaseNumber`:

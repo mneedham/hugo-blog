@@ -1,0 +1,299 @@
++++
+draft = true
+date="2021-12-03 00:44:37"
+title="Apache Pinot: Exploring indexing techniques on Chicago Crimes"
+tag=['pinot']
+category=['Pinot']
+description="In this post we'll learn how to use Apache Pinot indexes on a Chicago Crime dataset."
+image="uploads/2021/11/indexing-techniques.png"
++++
+
+== Setup
+
+We're going to spin up a local instance of Pinot using the following Docker compose config:
+
+.docker-compose.yml
+[source, yaml]
+----
+version: '3.7'
+services:
+  zookeeper:
+    image: zookeeper:3.5.6
+    hostname: zookeeper
+    container_name: manual-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+  pinot-controller:
+    image: apachepinot/pinot:0.9.0
+    command: "StartController -zkAddress manual-zookeeper:2181"
+    container_name: "manual-pinot-controller"
+    volumes:
+      - ./config:/config
+      - ./data:/data
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    depends_on:
+      - zookeeper
+  pinot-broker:
+    image: apachepinot/pinot:0.9.0
+    command: "StartBroker -zkAddress manual-zookeeper:2181"
+    restart: unless-stopped
+    container_name: "manual-pinot-broker"
+    volumes:
+      - ./config:/config
+      - ./data:/data
+    ports:
+      - "8099:8099"
+    depends_on:
+      - pinot-controller
+  pinot-server:
+    image: apachepinot/pinot:0.9.0
+    command: "StartServer -zkAddress manual-zookeeper:2181"
+    restart: unless-stopped
+    container_name: "manual-pinot-server"
+    volumes:
+      - ./config:/config
+      - ./data:/data    
+    depends_on:
+      - pinot-broker
+----
+
+== Data
+
+The Chicago Crimes dataset is available as https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-Present/ijzp-q8t2/data[a CSV file that contains just over 7 million crimes committed in Chicago^] from 2001 until today.
+A subset of the data is shown below:
+
+.Chicago Crimes Dataset
+image::{{<siteurl>}}/uploads/2021/11/chicago-crimes.png[Chicago Crimes Dataset, role='medium-zoom-image']
+
+== Add Table
+
+./config/schema.json
+[source,json]
+----
+{
+    "schemaName": "crimes",
+    "dimensionFieldSpecs": [
+      {
+        "name": "ID",
+        "dataType": "INT"
+      },
+      {
+        "name": "CaseNumber",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "Block",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "IUCR",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "PrimaryType",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "Arrest",
+        "dataType": "BOOLEAN"        
+      },
+      {
+        "name": "Domestic",
+        "dataType": "BOOLEAN"        
+      },
+      {
+        "name": "Beat",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "District",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "Ward",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "CommunityArea",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "FBICode",
+        "dataType": "STRING"        
+      },
+      {
+        "name": "Latitude",
+        "dataType": "DOUBLE"
+      },
+      {
+        "name": "Longitude",
+        "dataType": "DOUBLE"
+      }
+    ],
+    "dateTimeFieldSpecs": [
+      {
+        "name": "Timestamp",
+        "dataType": "TIMESTAMP",
+        "format" : "1:MILLISECONDS:EPOCH",
+        "granularity": "1:HOURS"
+      }
+    ]
+}
+  
+----
+
+./config/table.json
+[source, json]
+----
+{
+    "tableName": "crimes",
+    "tableType": "OFFLINE",
+    "segmentsConfig": {
+      "replication": 1
+    },
+    "tenants": {
+      "broker":"DefaultTenant",
+      "server":"DefaultTenant"
+    },
+    "tableIndexConfig": {
+      "loadMode": "MMAP"      
+    },
+    "nullHandlingEnabled": true,
+    "ingestionConfig": {
+      "batchIngestionConfig": {
+        "segmentIngestionType": "APPEND",
+        "segmentIngestionFrequency": "DAILY"
+      },
+      "transformConfigs": [
+        {"columnName": "CaseNumber", "transformFunction": "\"Case Number\"" },
+        {"columnName": "PrimaryType", "transformFunction": "\"Primary Type\"" },
+        {"columnName": "CommunityArea", "transformFunction": "\"Community Area\"" },
+        {"columnName": "FBICode", "transformFunction": "\"FBI Code\"" },
+        {"columnName": "Timestamp", "transformFunction": "FromDateTime(\"Date\", 'MM/dd/yyyy HH:mm:ss a')" }
+      ]
+    },
+    "metadata": {}
+  }
+----
+
+Now let's create the table and schema:
+
+[source, bash]
+----
+docker exec -it manual-pinot-controller bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table.json   \
+  -schemaFile /config/schema.json -exec
+----
+
+== Import CSV
+
+[source,yaml]
+----
+executionFrameworkSpec:
+  name: 'standalone'
+  segmentGenerationJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentGenerationJobRunner'
+  segmentTarPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentTarPushJobRunner'
+  segmentUriPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentUriPushJobRunner'
+jobType: SegmentCreationAndTarPush
+inputDirURI: '/data'
+includeFileNamePattern: 'glob:**/Crimes_-_2001_to_Present.csv'
+outputDirURI: '/opt/pinot/data/crimes'
+overwriteOutput: true
+pinotFSSpecs:
+  - scheme: file
+    className: org.apache.pinot.spi.filesystem.LocalPinotFS
+recordReaderSpec:
+  dataFormat: 'csv'
+  className: 'org.apache.pinot.plugin.inputformat.csv.CSVRecordReader'
+  configClassName: 'org.apache.pinot.plugin.inputformat.csv.CSVRecordReaderConfig'
+tableSpec:
+  tableName: 'crimes'
+pinotClusterSpecs:
+  - controllerURI: 'http://localhost:9000'
+----
+
+[source,bash]
+----
+docker exec \
+  -it manual-pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob \
+  -jobSpecFile /config/job-spec.yml
+----
+
+[source,sql]
+----
+select count(*)
+from crimes 
+where "Timestamp" < FromDateTime('2019-01-01', 'yyyy-dd-MM')
+----
+
+[source,json]
+----
+{
+  "numDocsScanned": 6790089,
+  "numEntriesScannedInFilter": 7434990,
+  "numEntriesScannedPostFilter": 0,
+  "timeUsedMs": 113
+}
+----
+
+To make it easier to compare, let's create another table called `crimes_index` that has a range index applied to the `Timestamp` column:
+
+./config/table-range-index.json
+[source, json]
+----
+{
+  "tableName": "crimes_range_index",
+  "tableType": "OFFLINE",
+  "segmentsConfig": {
+    "replication": 1,
+    "schemaName": "crimes",
+  },
+  "tenants": {
+    "broker":"DefaultTenant",
+    "server":"DefaultTenant"
+  },
+  "tableIndexConfig": {
+    "loadMode": "MMAP",
+    "rangeIndexVersion": 2,
+    "rangeIndexColumns": ["Timestamp"]
+  },
+  "nullHandlingEnabled": true,
+  "ingestionConfig": {
+    "batchIngestionConfig": {
+      "segmentIngestionType": "APPEND",
+      "segmentIngestionFrequency": "DAILY"
+    },
+    "transformConfigs": [
+      {"columnName": "CaseNumber", "transformFunction": "\"Case Number\"" },
+      {"columnName": "PrimaryType", "transformFunction": "\"Primary Type\"" },
+      {"columnName": "CommunityArea", "transformFunction": "\"Community Area\"" },
+      {"columnName": "FBICode", "transformFunction": "\"FBI Code\"" },
+      {"columnName": "Timestamp", "transformFunction": "FromDateTime(\"Date\", 'MM/dd/yyyy HH:mm:ss a')" }
+    ]
+  },
+  "metadata": {}
+}
+----
+  
+[source, bash]
+----
+docker exec -it manual-pinot-controller bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table-range-index.json   \
+  -schemaFile /config/schema.json -exec
+----
+
+
+[source, json]
+----
+{
+  "numDocsScanned": 10,
+  "numEntriesScannedInFilter": 0,
+  "numEntriesScannedPostFilter": 150,  
+  "timeUsedMs": 5
+}
+----
