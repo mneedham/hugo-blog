@@ -79,7 +79,7 @@ include::content/2021/12/06/data/transcript.csv[]
 
 == Create Table
 
-Let's to create a Pinot schema and table based on this CSV file.
+Let's create a Pinot schema and table based on this CSV file.
 
 The schema is defined below:
 
