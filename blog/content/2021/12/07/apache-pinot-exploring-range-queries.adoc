@@ -1,10 +1,10 @@
 +++
 draft = true
 date="2021-12-03 00:44:37"
-title="Apache Pinot: Exploring indexing techniques on Chicago Crimes"
+title="Apache Pinot: Exploring range queries"
 tag=['pinot']
 category=['Pinot']
-description="In this post we'll learn how to use Apache Pinot indexes on a Chicago Crime dataset."
+description="In this post we'll learn how to write range queries against Apache Pinot using a Chicago Crimes dataset."
 image="uploads/2021/11/indexing-techniques.png"
 +++
 
@@ -137,10 +137,10 @@ image::{{<siteurl>}}/uploads/2021/11/chicago-crimes.png[Chicago Crimes Dataset, 
     ],
     "dateTimeFieldSpecs": [
       {
-        "name": "Timestamp",
+        "name": "DateEpoch",
         "dataType": "TIMESTAMP",
         "format" : "1:MILLISECONDS:EPOCH",
-        "granularity": "1:HOURS"
+        "granularity": "1:MILLISECONDS"
       }
     ]
 }
@@ -174,7 +174,7 @@ image::{{<siteurl>}}/uploads/2021/11/chicago-crimes.png[Chicago Crimes Dataset, 
         {"columnName": "PrimaryType", "transformFunction": "\"Primary Type\"" },
         {"columnName": "CommunityArea", "transformFunction": "\"Community Area\"" },
         {"columnName": "FBICode", "transformFunction": "\"FBI Code\"" },
-        {"columnName": "Timestamp", "transformFunction": "FromDateTime(\"Date\", 'MM/dd/yyyy HH:mm:ss a')" }
+        {"columnName": "DateEpoch", "transformFunction": "FromDateTime(\"Date\", 'MM/dd/yyyy HH:mm:ss a')" }
       ]
     },
     "metadata": {}
@@ -228,7 +228,7 @@ docker exec \
 ----
 select count(*)
 from crimes 
-where "Timestamp" < FromDateTime('2019-01-01', 'yyyy-dd-MM')
+where DateEpoch < FromDateTime('2019-01-01', 'yyyy-MM-dd')
 ----
 
 [source,json]
@@ -296,4 +296,13 @@ docker exec -it manual-pinot-controller bin/pinot-admin.sh AddTable   \
   "numEntriesScannedPostFilter": 150,  
   "timeUsedMs": 5
 }
+----
+
+
+[source, sql]
+----
+select count(*)
+from crimes_range_index
+WHERE DateEpoch >= FromDateTime('2019-01-01 00:00:00', 'yyyy-MM-dd HH:mm:ss')
+AND DateEpoch < FromDateTime('2019-02-01 00:00:00', 'yyyy-MM-dd HH:mm:ss')
 ----

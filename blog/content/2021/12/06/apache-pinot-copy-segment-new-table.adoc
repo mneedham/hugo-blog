@@ -1,0 +1,302 @@
++++
+draft = false
+date="2021-12-06 00:44:37"
+title="Apache Pinot: Copy segment to a new table"
+tag=['pinot']
+category=['Pinot']
+description="In this post we'll learn how to use a copy of a Pinot segment in another table."
+image="uploads/2021/12/segment-new-table.png"
++++
+
+In this post we'll learn how to use the same Pinot segment in multiple tables.
+
+.Apache Pinot - Copy segment to another table
+image::{{<siteurl>}}/uploads/2021/12/segment-new-table.png[]
+
+== Setup
+
+First, we're going to spin up a local instance of Pinot using the following Docker compose config:
+
+.docker-compose.yml
+[source, yaml]
+----
+version: '3.7'
+services:
+  zookeeper:
+    image: zookeeper:3.5.6
+    hostname: zookeeper
+    container_name: manual-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+  pinot-controller:
+    image: apachepinot/pinot:0.9.0
+    command: "StartController -zkAddress manual-zookeeper:2181"
+    container_name: "manual-pinot-controller"
+    volumes:
+      - ./config:/config
+      - ./data:/data
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    depends_on:
+      - zookeeper
+  pinot-broker:
+    image: apachepinot/pinot:0.9.0
+    command: "StartBroker -zkAddress manual-zookeeper:2181"
+    restart: unless-stopped
+    container_name: "manual-pinot-broker"
+    volumes:
+      - ./config:/config
+      - ./data:/data
+    ports:
+      - "8099:8099"
+    depends_on:
+      - pinot-controller
+  pinot-server:
+    image: apachepinot/pinot:0.9.0
+    command: "StartServer -zkAddress manual-zookeeper:2181"
+    restart: unless-stopped
+    container_name: "manual-pinot-server"
+    volumes:
+      - ./config:/config
+      - ./data:/data    
+    depends_on:
+      - pinot-broker
+----
+
+== Data
+
+We'll be working with a CSV file taken https://docs.pinot.apache.org/basics/getting-started/pushing-your-data-to-pinot[from Pinot's documentation^]:
+
+.transcript.csv
+[format="csv", options="header"]
+|===
+include::content/2021/12/06/data/transcript.csv[]
+|===
+
+== Create Table
+
+Let's to create a Pinot schema and table based on this CSV file.
+
+The schema is defined below:
+
+./config/schema.json
+[source.json]
+----
+{
+  "schemaName": "transcript",
+  "dimensionFieldSpecs": [
+    {
+      "name": "studentID",
+      "dataType": "INT"
+    },
+    {
+      "name": "firstName",
+      "dataType": "STRING"
+    },
+    {
+      "name": "lastName",
+      "dataType": "STRING"
+    },
+    {
+      "name": "gender",
+      "dataType": "STRING"
+    },
+    {
+      "name": "subject",
+      "dataType": "STRING"
+    }
+  ],
+  "metricFieldSpecs": [
+    {
+      "name": "score",
+      "dataType": "FLOAT"
+    }
+  ],
+  "dateTimeFieldSpecs": [{
+    "name": "timestampInEpoch",
+    "dataType": "LONG",
+    "format" : "1:MILLISECONDS:EPOCH",
+    "granularity": "1:MILLISECONDS"
+  }]
+}
+----
+
+Our table config is defined below:
+
+./config/table.json
+[source.json]
+----
+{
+    "tableName": "transcript",
+    "tableType": "OFFLINE",
+    "segmentsConfig": {
+      "replication": 1
+    },
+    "tenants": {
+      "broker":"DefaultTenant",
+      "server":"DefaultTenant"
+    },
+    "tableIndexConfig": {
+      "loadMode": "MMAP"
+    },
+    "ingestionConfig": {
+      "batchIngestionConfig": {
+        "segmentIngestionType": "APPEND",
+        "segmentIngestionFrequency": "DAILY"
+      }
+    },
+    "metadata": {}
+}
+----
+
+Now let's create the table and schema:
+
+[source, bash]
+----
+docker exec -it manual-pinot-controller bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table.json   \
+  -schemaFile /config/schema.json -exec
+----
+
+== Import CSV file
+
+After we've done that, it's time to import the CSV file. 
+We'll do this using the ingestion job spec defined below:
+
+./config/job-spec.yml
+[source,yaml]
+----
+executionFrameworkSpec:
+  name: 'standalone'
+  segmentGenerationJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentGenerationJobRunner'
+  segmentTarPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentTarPushJobRunner'
+jobType: SegmentCreationAndTarPush
+inputDirURI: '/data'
+includeFileNamePattern: 'glob:**/transcript.csv'
+outputDirURI: '/opt/pinot/data/transcript'
+overwriteOutput: true
+pinotFSSpecs:
+  - scheme: file
+    className: org.apache.pinot.spi.filesystem.LocalPinotFS
+recordReaderSpec:
+  dataFormat: 'csv'
+  className: 'org.apache.pinot.plugin.inputformat.csv.CSVRecordReader'
+  configClassName: 'org.apache.pinot.plugin.inputformat.csv.CSVRecordReaderConfig'
+tableSpec:
+  tableName: 'transcript'
+pinotClusterSpecs:
+  - controllerURI: 'http://localhost:9000'
+----
+
+`includeFileNamePattern` refers to the `transcript.csv` file that we saw earlier in this post.
+
+We can run the ingestion job like so:
+
+[source,bash]
+----
+docker exec \
+  -it manual-pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob \
+  -jobSpecFile /config/job-spec.yml
+----
+
+This ingestion job does two things. 
+
+_segmentGenerationJobRunnerClassName_ writes the segment file to the https://docs.pinot.apache.org/basics/components/deep-store[deep store^], which is stored under `/opt/pinot/data/transcript` on our Pinot Controller container.
+
+We can run the following command to check that it's there:
+
+[source,bash]
+----
+docker exec -it manual-pinot-controller ls -lh /opt/pinot/data/transcript
+----
+
+.Output
+[source,text]
+----
+total 4.0K
+-rw-r--r-- 1 root root 1.7K Dec  6 17:08 transcript_OFFLINE_0.tar.gz
+----
+
+And then once the segment has been written to the deep store, _segmentTarPushJobRunnerClassName_ copies the segment file down to the Pinot Server.
+
+== Copy segment to new table
+
+Now let's say we create a new table `transcript2` that uses the same schema, but has an inverted index on one of the columns. 
+The table config is described below:
+
+./config/table-indexes.json
+[source.json]
+----
+{
+    "tableName": "transcript2",
+    "tableType": "OFFLINE",
+    "segmentsConfig": {
+      "replication": 1,
+      "schemaName": "transcript"
+    },
+    "tenants": {
+      "broker":"DefaultTenant",
+      "server":"DefaultTenant"
+    },
+    "tableIndexConfig": {
+      "loadMode": "MMAP",
+      "invertedIndexColumns": ["subject"]
+    },
+    "ingestionConfig": {
+      "batchIngestionConfig": {
+        "segmentIngestionType": "APPEND",
+        "segmentIngestionFrequency": "DAILY"
+      }
+    },
+    "metadata": {}
+}
+----
+
+Create the table:
+
+[source, bash]
+----
+docker exec -it manual-pinot-controller bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table-indexes.json \
+  -exec
+----
+
+Once the table's created, we're going to download the segment (`transcript_OFFLINE_0.tar.gz`) to this table, which we can do using the following ingestion job spec:
+
+./config/job-spec-download-only.yml
+[source,yaml]
+----
+executionFrameworkSpec:
+  name: 'standalone'
+  segmentTarPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentTarPushJobRunner'  
+jobType: SegmentTarPush
+outputDirURI: '/opt/pinot/data/transcript'
+pinotFSSpecs:
+  - scheme: file
+    className: org.apache.pinot.spi.filesystem.LocalPinotFS
+tableSpec:
+  tableName: 'transcript2'
+pinotClusterSpecs:
+  - controllerURI: 'http://localhost:9000'
+----
+
+This time our job type is _SegmentTarPush_, which means it will only run the _segmentTarPushJobRunnerClassName_ job.
+This job will copy the segment from _outputDirURI_ down to the Pinot Server.
+
+[source,bash]
+----
+docker exec \
+  -it manual-pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob \
+  -jobSpecFile /config/transcript/job-spec-download-only.yml
+----
+
+We can then navigate to the `transcripts2` table (via http://localhost:9000/#/tables) in the Pinot Data Explorer, and see that the segment has been loaded:
+
+.transcripts2 table with segment downloaded from transcripts table
+image::{{<siteurl>}}/uploads/2021/12/segment-downloaded.png[]
+
+We can now run queries against this segment from the `transcripts2` table.
