@@ -1,7 +1,7 @@
 +++
 draft = false
 date="2021-12-06 00:44:37"
-title="Apache Pinot: Copy segment to a new table"
+title="Apache Pinot: Copying a segment to a new table"
 tag=['pinot']
 category=['Pinot']
 description="In this post we'll learn how to use a copy of a Pinot segment in another table."

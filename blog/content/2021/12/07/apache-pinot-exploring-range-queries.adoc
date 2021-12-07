@@ -5,12 +5,30 @@ title="Apache Pinot: Exploring range queries"
 tag=['pinot']
 category=['Pinot']
 description="In this post we'll learn how to write range queries against Apache Pinot using a Chicago Crimes dataset."
-image="uploads/2021/11/indexing-techniques.png"
+image="uploads/2021/11/range-queries.png"
 +++
+
+In https://www.markhneedham.com/blog/2021/11/30/apache-pinot-exploring-index-chicago-crimes/[our last post about the Chicago Crimes dataset and Apache Pinot^], we learnt how to use various indexes to filter columns by exact values.
+In this post we're going to learn how to write range queries against the dataset.
+
+.Apache Pinot - Range Queries
+image::{{<siteurl>}}/uploads/2021/12/range-queries.png[]
+
+== Recap
+
+To recap, the Chicago Crimes dataset contains more than 7 million crimes committed in Chicago from 2001 until today.
+For each crime we have various identifiers, a timestamp, location, and codes reprsenting the type of crime that's been committed.
+
+A subset of the data is shown below:
+
+.Chicago Crimes Dataset
+image::{{<siteurl>}}/uploads/2021/11/chicago-crimes.png[Chicago Crimes Dataset, role='medium-zoom-image']
+
+We loaded this data into Apache and Pinot and then analysed the `numEntriesScannedInFilter` and `timeUsedMs` values returned in the query metadata to see how well we'd optimised our queries.
 
 == Setup
 
-We're going to spin up a local instance of Pinot using the following Docker compose config:
+We're going to use the same Docker Compose script as before, which spins up the various components for Apache Pinot 0.9.0:
 
 .docker-compose.yml
 [source, yaml]
@@ -57,20 +75,18 @@ services:
     container_name: "manual-pinot-server"
     volumes:
       - ./config:/config
-      - ./data:/data    
+      - ./data:/data
     depends_on:
       - pinot-broker
 ----
 
-== Data
+== Schema
 
-The Chicago Crimes dataset is available as https://data.cityofchicago.org/Public-Safety/Crimes-2001-to-Present/ijzp-q8t2/data[a CSV file that contains just over 7 million crimes committed in Chicago^] from 2001 until today.
-A subset of the data is shown below:
+We've made a small change to our schema since the last blog post. 
+Instead of storing the timestamp as a `STRING`, we're going to store it as a `TIMESTAMP` so that we can perform date time operations against that column. 
+We'll also change the column name from `Timestamp` to `DateEpoch`. 
 
-.Chicago Crimes Dataset
-image::{{<siteurl>}}/uploads/2021/11/chicago-crimes.png[Chicago Crimes Dataset, role='medium-zoom-image']
-
-== Add Table
+The updated schema is shown below:
 
 ./config/schema.json
 [source,json]
@@ -144,8 +160,14 @@ image::{{<siteurl>}}/uploads/2021/11/chicago-crimes.png[Chicago Crimes Dataset, 
       }
     ]
 }
-  
 ----
+
+If you read the first post about this dataset you'll remember that the timestamp was a DateTime string in the `MM/dd/yyyy HH:mm:ss a` format, rather than the number of milliseconds since the epoch.
+We're going to take care of that with a https://docs.pinot.apache.org/users/user-guide-query/supported-transformations[transformation function^] in our table config.
+
+== Table
+
+The table config is described below:
 
 ./config/table.json
 [source, json]
@@ -161,7 +183,8 @@ image::{{<siteurl>}}/uploads/2021/11/chicago-crimes.png[Chicago Crimes Dataset, 
       "server":"DefaultTenant"
     },
     "tableIndexConfig": {
-      "loadMode": "MMAP"      
+      "loadMode": "MMAP",
+      "sortedColumn": ["Beat"]
     },
     "nullHandlingEnabled": true,
     "ingestionConfig": {
@@ -178,8 +201,10 @@ image::{{<siteurl>}}/uploads/2021/11/chicago-crimes.png[Chicago Crimes Dataset, 
       ]
     },
     "metadata": {}
-  }
+}
 ----
+
+As mentioned in the previous section, we're using the `FromDateTime` transformation function to convert the DateTime strings in the `Date` column into timestamps.
 
 Now let's create the table and schema:
 
@@ -192,18 +217,19 @@ docker exec -it manual-pinot-controller bin/pinot-admin.sh AddTable   \
 
 == Import CSV
 
+Now we're going to import the crimes into Pinot, using the following ingestion spec:
+
+./config/job-spec-sorted.yml
 [source,yaml]
 ----
 executionFrameworkSpec:
   name: 'standalone'
   segmentGenerationJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentGenerationJobRunner'
   segmentTarPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentTarPushJobRunner'
-  segmentUriPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentUriPushJobRunner'
 jobType: SegmentCreationAndTarPush
 inputDirURI: '/data'
-includeFileNamePattern: 'glob:**/Crimes_-_2001_to_Present.csv'
+includeFileNamePattern: 'glob:**/Crimes_beat_sorted.csv'
 outputDirURI: '/opt/pinot/data/crimes'
-overwriteOutput: true
 pinotFSSpecs:
   - scheme: file
     className: org.apache.pinot.spi.filesystem.LocalPinotFS
@@ -221,27 +247,39 @@ pinotClusterSpecs:
 ----
 docker exec \
   -it manual-pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob \
-  -jobSpecFile /config/job-spec.yml
+  -jobSpecFile /config/job-spec-sorted.yml
 ----
+
+== Range Querying
+
+Now it's time to do some range querying. 
+Let's start by counting the crimes committed on 1st January 2019, which we can do by running the following query:
 
 [source,sql]
 ----
 select count(*)
-from crimes 
-where DateEpoch < FromDateTime('2019-01-01', 'yyyy-MM-dd')
+from crimes
+where DateEpoch > FromDateTime('2019-01-01', 'yyyy-MM-dd')
+AND DateEpoch < FromDateTime('2019-01-02', 'yyyy-MM-dd')
 ----
 
+As in the last post, we'll be looking at the output in JSON format to see what's going on under the covers:
+
+.Output
 [source,json]
 ----
 {
-  "numDocsScanned": 6790089,
+  "numDocsScanned": 1065,
   "numEntriesScannedInFilter": 7434990,
   "numEntriesScannedPostFilter": 0,
-  "timeUsedMs": 113
+  "timeUsedMs": 80,
 }
 ----
 
-To make it easier to compare, let's create another table called `crimes_index` that has a range index applied to the `Timestamp` column:
+As we might expect, the SQL engine has scanned all 7,434,990 rows to check which ones match the date range.
+1,065 crimes were committed on this day and the query took 80 ms.
+
+Now we're going to create another table called `crimes_index` that has a range index applied to the `Timestamp` column:
 
 ./config/table-range-index.json
 [source, json]
@@ -251,7 +289,7 @@ To make it easier to compare, let's create another table called `crimes_index` t
   "tableType": "OFFLINE",
   "segmentsConfig": {
     "replication": 1,
-    "schemaName": "crimes",
+    "schemaName": "crimes", <1>
   },
   "tenants": {
     "broker":"DefaultTenant",
@@ -259,8 +297,9 @@ To make it easier to compare, let's create another table called `crimes_index` t
   },
   "tableIndexConfig": {
     "loadMode": "MMAP",
+    "sortedColumn": ["Beat"],
     "rangeIndexVersion": 2,
-    "rangeIndexColumns": ["Timestamp"]
+    "rangeIndexColumns": ["DateEpoch"] <2>
   },
   "nullHandlingEnabled": true,
   "ingestionConfig": {
@@ -273,13 +312,17 @@ To make it easier to compare, let's create another table called `crimes_index` t
       {"columnName": "PrimaryType", "transformFunction": "\"Primary Type\"" },
       {"columnName": "CommunityArea", "transformFunction": "\"Community Area\"" },
       {"columnName": "FBICode", "transformFunction": "\"FBI Code\"" },
-      {"columnName": "Timestamp", "transformFunction": "FromDateTime(\"Date\", 'MM/dd/yyyy HH:mm:ss a')" }
+      {"columnName": "DateEpoch", "transformFunction": "FromDateTime(\"Date\", 'MM/dd/yyyy HH:mm:ss a')" }
     ]
   },
   "metadata": {}
 }
 ----
-  
+<1> We need to explicitly specify the schema name since it doesn't match the table name.
+<2> Add a range index on the `DateEpoch` column.
+
+Run the following command to create the table:
+
 [source, bash]
 ----
 docker exec -it manual-pinot-controller bin/pinot-admin.sh AddTable   \
@@ -287,17 +330,62 @@ docker exec -it manual-pinot-controller bin/pinot-admin.sh AddTable   \
   -schemaFile /config/schema.json -exec
 ----
 
+Now let's copy the segment from the `crimes` table to the `crimes_range_index` table.
+We can do this with the following ingestion spec:
 
+./config/job-spec-download-only.yml
+[source,yaml]
+----
+executionFrameworkSpec:
+  name: 'standalone'
+  segmentTarPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentTarPushJobRunner'  
+jobType: SegmentTarPush
+outputDirURI: '/opt/pinot/data/crimes'
+pinotFSSpecs:
+  - scheme: file
+    className: org.apache.pinot.spi.filesystem.LocalPinotFS
+tableSpec:
+  tableName: 'crimes_range_index'
+pinotClusterSpecs:
+  - controllerURI: 'http://localhost:9000'
+----
+
+Run the ingestion spec:
+
+[source,bash]
+----
+docker exec \
+  -it manual-pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob \
+  -jobSpecFile /config/transcript/job-spec-download-only.yml
+----
+
+[NOTE]
+====
+For more details on how this ingestion spec works, see my blog post https://www.markhneedham.com/blog/2021/12/06/apache-pinot-copy-segment-new-table/[Apache Pinot: Copying a segment to a new table^].
+====
+
+Now let's re-run the query against the new table:
+
+[source,sql]
+----
+select count(*)
+from crimes_range_index
+where DateEpoch > FromDateTime('2019-01-01', 'yyyy-MM-dd')
+AND DateEpoch < FromDateTime('2019-01-02', 'yyyy-MM-dd')
+----
+
+.Output
 [source, json]
 ----
 {
-  "numDocsScanned": 10,
+  "numDocsScanned": 1065,
   "numEntriesScannedInFilter": 0,
-  "numEntriesScannedPostFilter": 150,  
-  "timeUsedMs": 5
+  "numEntriesScannedPostFilter": 0,
+  "timeUsedMs": 26,
 }
 ----
 
+`numEntriesScannedInFilter` is now down to 0 and the query is about 3 times faster than it was before.
 
 [source, sql]
 ----

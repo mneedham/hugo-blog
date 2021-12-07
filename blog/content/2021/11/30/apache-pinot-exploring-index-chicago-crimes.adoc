@@ -238,7 +238,6 @@ executionFrameworkSpec:
   name: 'standalone'
   segmentGenerationJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentGenerationJobRunner'
   segmentTarPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentTarPushJobRunner'
-  segmentUriPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentUriPushJobRunner'
 jobType: SegmentCreationAndTarPush
 inputDirURI: '/data'
 includeFileNamePattern: 'glob:**/Crimes_-_2001_to_Present.csv'
@@ -399,7 +398,7 @@ executionFrameworkSpec:
   segmentUriPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentUriPushJobRunner'
 jobType: SegmentCreationAndTarPush
 inputDirURI: '/data'
-includeFileNamePattern: 'glob:**/Crimes_arrest_sorted.csv'
+includeFileNamePattern: 'glob:**/Crimes_beat_sorted.csv'
 outputDirURI: '/opt/pinot/data/crimes_inverted'
 overwriteOutput: true
 pinotFSSpecs:
@@ -514,7 +513,7 @@ Now let's create a new table, which we'll call `crimes_sorted`:
 
 Run the following command to add a new table `crimes_sorted` based on this table config:
 
-.Add table with inverted index
+.Add table with sorted index
 [source, bash]
 ----
 docker exec -it manual-pinot-controller bin/pinot-admin.sh AddTable   \
