@@ -1,5 +1,5 @@
 +++
-draft = true
+draft = false
 date="2021-12-07 00:44:37"
 title="Apache Pinot: Exploring range queries"
 tag=['pinot']
@@ -83,7 +83,7 @@ services:
 == Schema
 
 We've made a small change to our schema since the last blog post. 
-Instead of storing the timestamp as a `STRING`, we're going to store it as a `TIMESTAMP` so that we can perform date time operations against that column. 
+Instead of storing the timestamp as a `STRING`, we're going to store it as a `TIMESTAMP` so that we can perform date time operations.
 We'll also change the column name from `Timestamp` to `DateEpoch`. 
 
 The updated schema is shown below:
@@ -206,6 +206,12 @@ The table config is described below:
 
 As mentioned in the previous section, we're using the `FromDateTime` transformation function to convert the DateTime strings in the `Date` column into timestamps.
 
+[NOTE]
+====
+For more details on the data transformation works see my blog post https://www.markhneedham.com/blog/2021/12/03/apache-pinot-convert-datetime-string-timestamp-invalid-timestamp/[Converting a DateTime String to Timestamp in Apache Pinot^].
+====
+
+
 Now let's create the table and schema:
 
 [source, bash]
@@ -229,7 +235,7 @@ executionFrameworkSpec:
 jobType: SegmentCreationAndTarPush
 inputDirURI: '/data'
 includeFileNamePattern: 'glob:**/Crimes_beat_sorted.csv'
-outputDirURI: '/opt/pinot/data/crimes'
+outputDirURI: ' '
 pinotFSSpecs:
   - scheme: file
     className: org.apache.pinot.spi.filesystem.LocalPinotFS
@@ -257,10 +263,11 @@ Let's start by counting the crimes committed on 1st January 2019, which we can d
 
 [source,sql]
 ----
-select count(*)
-from crimes
-where DateEpoch > FromDateTime('2019-01-01', 'yyyy-MM-dd')
-AND DateEpoch < FromDateTime('2019-01-02', 'yyyy-MM-dd')
+SELECT count(*)
+FROM crimes
+WHERE DateEpoch BETWEEN 
+  FromDateTime('2019-01-01', 'yyyy-MM-dd') AND 
+  FromDateTime('2019-01-02', 'yyyy-MM-dd')
 ----
 
 As in the last post, we'll be looking at the output in JSON format to see what's going on under the covers:
@@ -272,14 +279,14 @@ As in the last post, we'll be looking at the output in JSON format to see what's
   "numDocsScanned": 1065,
   "numEntriesScannedInFilter": 7434990,
   "numEntriesScannedPostFilter": 0,
-  "timeUsedMs": 80,
+  "timeUsedMs": 80
 }
 ----
 
 As we might expect, the SQL engine has scanned all 7,434,990 rows to check which ones match the date range.
 1,065 crimes were committed on this day and the query took 80 ms.
 
-Now we're going to create another table called `crimes_index` that has a range index applied to the `Timestamp` column:
+Now we're going to create another table called `crimes_index` that has a https://docs.pinot.apache.org/basics/indexing/range-index[range index^] applied to the `DateEpoch` column:
 
 ./config/table-range-index.json
 [source, json]
@@ -356,7 +363,7 @@ Run the ingestion spec:
 ----
 docker exec \
   -it manual-pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob \
-  -jobSpecFile /config/transcript/job-spec-download-only.yml
+  -jobSpecFile /config/job-spec-download-only.yml
 ----
 
 [NOTE]
@@ -368,10 +375,11 @@ Now let's re-run the query against the new table:
 
 [source,sql]
 ----
-select count(*)
-from crimes_range_index
-where DateEpoch > FromDateTime('2019-01-01', 'yyyy-MM-dd')
-AND DateEpoch < FromDateTime('2019-01-02', 'yyyy-MM-dd')
+SELECT count(*)
+FROM crimes_range_index
+WHERE DateEpoch BETWEEN 
+  FromDateTime('2019-01-01', 'yyyy-MM-dd') AND 
+  FromDateTime('2019-01-02', 'yyyy-MM-dd')
 ----
 
 .Output
@@ -381,16 +389,110 @@ AND DateEpoch < FromDateTime('2019-01-02', 'yyyy-MM-dd')
   "numDocsScanned": 1065,
   "numEntriesScannedInFilter": 0,
   "numEntriesScannedPostFilter": 0,
-  "timeUsedMs": 26,
+  "timeUsedMs": 14
 }
 ----
 
-`numEntriesScannedInFilter` is now down to 0 and the query is about 3 times faster than it was before.
+`numEntriesScannedInFilter` is now down to 0 and the query is more than 5 times faster than it was before.
+
+Now let's see what happens if we filter on multiple columns. 
+We have a sorted index on the `Beat` column, so let's find the crimes committed on a specific beat on 1st January 2019:
 
 [source, sql]
 ----
-select count(*)
-from crimes_range_index
-WHERE DateEpoch >= FromDateTime('2019-01-01 00:00:00', 'yyyy-MM-dd HH:mm:ss')
-AND DateEpoch < FromDateTime('2019-02-01 00:00:00', 'yyyy-MM-dd HH:mm:ss')
+SELECT count(*)
+FROM crimes
+WHERE DateEpoch BETWEEN 
+  FromDateTime('2019-01-01', 'yyyy-MM-dd') AND 
+  FromDateTime('2019-01-02', 'yyyy-MM-dd')
+AND Beat = '0421'  
 ----
+
+.Output
+[source, json]
+----
+{
+  "numDocsScanned": 13,
+  "numEntriesScannedInFilter": 57573,
+  "numEntriesScannedPostFilter": 0,
+  "timeUsedMs": 3
+}
+----
+
+[source, sql]
+----
+SELECT count(*)
+FROM crimes_range_index
+WHERE DateEpoch BETWEEN 
+  FromDateTime('2019-01-01', 'yyyy-MM-dd') AND 
+  FromDateTime('2019-01-02', 'yyyy-MM-dd')
+AND Beat = '0421'  
+----
+
+.Output
+[source, json]
+----
+{
+  "numDocsScanned": 13,
+  "numEntriesScannedInFilter": 0,
+  "numEntriesScannedPostFilter": 0,
+  "timeUsedMs": 12
+}
+----
+
+In this case, the combination of sorted index on `Beat` and a scan of the forward index on `DateEpoch` is quicker than querying indexes on both fields.
+
+Admittedly this is far from the normal usage of Pinot.
+I'm only running one query at a time, whereas there would normally be thousands (if not more) concurrent queries, which would tip things in favour of using the indexes on both fields. 
+Having said that, there is https://github.com/apache/pinot/issues/7600[a GitHub issue^] to have the query engine be smarter when deciding whether to scan or use an index. 
+
+If we include more beats, the query that uses both indexes is slightly quicker:
+
+[source, sql]
+----
+SELECT count(*)
+FROM crimes
+WHERE DateEpoch BETWEEN 
+  FromDateTime('2019-01-01', 'yyyy-MM-dd') AND 
+  FromDateTime('2019-01-02', 'yyyy-MM-dd')
+AND Beat IN ('0421', '0423', '0624', '1834', '0511', '1112', '1533', '0823', '0414', '1522')
+----
+
+.Output
+[source, json]
+----
+{
+  "numDocsScanned": 90,
+  "numEntriesScannedInFilter": 513052,
+  "numEntriesScannedPostFilter": 0,
+  "timeUsedMs": 12
+}
+----
+
+[source, sql]
+----
+SELECT count(*)
+FROM crimes_range_index
+WHERE DateEpoch BETWEEN 
+  FromDateTime('2019-01-01', 'yyyy-MM-dd') AND 
+  FromDateTime('2019-01-02', 'yyyy-MM-dd')
+AND Beat IN ('0421', '0423', '0624', '1834', '0511', '1112', '1533', '0823', '0414', '1522') 
+----
+
+.Output
+[source, json]
+----
+{
+  "numDocsScanned": 90,
+  "numEntriesScannedInFilter": 0,
+  "numEntriesScannedPostFilter": 0,
+  "timeUsedMs": 11
+}
+----
+
+== Conclusion
+
+In this post we learnt how to use Apache Pinot's range index so that we could find crimes that happened on a given day.
+We then combined filter predicates and saw that sometimes it can be faster to do a column scan rather than merging together the results of querying two indexes.
+
+We haven't yet explored how to query the spatial data that this dataset contains, so perhaps that's what we'll look at in our next post!
