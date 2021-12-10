@@ -5,7 +5,7 @@ title="Apache Pinot: Exploring range queries"
 tag=['pinot']
 category=['Pinot']
 description="In this post we'll learn how to write range queries against Apache Pinot using a Chicago Crimes dataset."
-image="uploads/2021/11/range-queries.png"
+image="uploads/2021/12/range-queries.png"
 +++
 
 In https://www.markhneedham.com/blog/2021/11/30/apache-pinot-exploring-index-chicago-crimes/[our last post about the Chicago Crimes dataset and Apache Pinot^], we learnt how to use various indexes to filter columns by exact values.
