@@ -1,0 +1,520 @@
++++
+draft = false
+date="2022-01-13  00:44:37"
+title="Apache Pinot: Checking which indexes are defined"
+tag=['pinot']
+category=['Pinot']
+description="In this post we'll learn how to check which indexes are defined on Pinot segments."
+image="uploads/2022/01/indexes-banner.png"
++++
+
+One of the most common questions in the https://communityinviter.com/apps/apache-pinot/apache-pinot[Apache Pinot community Slack^] is how to work out which indexes are defined on columns in https://docs.pinot.apache.org/basics/components/segment[Pinot segments].
+This blog post will attempt to answer that question.
+
+.Apache Pinot: Checking which indexes are defined
+image::{{<siteurl>}}/uploads/2022/01/indexes-banner.png[]
+
+== Setup
+
+First, we're going to spin up a local instance of Pinot using the following Docker compose config:
+
+.docker-compose.yml
+[source, yaml]
+----
+version: '3.7'
+services:
+  zookeeper:
+    image: zookeeper:3.5.6
+    hostname: zookeeper
+    container_name: zookeeper-indexes
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+  pinot-controller:
+    image: apachepinot/pinot:0.9.3
+    command: "StartController -zkAddress zookeeper-indexes:2181 -dataDir /data"
+    container_name: "pinot-controller-indexes"
+    volumes:
+      - ./config:/config
+      - ./data:/data
+      - ./input:/input
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    depends_on:
+      - zookeeper
+  pinot-broker:
+    image: apachepinot/pinot:0.9.3
+    command: "StartBroker -zkAddress zookeeper-indexes:2181"
+    restart: unless-stopped
+    container_name: "pinot-broker-indexes"
+    ports:
+      - "8099:8099"
+    depends_on:
+      - pinot-controller
+  pinot-server:
+    image: apachepinot/pinot:0.9.3
+    command: "StartServer -zkAddress zookeeper-indexes:2181"
+    restart: unless-stopped
+    container_name: "pinot-server-indexes"
+    depends_on:
+      - pinot-broker
+----
+
+[source, bash]
+----
+docker-compose up
+----
+
+== Data
+
+We'll be working with the following CSV files that contain transcripts for various students:
+
+.transcript1.csv
+[format="csv", options="header"]
+|===
+include::content/2022/01/13/data/transcript1.csv[]
+|===
+
+.transcript2.csv
+[format="csv", options="header"]
+|===
+include::content/2022/01/13/data/transcript2.csv[]
+|===
+
+We've deliberately got two different files so that we can create one segment based on each.
+
+== Create Table
+
+Let's create a Pinot schema and table based on this CSV file.
+
+The schema is defined below:
+
+./config/schema.json
+[source.json]
+----
+include::content/2022/01/13/config/schema.json[]
+----
+
+Our table config is defined below:
+
+./config/table.json
+[source.json]
+----
+include::content/2022/01/13/config/table.json[]
+----
+
+Now let's create the table and schema:
+
+[source, bash]
+----
+docker exec -it manual-pinot-controller bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table.json   \
+  -schemaFile /config/schema.json -exec
+----
+
+== Import CSV files
+
+After we've done that, it's time to import the CSV file. 
+We'll import the `transcript1.csv` using the ingestion job spec defined below:
+
+./config/job-spec1.yml
+[source,yaml]
+----
+include::content/2022/01/13/config/job-spec1.yml[]
+----
+
+[source, bash]
+----
+docker exec -it pinot-controller-indexes bin/pinot-admin.sh LaunchDataIngestionJob   \
+  -jobSpecFile /config/job-spec1.yml
+----
+
+And `transcript2.csv` using the ingestion job spec defined below:
+
+./config/job-spec2.yml
+[source,yaml]
+----
+include::content/2022/01/13/config/job-spec2.yml[]
+----
+
+[source, bash]
+----
+docker exec -it pinot-controller-indexes bin/pinot-admin.sh LaunchDataIngestionJob   \
+  -jobSpecFile /config/job-spec2.yml
+----
+
+We can check which segments have been created by running the following command:
+
+[source, bash]
+----
+curl -X GET "http://localhost:9000/segments/transcript" -H "accept: application/json"
+----
+
+.Output
+[source, json]
+----
+[
+  {
+    "OFFLINE": [
+      "transcript_OFFLINE_1570863600000_1572418800000_0",
+      "transcript_OFFLINE_1641746000037_1642068001037_0"
+    ]
+  }
+]
+----
+
+We've got two segments - one for each file - which is what we expected.
+
+== Check indexes
+
+We can check which indexes are defined on the columns in a segment by calling the _getServerMetaData_ endpoint, available at http://localhost:9000/help#/Segment/getServerMetadata.
+A screenshot of the Swagger documentation for this end point is shown below:
+
+.Segment metadata end point
+image::{{<siteurl>}}/uploads/2022/01/segment-metadata.png[]
+
+Let's see what data is returned when we query this end point for the `transcript` table:
+
+[source, bash]
+----
+curl -X GET "http://localhost:9000/segments/transcript/metadata" -H "accept: application/json"
+----
+
+.Output
+[source, json]
+----
+{
+  "transcript_OFFLINE_1570863600000_1572418800000_0": {
+    "segmentName": "transcript_OFFLINE_1570863600000_1572418800000_0",
+    "schemaName": null,
+    "crc": 1700211719,
+    "creationTimeMillis": 1642069557334,
+    "creationTimeReadable": "2022-01-13T10:25:57:334 UTC",
+    "timeGranularitySec": 0,
+    "startTimeMillis": 1570863600000,
+    "startTimeReadable": "2019-10-12T07:00:00.000Z",
+    "endTimeMillis": 1572418800000,
+    "endTimeReadable": "2019-10-30T07:00:00.000Z",
+    "segmentVersion": "v3",
+    "creatorName": null,
+    "custom": {
+      "input.data.file.uri": "file:/input/transcript1.csv"
+    },
+    "columns": [],
+    "indexes": {},
+    "star-tree-index": null
+  },
+  "transcript_OFFLINE_1641746000037_1642068001037_0": {
+    "segmentName": "transcript_OFFLINE_1641746000037_1642068001037_0",
+    "schemaName": null,
+    "crc": 1556428049,
+    "creationTimeMillis": 1642069571796,
+    "creationTimeReadable": "2022-01-13T10:26:11:796 UTC",
+    "timeGranularitySec": 0,
+    "startTimeMillis": 1641746000037,
+    "startTimeReadable": "2022-01-09T16:33:20.037Z",
+    "endTimeMillis": 1642068001037,
+    "endTimeReadable": "2022-01-13T10:00:01.037Z",
+    "segmentVersion": "v3",
+    "creatorName": null,
+    "custom": {
+      "input.data.file.uri": "file:/input/transcript2.csv"
+    },
+    "columns": [],
+    "indexes": {},
+    "star-tree-index": null
+  }
+}
+----
+
+As expected, we have two segments.
+It also tells us when each of the segments was created, along with the minimum and maximum values for the timestamp column.
+
+To get a breakdown of column metadata we'll need to pass in a list of column names.
+Let's have a look what gets returned if we pass in the `firstName` column:
+
+[source, bash]
+----
+curl -X GET "http://localhost:9000/segments/transcript/metadata?columns=firstName&columns=" -H "accept: application/json"
+----
+
+.Output
+[source, json]
+----
+{
+  "transcript_OFFLINE_1570863600000_1572418800000_0": {
+    "segmentName": "transcript_OFFLINE_1570863600000_1572418800000_0",
+    "schemaName": null,
+    "crc": 1700211719,
+    "creationTimeMillis": 1642069557334,
+    "creationTimeReadable": "2022-01-13T10:25:57:334 UTC",
+    "timeGranularitySec": 0,
+    "startTimeMillis": 1570863600000,
+    "startTimeReadable": "2019-10-12T07:00:00.000Z",
+    "endTimeMillis": 1572418800000,
+    "endTimeReadable": "2019-10-30T07:00:00.000Z",
+    "segmentVersion": "v3",
+    "creatorName": null,
+    "custom": {
+      "input.data.file.uri": "file:/input/transcript1.csv"
+    },
+    "columns": [
+      {
+        "totalDocs": 4,
+        "partitionFunction": null,
+        "partitions": null,
+        "hasDictionary": true,
+        "columnMaxLength": 4,
+        "autoGenerated": false,
+        "paddingCharacter": "\u0000",
+        "maxNumberOfMultiValues": 0,
+        "fieldSpec": {
+          "name": "firstName",
+          "singleValueField": true,
+          "defaultNullValueString": "null",
+          "virtualColumnProvider": null,
+          "maxLength": 512,
+          "dataType": "STRING",
+          "transformFunction": null,
+          "defaultNullValue": "null"
+        },
+        "bitsPerElement": 2,
+        "totalNumberOfEntries": 4,
+        "sorted": false,
+        "minValue": "Bob",
+        "maxValue": "Nick",
+        "cardinality": 3,
+        "fieldType": "DIMENSION",
+        "singleValue": true,
+        "columnName": "firstName",
+        "dataType": "STRING"
+      }
+    ],
+    "indexes": {
+      "firstName": {
+        "bloom-filter": "NO",
+        "dictionary": "YES",
+        "forward-index": "YES",
+        "inverted-index": "NO",
+        "null-value-vector-reader": "NO",
+        "range-index": "NO",
+        "json-index": "NO"
+      }
+    },
+    "star-tree-index": null
+  },
+  "transcript_OFFLINE_1641746000037_1642068001037_0": {
+    "segmentName": "transcript_OFFLINE_1641746000037_1642068001037_0",
+    "schemaName": null,
+    "crc": 1556428049,
+    "creationTimeMillis": 1642069571796,
+    "creationTimeReadable": "2022-01-13T10:26:11:796 UTC",
+    "timeGranularitySec": 0,
+    "startTimeMillis": 1641746000037,
+    "startTimeReadable": "2022-01-09T16:33:20.037Z",
+    "endTimeMillis": 1642068001037,
+    "endTimeReadable": "2022-01-13T10:00:01.037Z",
+    "segmentVersion": "v3",
+    "creatorName": null,
+    "custom": {
+      "input.data.file.uri": "file:/input/transcript2.csv"
+    },
+    "columns": [
+      {
+        "totalDocs": 4,
+        "partitionFunction": null,
+        "partitions": null,
+        "hasDictionary": true,
+        "columnMaxLength": 6,
+        "autoGenerated": false,
+        "paddingCharacter": "\u0000",
+        "maxNumberOfMultiValues": 0,
+        "fieldSpec": {
+          "name": "firstName",
+          "singleValueField": true,
+          "defaultNullValueString": "null",
+          "virtualColumnProvider": null,
+          "maxLength": 512,
+          "dataType": "STRING",
+          "transformFunction": null,
+          "defaultNullValue": "null"
+        },
+        "bitsPerElement": 2,
+        "totalNumberOfEntries": 4,
+        "sorted": false, <1>
+        "minValue": "Jason",
+        "maxValue": "Olivia",
+        "cardinality": 3,
+        "fieldType": "DIMENSION",
+        "singleValue": true,
+        "columnName": "firstName",
+        "dataType": "STRING"
+      }
+    ],
+    "indexes": {
+      "firstName": {
+        "bloom-filter": "NO",
+        "dictionary": "YES", <2>
+        "forward-index": "YES",
+        "inverted-index": "NO",
+        "null-value-vector-reader": "NO",
+        "range-index": "NO",
+        "json-index": "NO"
+      }
+    },
+    "star-tree-index": null
+  }
+}
+----
+<1> The column isn't sorted.
+<2> The column uses a dictionary based forward index.
+
+Along with the segment metadata we've now also got a bunch of information about the _firstName_ column and its indexes.
+We're mostly interested in the information under `indexes.firstName`, but we can also see whether a https://docs.pinot.apache.org/basics/indexing/forward-index#sorted-forward-index-with-run-length-encoding[sorted forward index column^] has been applied to this column by checking the `columns.sorted` property.
+
+Next we're going to extract information about the indexes defined for each column. 
+We'll need to combine the data from `columns` and `indexes`, which will be much easier to do in Python.
+The following script writes a CSV file describing column names and indexes for each segment:
+
+[source, python]
+----
+import requests
+import csv
+
+pinot_url = "http://localhost:9000"
+
+response = requests.get(f"{pinot_url}/schemas/transcript")
+r = response.json()
+
+fields = r["dimensionFieldSpecs"] + r["dateTimeFieldSpecs"]
+columns = [field["name"] for field in fields]
+
+data = { "columns": columns}
+response = requests.get(f"{pinot_url}/segments/transcript/metadata", params=data)
+
+r = response.json()
+
+for segment, values in r.items():
+    with open(f"output/schema_{segment}.csv", "w") as schema_file:
+        writer = csv.writer(schema_file, delimiter=",")
+        print(segment)
+        writer.writerow(["column", "sorted"] + list(list(values["indexes"].values())[0].keys()))
+        for column in values["columns"]:
+            column_name = column["fieldSpec"]["name"]        
+            filtered_map = {k:v for k,v in values["indexes"].items() if k == column_name}
+            writer.writerow([column_name, column["sorted"]] + list(filtered_map[column_name].values()))
+----
+
+The output files are shown below:
+
+.schema_transcript_OFFLINE_1570863600000_1572418800000_0.csv
+[format="csv", options="header"]
+|===
+include::content/2022/01/13/no-indexes/schema_transcript_OFFLINE_1570863600000_1572418800000_0.csv[]
+|===
+
+
+.schema_transcript_OFFLINE_1641746000037_1642068001037_0.csv
+[format="csv", options="header"]
+|===
+include::content/2022/01/13/no-indexes/schema_transcript_OFFLINE_1641746000037_1642068001037_0.csv[]
+|===
+
+== Adding new indexes
+
+
+./config/table-inverted-index.json
+[source.json]
+----
+include::content/2022/01/13/config/table-inverted-index.json[]
+----
+
+
+
+abc
+
+[source, bash]
+----
+ curl -X PUT "http://localhost:9000/tables/transcript" \
+   -H "accept: application/json" \
+   -H "Content-Type: application/json" \
+   --data @config/table-inverted-index.json
+----
+
+.Output
+[source, json]
+----
+{"status":"Table config updated for transcript"}
+----
+
+The table is now updated, but the inverted index hasn't been applied to any of the segments yet.
+To apply this new index, we'll need to call the Reload API. 
+We can reload an individual segment or all of the segments. 
+
+.Reload API
+image::{{<siteurl>}}/uploads/2022/01/reload-api.png[]
+
+Let's reload just segment `transcript_OFFLINE_1570863600000_1572418800000_0`, using the following command:
+
+[source, bash]
+----
+curl -X POST \
+  "http://localhost:9000/segments/transcript/transcript_OFFLINE_1570863600000_1572418800000_0/reload?forceDownload=false" \
+  -H "accept: application/json"
+----
+
+++++
+<style>
+table.inverted-index tbody tr:nth-child(2) {
+    background-color: yellow;
+}
+
+table.inverted-index tbody tr:nth-child(2) td:nth-child(6) {
+    font-weight: 700;
+}
+</style>
+++++
+
+Now we can re-run our Python script to get the latest state of indexes, which is shown below:
+
+.schema_transcript_OFFLINE_1570863600000_1572418800000_0.csv
+[format="csv", options="header", role="inverted-index"]
+|===
+include::content/2022/01/13/inverted-index/schema_transcript_OFFLINE_1570863600000_1572418800000_0.csv[]
+|===
+
+
+.schema_transcript_OFFLINE_1641746000037_1642068001037_0.csv
+[format="csv", options="header", role="inverted-index"]
+|===
+include::content/2022/01/13/inverted-index/schema_transcript_OFFLINE_1641746000037_1642068001037_0.csv[]
+|===
+
+We can see that an inverted index has been added to the _firstName_ column for segment `transcript_OFFLINE_1570863600000_1572418800000_0`, but not segment `transcript_OFFLINE_1641746000037_1642068001037_0`.
+
+We can apply the inverted index to all segments by running the following command:
+
+[source, bash]
+----
+curl -X POST "http://localhost:9000/segments/transcript/reload?forceDownload=false" -H "accept: application/json"
+----
+
+And if we run our Python script one more time, we'll get the following output:
+
+.schema_transcript_OFFLINE_1570863600000_1572418800000_0.csv
+[format="csv", options="header", role="inverted-index"]
+|===
+include::content/2022/01/13/inverted-index-all/schema_transcript_OFFLINE_1570863600000_1572418800000_0.csv[]
+|===
+
+
+.schema_transcript_OFFLINE_1641746000037_1642068001037_0.csv
+[format="csv", options="header", role="inverted-index"]
+|===
+include::content/2022/01/13/inverted-index-all/schema_transcript_OFFLINE_1641746000037_1642068001037_0.csv[]
+|===
+
+The inverted index on the _firstName_ column is now available on all segments!

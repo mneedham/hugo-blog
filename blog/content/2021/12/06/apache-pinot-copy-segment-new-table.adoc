@@ -285,13 +285,13 @@ pinotClusterSpecs:
 ----
 
 This time our job type is _SegmentTarPush_, which means it will only run the _segmentTarPushJobRunnerClassName_ job.
-This job will copy the segment from _outputDirURI_ down to the Pinot Server.
+This job will (indirectly) copy the segment from _outputDirURI_ down to the Pinot Server.
 
 [source,bash]
 ----
 docker exec \
   -it manual-pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob \
-  -jobSpecFile /config/transcript/job-spec-download-only.yml
+  -jobSpecFile /config/job-spec-download-only.yml
 ----
 
 We can then navigate to the `transcripts2` table (via http://localhost:9000/#/tables) in the Pinot Data Explorer, and see that the segment has been loaded:
