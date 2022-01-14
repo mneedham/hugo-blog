@@ -1,0 +1,66 @@
++++
+draft = false
+date="2022-01-14 00:44:37"
+title="Python: Generate WKT from Lat Long Coordinates"
+tag=['python', 'wkt']
+category=['python']
+description="In this post we'll learn how to convert lat long coordinates to the WKT format."
+image="uploads/2022/01/wkt-banner.png"
++++
+
+Recently I've been playing around with geometry objects in https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry[WKT format^] while documenting https://docs.pinot.apache.org/basics/indexing/geospatial-support[Apache Pinot's Geospatial functions^].
+I then wanted to figure out how to generate a WKT string from a list of lat long coordinates, which we'll learn how to do in this blog post.  
+
+.Python: Generate WKT from Lat Long Coordinates
+image::{{<siteurl>}}/uploads/2022/01/wkt-banner.png[]
+
+We're going to do all this using Python's https://shapely.readthedocs.io/en/stable/manual.html[Shapely^] library, so let's first install that library:
+
+[source, bash]
+----
+pip install shapely
+----
+
+[NOTE]
+====
+I learnt about the Shapely library from https://gis.stackexchange.com/questions/294206/create-a-polygon-from-coordinates-in-geopandas-with-python[Davma's StackOverflow question^].
+====
+
+Let's say we have a bunch of lat/long coordinates defined like this:
+
+[source, python]
+----
+lat_longs = [
+    (50.854457, 4.377184), 
+    (52.518172, 13.407759), 
+    (50.072651, 14.435935), 
+    (48.853033, 2.349553), 
+    (50.854457, 4.377184)
+]
+----
+
+We're going to create a polygon based on these coordinates using the following code:
+
+[source, python]
+----
+from shapely.geometry import Polygon
+polygon = Polygon(lat_longs)
+----
+
+And getting a WKT string is as easy as calling the `wkt` property:
+
+[source, python]
+----
+print(polygon.wkt)
+----
+
+.Output
+[source, text]
+----
+POLYGON ((50.854457 4.377184, 52.518172 13.407759, 50.072651 14.435935, 48.853033 2.349553, 50.854457 4.377184))
+----
+
+And finally, we can plot that polygon on a map using the https://clydedacruz.github.io/openstreetmap-wkt-playground/[OpenStreetMap WKT Playground^].
+
+.Polygon visualisation
+image::{{<siteurl>}}/uploads/2022/01/wkt-diagram.png[width="500px"]
