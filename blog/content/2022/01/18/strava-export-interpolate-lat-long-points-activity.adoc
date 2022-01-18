@@ -1,0 +1,208 @@
++++
+draft = false
+date="2022-01-18 00:44:37"
+title="Strava: Export and interpolate lat/long points for an activity"
+tag=['python', 'strava']
+category=['python']
+description="In this post we'll learn how to export and interpolate the lat/long points for a Strava activity."
+image="uploads/2022/01/strava-banner.png"
++++
+
+:icons: font
+
+I've been working with https://www.markhneedham.com/blog/tag/strava/[Strava^] data again recently and wanted to extract all the lat/long coordinates recorded for my runs.
+Having done this, I realised that my running watch hadn't recorded as many points as I expected, so I needed to interpolate the missing points.
+In this blog post we'll learn how to do that.
+
+.Strava: Export and interpolate lat/long points for an activity
+image::{{<siteurl>}}/uploads/2022/01/strava-banner.png[]
+
+== Setup
+
+Let's first install a few libraries that we'll be using:
+
+[source, bash]
+----
+pip install stravalib pandas pyproj
+----
+
+Once we've installed those library, let's import them into our Python script:
+
+[source, python]
+----
+import pickle
+import time
+import pandas as pd
+from datetime import timedelta
+----
+
+== Creating the Strava client
+
+First we'll need to create a Strava client using the stravalib library.
+This involves generating an access token, which I showed how to do in my blog post titled https://www.markhneedham.com/blog/2020/12/20/strava-export-all-activities-json/[Strava: Export all activities to JSON file].
+
+We'll assume that's already been done and the client has been serialised to `auth/client.pkl`.
+We can load the client by running the following code:
+
+
+[source, python]
+----
+def load_object(filename):
+    with open(filename, 'rb') as input:
+        loaded_object = pickle.load(input)
+        return loaded_object
+
+client = load_object('auth/client.pkl')
+----
+
+== Exporting lat/long points
+
+Now that we've got that setup, it's time to export those lat/long points
+We'll use https://www.strava.com/activities/3092741860[one of my runs^] from my trip to Sweden for the Neo4j Engineering Offsite in February 2020, back in the good old pre-Covid days.
+
+We can get the lat/long points for an activity from the https://pythonhosted.org/stravalib/api.html#stravalib.client.Client.get_activity_streams[get_activity_streams^] function, as shown in the following code sample:
+
+[source, python]
+----
+id = 3092741860
+
+response = client.get_activity(id)
+start = response.start_date
+
+response = client.get_activity_streams(id, ["distance", "latlng", "time", "heartrate", "cadence", "altitude"])
+latlong = response["latlng"].data
+time_list = response["time"].data
+altitude = response["altitude"].data
+hr = response["heartrate"].data if response.get("heartrate") else 0
+cadence = response["cadence"].data if response.get("cadence") else 0
+
+data = pd.DataFrame([*latlong], columns=['lat','lon'])
+data["id"] = id
+data["distance"] = response["distance"].data
+data['altitude'] = altitude
+data['hr'] = hr
+data['cadence'] = cadence
+data['time'] = [(start+timedelta(seconds=t)) for t in time_list]
+data['rawTime'] = time_list
+
+data.to_csv("points.csv", index=False)
+----
+
+Below are the first few lines of this file:
+
+.points.csv
+[format="csv", options="header", cols="10,10,10,10,10,10,10,20,10"]
+|===
+include::content/2022/01/18/data/points.csv[lines=1..6]
+|===
+
+There are 914 points over 86 minutes, or just over 10 points per minute.
+I want to have one point per second, or around 5,160 points for this activity.
+
+== Interpolating points
+
+To achieve this we're going to generate/interpolate the missing points.
+We can do this by computing equally spaced lat/long coordinates in between the points that we do have using the Pyproj library.
+
+[NOTE]
+====
+I learnt about the Pyproj library from https://gis.stackexchange.com/questions/311362/interpolating-orthodrome-between-two-lon-lat-points-in-python[Felix's StackOverflow answer^].
+====
+
+Let's learn how to use the library on a couple of the lat/longs from the dataset. 
+We'll have the `npts` function compute two points in between the provided points:
+
+[source, python]
+----
+from pyproj import Geod
+
+geoid = Geod(ellps="WGS84")
+
+point1 = (56.434604, 12.838070)
+point2 = (56.434625, 12.838106)
+points_to_generate = 2
+
+extra_points = geoid.npts(point1[0], point1[1], point2[0], point2[1], points_to_generate)
+for point in extra_points:
+    print(point)
+----
+
+.Output
+[source, text]
+----
+(56.434610999999336, 12.838082000000197)
+(56.43461799999933, 12.838094000000197
+----
+
+So far, so good.
+We can now use this approach to compute missing points for the whole run.
+We'll first extract the lat/long points and the rawTime value into a list of tuples:
+
+[source, python]
+----
+import csv
+from pyproj import Geod
+
+points = []
+with open("points.csv", "r") as event_file:
+    reader = csv.reader(event_file, delimiter=",")
+    next(reader, None)  # skip the headers
+    for row in reader:
+        lat = float(row[0])
+        lon = float(row[1])
+        points.append((lat, lon, int(row[8])))
+
+for point in points[0:5]:
+    print(point)
+----
+
+.Output
+[source, text]
+----
+(56.434599, 12.838058, 0)
+(56.434604, 12.83807, 1)
+(56.434625, 12.838106, 4)
+(56.434717, 12.838408, 11)
+(56.434718, 12.838463, 12)
+----
+
+And now let's fill in the missing points:
+
+[source, python]
+----
+geoid = Geod(ellps="WGS84")
+
+all_points = []
+for point1, point2 in zip(points, points[1:]):
+    missing_points = (point2[2] - point1[2]) <1>
+    if missing_points > 0:
+        extra_points = geoid.npts(point1[0], point1[1], point2[0], point2[1], missing_points)
+        all_points.append(point1)
+        all_points.extend([extra_points[idx] + (point1[2] + idx,) for idx in range(1,len(extra_points))]) <2>
+all_points.append(points[-1])
+
+for point in all_points[0:13]:
+    print(point)
+----
+<1> How many points to generate 
+<2> Add the new  points along with the number of seconds into the activity
+
+Below are the combined actual points and interpolate points up to the 12th second:
+
+.Output
+[source, text]
+----
+(56.434599, 12.838058, 0)
+(56.434604, 12.83807, 1)
+(56.43461449999925, 12.838088000000225, 2)
+(56.43461974999944, 12.838097000000166, 3)
+(56.434625, 12.838106, 4)
+(56.434647999979404, 12.838181500003664, 5)
+(56.43465949997426, 12.838219250004581, 6)
+(56.434670999972546, 12.838257000004889, 7)
+(56.43468249997426, 12.838294750004582, 8)
+(56.43469399997941, 12.838332500003668, 9)
+(56.43470549998799, 12.83837025000214, 10)
+(56.434717, 12.838408, 11)
+(56.434718, 12.838463, 12)
+----
