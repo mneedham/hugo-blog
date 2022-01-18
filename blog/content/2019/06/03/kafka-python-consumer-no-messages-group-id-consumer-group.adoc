@@ -41,7 +41,17 @@ Now let's create a topic named `foobar`, which we can do using the `kafka-topics
 
 [source, bash]
 ----
-$ docker exec broker-tutorial kafka-topics --zookeeper zookeeper:2181 --create --topic foobar --partitions 2 --replication-factor 1
+docker exec broker-tutorial kafka-topics \
+  --zookeeper zookeeper:2181 \
+  --create \
+  --topic foobar \
+  --partitions 2 \
+  --replication-factor 1
+----
+
+.Output
+[source, text]
+----
 Created topic "foobar".
 ----
 
@@ -91,7 +101,12 @@ The output of running the consumer is below:
 
 [source, bash]
 ----
-$ python dummy_consumer.py
+python dummy_consumer.py
+----
+
+.Output
+[source, json]
+----
 {'id': '939cd4fe-79e9-4050-a9bc-3f94b31f62e3'}
 {'id': 'a90c71b3-4516-4df9-871d-047264f1d6b6'}
 {'id': '06d45529-6888-4d2d-a4df-fec15b4b1d87'}
@@ -130,8 +145,15 @@ We can run the following command to see this:
 
 [source, bash]
 ----
-$ docker exec broker-tutorial kafka-consumer-groups --bootstrap-server broker:9093 --group blog_group --describe
+$ docker exec broker-tutorial kafka-consumer-groups \
+  --bootstrap-server broker:9093 \
+  --group blog_group \
+  --describe
+----
 
+.Output
+[source,text]
+----
 TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                             HOST            CLIENT-ID
 foobar         0          8               8               0               kafka-python-1.4.6-74f3f185-b563-40c8-958a-ad6c0c4815c0 /172.26.0.1     kafka-python-1.4.6
 foobar         1          2               2               0               kafka-python-1.4.6-74f3f185-b563-40c8-958a-ad6c0c4815c0 /172.26.0.1     kafka-python-1.4.6
@@ -149,22 +171,43 @@ If we want to consume all the messages on the `foobar` topic again, we'll need t
 We can do this by passing the `--reset-offsets` argument to `kafka-consumer-groups.`
 The following code shows what a dry run of this command will do:
 
-```
-$ docker exec broker-tutorial kafka-consumer-groups --bootstrap-server broker:9093 --group blog_group --topic foobar --reset-offsets --to-earliest --dry-run
+[source, bash]
+----
+docker exec broker-tutorial kafka-consumer-groups \
+  --bootstrap-server broker:9093 \
+  --group blog_group \
+  --topic foobar \
+  --reset-offsets \
+  --to-earliest \
+  --dry-run
+----
 
+.Output
+[source, text]
+----
 TOPIC                          PARTITION  NEW-OFFSET
 foobar                        0          0
 foobar                        1          0
-```
+----
 
 And if we want to execute it for real, we need to change `--dry-run` to `--execute`:
 
-```
-$ docker exec broker-tutorial kafka-consumer-groups --bootstrap-server broker:9093 --group blog_group --topic foobar --reset-offsets --to-earliest --execute
+[source, bash]
+----
+docker exec broker-tutorial kafka-consumer-groups \
+  --bootstrap-server broker:9093 \
+  --group blog_group \
+  --topic foobar \
+  --reset-offsets \
+  --to-earliest --execute
+----
 
+.Output
+[source, text]
+----
 TOPIC                          PARTITION  NEW-OFFSET
 foobar                        0          0
 foobar                        1          0
-```
+----
 
 Once we've done this we can re-run our group id consumer and we'll be able to read all the messages again.

@@ -22,4 +22,4 @@ I'm not sure if I totally subscribe to why this approach would work but I defini
 
 Similar articles:
 
-* link:/2006/09/02/giving-effective-feedback/[Giving effective feedback]
+* link:/blog/2006/09/02/giving-effective-feedback/[Giving effective feedback]

@@ -185,7 +185,7 @@ We can run the ingestion job like so:
 ----
 docker exec \
   -it manual-pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob \
-  -jobSpecFile /config/new-blog/job-spec.yml
+  -jobSpecFile /config/job-spec.yml
 ----
 
 [source, text]
@@ -308,7 +308,7 @@ Now we can update the table config:
 curl 'http://localhost:9000/tables/dates_OFFLINE' \
  -X 'PUT' \
  -H 'Content-Type: application/json' \
- --data-binary "@config/new-blog/table-transform.json"
+ --data-binary "@config/table-transform.json"
 ----
 
 .Output
@@ -385,8 +385,8 @@ curl -X DELETE "http://localhost:9000/tables/dates?type=offline" -H "accept: app
 [source, bash]
 ----
 docker exec -it manual-pinot-controller bin/pinot-admin.sh AddTable   \
-  -tableConfigFile /config/new-blog/table-transform.json   \
-  -schemaFile /config/new-blog/schema-transform.json -exec
+  -tableConfigFile /config/table-transform.json   \
+  -schemaFile /config/schema-transform.json -exec
 ----
 
 We can then run the ingestion job again and the datetime values will be loaded into the `Timestamp` column, as shown in the screenshot below:
