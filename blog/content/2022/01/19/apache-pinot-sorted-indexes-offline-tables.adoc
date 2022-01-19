@@ -1,0 +1,251 @@
++++
+draft = false
+date="2022-01-19  00:44:37"
+title="Apache Pinot: Sorted indexes on offline tables"
+tag=['pinot']
+category=['Pinot']
+description="In this post we'll learn all about sorted indexes on offline tables in Apache Pinot."
+image="uploads/2022/01/sorted-indexes-offline-banner.png"
++++
+
+I've recently been learning all about Apache Pinot's sorted forward indexes.
+I was initially going to explain how they work for offline and real-time tables, but the post got a bit long, so instead we'll have two blog posts.
+In this one we'll learn how sorted indexes are applied for offline tables.
+
+.Apache Pinot: Sorted indexes on offline tables
+image::{{<siteurl>}}/uploads/2022/01/sorted-indexes-offline-banner.png[]
+
+== Launch Components
+
+We're going to spin up a local instance of Pinot using the following Docker compose config:
+
+.docker-compose.yml
+[source, yaml]
+----
+version: '3.7'
+services:
+  zookeeper:
+    image: zookeeper:3.5.6
+    hostname: zookeeper
+    container_name: zookeeper-strava
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+  pinot-controller:
+    image: apachepinot/pinot:0.9.3
+    command: "StartController -zkAddress zookeeper-strava:2181 -dataDir /data"
+    container_name: "pinot-controller-strava"
+    volumes:
+      - ./config:/config
+      - ./data:/data
+      - ./input:/input
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    depends_on:
+      - zookeeper
+  pinot-broker:
+    image: apachepinot/pinot:0.9.3
+    command: "StartBroker -zkAddress zookeeper-strava:2181"
+    restart: unless-stopped
+    container_name: "pinot-broker-strava"
+    ports:
+      - "8099:8099"
+    depends_on:
+      - pinot-controller
+  pinot-server:
+    image: apachepinot/pinot:0.9.3
+    command: "StartServer -zkAddress zookeeper-strava:2181"
+    restart: unless-stopped
+    container_name: "pinot-server-strava"
+    depends_on:
+      - pinot-broker
+----
+
+We can launch all the components by running the following command:
+
+[source, bash]
+----
+docker-compose up
+----
+
+== Create Schema
+
+We're going to explore sorted indexes using a dataset of my Strava activities.
+We'll be using the following schema:
+
+./config/schema.json
+[source, json]
+----
+include::content/2022/01/19/config/schema.json[]
+----
+
+We can create the schema by running the following command:
+
+[source, bash]
+----
+docker exec -it pinot-controller-strava bin/pinot-admin.sh AddSchema \
+  -schemaFile /config/schema.json -exec
+----
+
+== Create Tables
+
+Now let's create an offline table based on that schema.
+
+./config/table-offline.json
+[source, json]
+----
+include::content/2022/01/19/config/table-offline.json[]
+----
+
+We can create a table by running the following command:
+
+[source, bash]
+----
+docker exec -it pinot-controller-strava bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table-offline.json   \
+  -exec
+----
+
+== What is a sorted index?
+
+Before we ingest any data, let's remind ourselves about the definition of a sorted index.
+
+[quote, Sorted forward index with run-length encoding, 'https://docs.pinot.apache.org/basics/indexing/forward-index#sorted-forward-index-with-run-length-encoding[docs.pinot.apache.org/basics/indexing/forward-index#sorted-forward-index-with-run-length-encoding]']
+_____
+When a column is physically sorted, Pinot uses a sorted forward index with run-length encoding on top of the dictionary-encoding. 
+Instead of saving dictionary ids for each document id, Pinot will store a pair of start and end document ids for each value.
+_____
+
+A diagram showing how a sorted index works conceptually is shown below:
+
+.Sorted Forward Index
+image::{{<siteurl>}}/uploads/2022/01/sorted-forward.png[]
+
+The advantage of having a sorted index is that queries that filter by that column will be more performant since the query engine doesn't need to scan through every document to check if they match the filtering criteria.
+
+When creating a segment Pinot does a single pass over every column to check whether the data is sorted.
+Columns that contain sorted data will use a sorted forward index.
+
+[NOTE]
+====
+Sorted indexes are determined for each segment.
+This means that a column could be sorted in one segment, but not in another one.
+====
+
+== Ingesting Data
+
+Now let's import some data into our table.
+We'll be importing data from CSV files that contain some of the lat/longs from a few of my Strava runs.
+
+`activity1.csv` contains the first 5 recorded points from one run:
+
+.activity1.csv
+[format="csv", options="header"]
+|===
+include::content/2022/01/19/input/activity1.csv[]
+|===
+
+And `activity2.csv` contains 5 recorded points from two different runs:
+
+.activity2.csv
+[format="csv", options="header"]
+|===
+include::content/2022/01/19/input/activity2.csv[]
+|===
+
+[source, bash]
+----
+docker exec \
+  -it pinot-controller-strava bin/pinot-admin.sh LaunchDataIngestionJob \
+  -jobSpecFile /config/job-spec.yml
+----
+
+Once the job has run we'll have two segments in our table, which we can see by navigating to http://localhost:9000/#/tenants/table/activities_offline_OFFLINE. 
+You should see something like the following:
+
+.Segments
+image::{{<siteurl>}}/uploads/2022/01/segments-table.png[]
+
+If the segments are showing up we can be reasonably sure that the import has worked, but let's also navigate to http://localhost:9000/#/query to make sure.
+If we run a query against the table, we should see something like the following:
+
+.Querying the activities_offline table
+image::{{<siteurl>}}/uploads/2022/01/sorted-query.png[]
+
+== Checking sorted status
+
+Next, we're going to check on the sorted status of the columns in each segment. 
+
+First let's collect all the columns in the `activities` schema:
+
+[source, bash]
+----
+export queryString=`curl -X GET "http://localhost:9000/schemas/activities" -H "accept: application/json" 2>/dev/null | 
+  jq -r '[.dimensionFieldSpecs,.dateTimeFieldSpecs | .[] | .name ] | join("&columns=")'`
+----
+
+And now let's call the _getServerMetaData_ endpoint and filter the response to get the segment name, input file, and column names with sorted status:
+
+[source, bash]
+----
+curl -X GET "http://localhost:9000/segments/activities_offline/metadata?columns=${queryString}" \
+  -H "accept: application/json"  2>/dev/null |
+  jq -c '.[] | select(.columns != null) | {
+    segment: .segmentName, 
+    importedFrom: .custom ["input.data.file.uri"], 
+    columns: .columns | map({(.columnName): .sorted})
+  }' 
+----
+
+If we run this command, we'll see the following output:
+
+.Output
+[source, json]
+----
+{
+    "segment": "activities_offline_OFFLINE_1581488399000_1582343333000_1",
+    "importedFrom": "file:/input-blog/activity2.csv",
+    "columns": [
+        {"altitude": false},
+        {"distance": false},
+        {"hr": false},
+        {"lon": false},
+        {"cadence": false},
+        {"rawTime": false},
+        {"location": false},
+        {"id": false},
+        {"lat": true},
+        {"timestamp": false}
+    ]
+}
+{
+    "segment": "activities_offline_OFFLINE_1570656325000_1570656332000_0",
+    "importedFrom": "file:/input-blog/activity1.csv",
+    "columns": [
+        {"altitude": true},
+        {"distance": true},
+        {"hr": true},
+        {"lon": false},
+        {"cadence": true},
+        {"rawTime": true},
+        {"location": false},
+        {"id": true},
+        {"lat": false},
+        {"timestamp": true}
+    ]
+}
+----
+
+[NOTE]
+====
+I have formatted the JSON output using the https://j-brooke.github.io/FracturedJson/[FracturedJson tool^] in the web browser to make it easier to read.
+====
+
+From this output we can see that the segment created from `activity1.csv` has many more sorted columns than the one created from `activity2.csv.`
+The only column that was explicitly sorted is `timestamp`, but `rawTime` and `distance` are also sorted because they are correlated with `timestamp` within an activity.
+
+For the `activity2.csv` segment the only sorted column is `lat`, which is sorted by chance more than anything else!
+None of the other columns are sorted.

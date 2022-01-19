@@ -8,6 +8,8 @@ description="In this post we'll learn how to check which indexes are defined on 
 image="uploads/2022/01/indexes-banner.png"
 +++
 
+:icons: font
+
 One of the most common questions in the https://communityinviter.com/apps/apache-pinot/apache-pinot[Apache Pinot community Slack^] is how to work out which indexes are defined on columns in https://docs.pinot.apache.org/basics/components/segment[Pinot segments].
 This blog post will attempt to answer that question.
 

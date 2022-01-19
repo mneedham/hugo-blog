@@ -102,7 +102,7 @@ I want to have one point per second, or around 5,160 points for this activity.
 == Interpolating points
 
 To achieve this we're going to generate/interpolate the missing points.
-We can do this by computing equally spaced lat/long coordinates in between the points that we do have using the Pyproj library.
+We can do this by computing equally spaced lat/long coordinates in between the points that we do have using the https://pyproj4.github.io/pyproj/stable/[Pyproj library^].
 
 [NOTE]
 ====
@@ -110,7 +110,7 @@ I learnt about the Pyproj library from https://gis.stackexchange.com/questions/3
 ====
 
 Let's learn how to use the library on a couple of the lat/longs from the dataset. 
-We'll have the `npts` function compute two points in between the provided points:
+We'll have the https://pyproj4.github.io/pyproj/stable/api/geod.html?highlight=npts#pyproj.Geod.npts[`npts`^] function compute two points in between the provided points:
 
 [source, python]
 ----
