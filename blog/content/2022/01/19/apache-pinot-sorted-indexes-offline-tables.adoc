@@ -122,7 +122,7 @@ _____
 A diagram showing how a sorted index works conceptually is shown below:
 
 .Sorted Forward Index
-image::{{<siteurl>}}/uploads/2022/01/sorted-forward.png[]
+image::{{<siteurl>}}/uploads/2022/01/sorted-forward.png[width="500px"]
 
 The advantage of having a sorted index is that queries that filter by that column will be more performant since the query engine doesn't need to scan through every document to check if they match the filtering criteria.
 
