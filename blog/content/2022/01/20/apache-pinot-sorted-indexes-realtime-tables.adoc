@@ -147,7 +147,6 @@ Sorted indexes are determined for each segment.
 This means that a column could be sorted in one segment, but not in another one.
 ====
 
-
 == Data Ingestion into Kafka
 
 Now let's ingest some data into a Kafka topic. 
@@ -176,7 +175,6 @@ Define an acknowledge function and configure our Kafka producer:
 def acked(err, msg):
     if err is not None:
         print("Failed to deliver message: {0}: {1}".format(msg.value(), err.str()))
-
 
 producer = Producer({'bootstrap.servers': 'localhost:9092'})
 ----
@@ -260,7 +258,7 @@ We can check which segments have been created by navidating to http://localhost:
 You should see something like the following:
 
 .Segments
-image::{{<siteurl>}}/uploads/2022/01/realtimes-segments.png[]
+image::{{<siteurl>}}/uploads/2022/01/realtime-segments.png[]
 
 If we click on the first segment, we'll see the following:
 
@@ -278,7 +276,7 @@ image::{{<siteurl>}}/uploads/2022/01/segment1.png[]
 
 This one is `IN_PROGRESS` and if add some more messages to the Kafka topic they will go into this segment.
 
-Now we're going to check on the sorted status of the columns for all committed segments i.e segment _activities_realtime__0__1__20220119T1541Z_ in this case. 
+Now we're going to check on the sorted status of the columns for all committed segments i.e segment `activities_realtime__0__1__20220119T1541Z` in this case. 
 
 First let's collect all the columns in the `activities` schema:
 
@@ -381,8 +379,10 @@ We can then call the `getSegmentMetadata` endpoint to return the metadata for ea
 
 [source, bash]
 ----
-for segment in `curl -X GET "http://localhost:9000/segments/activities_realtime_sorted" -H "accept: application/json" 2>/dev/null | 
-                jq -r '.[] | .REALTIME[]'`; do 
+segments=`curl -X GET "http://localhost:9000/segments/activities_realtime_sorted" \
+               -H "accept: application/json" 2>/dev/null | 
+          jq -r '.[] | .REALTIME[]'`
+for segment in ${segments}; do 
   curl -X GET "http://localhost:9000/segments/activities_realtime_sorted/${segment}/metadata" \
     -H "accept: application/json" 2>/dev/null | jq '.'
 done
@@ -421,8 +421,8 @@ done
 }
 ----
 
-From this output we learn that segment _activities_realtime_sorted__0__0__20220120T0952Z_ has already been committed and segment _activities_realtime_sorted__0__1__20220120T0952Z_ is still in progress.
-Any new records will be added to segment _activities_realtime_sorted__0__1__20220120T0952Z_. 
+From this output we learn that segment `activities_realtime_sorted__0__0__20220120T0952Z` has already been committed and segment `activities_realtime_sorted__0__1__20220120T0952Z` is still in progress.
+Any new records will be added to segment `activities_realtime_sorted__0__1__20220120T0952Z`. 
 
 Now let's check on the sorted status of columns in these segments using the  _getServerMetaData_ endpoint:
 
