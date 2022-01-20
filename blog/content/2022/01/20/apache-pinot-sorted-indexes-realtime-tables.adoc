@@ -1,0 +1,480 @@
++++
+draft = false
+date="2022-01-20 02:44:37"
+title="Apache Pinot: Sorted indexes on real-time tables"
+tag=['pinot']
+category=['Pinot']
+description="In this post we'll learn all about sorted indexes on offline tables in Apache Pinot."
+image="uploads/2022/01/sorted-indexes-realtime-banner.png"
++++
+
+I've recently been learning all about Apache Pinot's sorted forward indexes, and in my first blog post I explained https://www.markhneedham.com/blog/2022/01/19/apache-pinot-sorted-indexes-offline-tables/[how they work for offline tables].
+In this blog post we'll learn how sorted indexes work with real-time tables.
+
+.Apache Pinot: Sorted indexes on real-time tables
+image::{{<siteurl>}}/uploads/2022/01/sorted-indexes-realtime-banner.png[]
+
+== Launch Components
+
+We're going to spin up a local instance of Pinot and Kafka using the following Docker compose config:
+
+
+.docker-compose.yml
+[source, yaml]
+----
+version: '3.7'
+services:
+  zookeeper:
+    image: zookeeper:3.5.6
+    hostname: zookeeper
+    container_name: zookeeper-strava-realtime
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+  kafka:
+    image: wurstmeister/kafka:latest
+    restart: unless-stopped
+    container_name: "kafka-strava"
+    ports:
+      - "9092:9092"
+    expose:
+      - "9093"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-strava-realtime:2181/kafka
+      KAFKA_BROKER_ID: 0
+      KAFKA_ADVERTISED_HOST_NAME: kafka-strava
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-strava:9093,OUTSIDE://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9093,OUTSIDE://0.0.0.0:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,OUTSIDE:PLAINTEXT
+  pinot-controller:
+    image: apachepinot/pinot:0.9.3
+    command: "StartController -zkAddress zookeeper-strava-realtime:2181 -dataDir /data"
+    container_name: "pinot-controller-strava-realtime"
+    volumes:
+      - ./config:/config
+      - ./data-realtime:/data
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    depends_on:
+      - zookeeper
+  pinot-broker:
+    image: apachepinot/pinot:0.9.3
+    command: "StartBroker -zkAddress zookeeper-strava-realtime:2181"
+    restart: unless-stopped
+    container_name: "pinot-broker-strava-realtime"
+    ports:
+      - "8099:8099"
+    depends_on:
+      - pinot-controller
+  pinot-server:
+    image: apachepinot/pinot:0.9.3
+    command: "StartServer -zkAddress zookeeper-strava-realtime:2181"
+    restart: unless-stopped
+    container_name: "pinot-server-strava-realtime"
+    depends_on:
+      - pinot-broker
+----
+
+We can launch all the components by running the following command:
+
+[source, bash]
+----
+docker-compose up
+----
+
+=== Create Schema
+
+We're going to explore sorted indexes using a dataset of my Strava activities, the same one that we used in the first blog post.
+The schema is described below:
+
+./config/schema.json
+[source, json]
+----
+include::content/2022/01/19/config/schema.json[]
+----
+
+We can create the schema by running the following command:
+
+[source, bash]
+----
+docker exec -it pinot-controller-strava-realtime bin/pinot-admin.sh AddSchema \
+  -schemaFile /config/schema.json -exec
+----
+
+== What is a sorted index?
+
+Before we ingest any data, let's remind ourselves about the definition of a sorted index.
+
+[quote, Sorted forward index with run-length encoding, 'https://docs.pinot.apache.org/basics/indexing/forward-index#sorted-forward-index-with-run-length-encoding[docs.pinot.apache.org/basics/indexing/forward-index#sorted-forward-index-with-run-length-encoding]']
+_____
+When a column is physically sorted, Pinot uses a sorted forward index with run-length encoding on top of the dictionary-encoding. 
+Instead of saving dictionary ids for each document id, Pinot will store a pair of start and end document ids for each value.
+_____
+
+A diagram showing how a sorted index works conceptually is shown below:
+
+.Sorted Forward Index
+image::{{<siteurl>}}/uploads/2022/01/sorted-forward.png[width="500px"]
+
+The advantage of having a sorted index is that queries that filter by that column will be more performant since the query engine doesn't need to scan through every document to check if they match the filtering criteria.
+
+For real-time tables we can specify a sorted index in the `tableIndexConfig`:
+
+[source, json]
+----
+{
+    "tableIndexConfig": {
+        "sortedColumn": [
+            "column_name"
+        ],
+    }
+}
+----
+
+When Pinot commits the segment it will ensure that the data is sorted based on this sorted column. 
+It will then do a single pass over every other column to check whether the data in those columns is sorted.
+Columns that contain sorted data will also use a sorted forward index.
+This means that it's possible that multiple columns will use a sorted index even though one column is guaranteed to use a sorted index.
+
+[NOTE]
+====
+Sorted indexes are determined for each segment.
+This means that a column could be sorted in one segment, but not in another one.
+====
+
+
+== Data Ingestion into Kafka
+
+Now let's ingest some data into a Kafka topic. 
+
+First let's install the Confluent Kafka client:
+
+[source, bash]
+----
+pip install confluent-kafka
+----
+
+And now we'll import some documents into the `activities-realtime` topic.
+
+Import the following libraries:
+
+[source, python]
+----
+import json
+from confluent_kafka import Producer
+----
+
+Define an acknowledge function and configure our Kafka producer:
+
+[source, python]
+----
+def acked(err, msg):
+    if err is not None:
+        print("Failed to deliver message: {0}: {1}".format(msg.value(), err.str()))
+
+
+producer = Producer({'bootstrap.servers': 'localhost:9092'})
+----
+
+And finally write some messages to the topic:
+
+[source, python]
+----
+points = [
+    {'lat': '56.265595', 'lon': '12.859432', 'id': '2776420839', 'distance': '1.5', 'altitude': '11.2', 'hr': '88', 
+     'cadence': '0', 'time': '2019-10-09 21:25:25+00:00', 'rawTime': '0'},    
+    {'lat': '56.265566', 'lon': '12.859438', 'id': '2776420839', 'distance': '4.6', 'altitude': '11.3', 'hr': '89', 
+     'cadence': '79', 'time': '2019-10-09 21:25:27+00:00', 'rawTime': '2'},
+    {'lat': '56.265503', 'lon': '12.859488', 'id': '2776420839', 'distance': '12.2', 'altitude': '11.4', 'hr': '92', 
+     'cadence': '79', 'time': '2019-10-09 21:25:30+00:00', 'rawTime': '5'},
+    {'lat': '56.265451', 'lon': '12.85952', 'id': '2776420839', 'distance': '18.4', 'altitude': '11.4', 'hr': '97', 
+     'cadence': '83', 'time': '2019-10-09 21:25:32+00:00', 'rawTime': '7'},
+    {'lat': '56.26558', 'lon': '12.85943', 'id': '2776420839', 'distance': '3.1', 'altitude': '11.2', 'hr': '89', 
+     'cadence': '79', 'time': '2019-10-09 21:25:26+00:00', 'rawTime': '1'}
+]
+
+for point in points:
+    payload = json.dumps(point, ensure_ascii=False).encode('utf-8')
+    producer.produce(topic='activities-realtime', key=str(point['id']), value=payload, callback=acked)
+
+producer.flush()
+----
+
+We can check that those messages have reached the topic by running the following command:
+
+[source,bash]
+----
+docker exec -it kafka-strava kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic activities-realtime \
+  --from-beginning
+----
+
+.Output
+[source, text]
+----
+{"lat": "56.265595", "lon": "12.859432", "id": "2776420839", "distance": "1.5", "altitude": "11.2", "hr": "88", "cadence": "0", "time": "2019-10-09 21:25:25+00:00", "rawTime": "0"}
+{"lat": "56.265566", "lon": "12.859438", "id": "2776420839", "distance": "4.6", "altitude": "11.3", "hr": "89", "cadence": "79", "time": "2019-10-09 21:25:27+00:00", "rawTime": "2"}
+{"lat": "56.265503", "lon": "12.859488", "id": "2776420839", "distance": "12.2", "altitude": "11.4", "hr": "92", "cadence": "79", "time": "2019-10-09 21:25:30+00:00", "rawTime": "5"}
+{"lat": "56.265451", "lon": "12.85952", "id": "2776420839", "distance": "18.4", "altitude": "11.4", "hr": "97", "cadence": "83", "time": "2019-10-09 21:25:32+00:00", "rawTime": "7"}
+{"lat": "56.26558", "lon": "12.85943", "id": "2776420839", "distance": "3.1", "altitude": "11.2", "hr": "89", "cadence": "79", "time": "2019-10-09 21:25:26+00:00", "rawTime": "1"}
+
+Processed a total of 5 messages
+----
+
+It's looking good so far.
+
+== Unsorted Table
+
+Now let's create a real-time table called `activities_realtime` to ingest the data from that Kafka topic into Pinot.
+This table doesn't specify a sorted column.
+
+./config/table-realtime.json
+[source, json]
+----
+include::content/2022/01/20/config/table-realtime.json[]
+----
+
+[WARNING]
+====
+The `realtime.segment.flush.threshold.rows` config is intentionally set to an extremely small value so that the segment will be committed after 5 records have been ingested.
+In a production system this value should be set much higher, as described in the https://docs.pinot.apache.org/operators/operating-pinot/tuning/realtime#fine-tuning-the-segment-commit-protocol[real time tuning guide^].
+====
+
+We can create a table by running the following command:
+
+[source, bash]
+----
+docker exec -it pinot-controller-strava-realtime bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table-realtime.json   \
+  -exec
+----
+
+Once we create this table, Pinot will start ingesting data from the Kafka topic. 
+We can check which segments have been created by navidating to http://localhost:9000/#/tenants/table/activities_realtime_REALTIME. 
+You should see something like the following:
+
+.Segments
+image::{{<siteurl>}}/uploads/2022/01/realtimes-segments.png[]
+
+If we click on the first segment, we'll see the following:
+
+.Segment 0
+image::{{<siteurl>}}/uploads/2022/01/segment0.png[]
+
+We can see that this segment has been committed by looking at the `segment.realtime.status` property on the right hand side.
+The `segment.total.docs` property tells us that this segment contains 5 documents.
+
+Now let's go back and then click the other segment.
+If we do that we'll see the following:
+
+.Segment 1
+image::{{<siteurl>}}/uploads/2022/01/segment1.png[]
+
+This one is `IN_PROGRESS` and if add some more messages to the Kafka topic they will go into this segment.
+
+Now we're going to check on the sorted status of the columns for all committed segments i.e segment _activities_realtime__0__1__20220119T1541Z_ in this case. 
+
+First let's collect all the columns in the `activities` schema:
+
+[source, bash]
+----
+export queryString=`curl -X GET "http://localhost:9000/schemas/activities" -H "accept: application/json" 2>/dev/null | 
+  jq -r '[.dimensionFieldSpecs,.dateTimeFieldSpecs | .[] | .name ] | join("&columns=")'`
+----
+
+And now let's call the _getServerMetaData_ endpoint to return the segments for the `activities_realtime` table and filter the response to get the segment name, input file, and column names with sorted status:
+
+[source, bash]
+----
+curl -X GET "http://localhost:9000/segments/activities_realtime/metadata?columns=${queryString}" \
+  -H "accept: application/json"  2>/dev/null |
+  jq -c '.[] | select(.columns != null) | {
+    segment: .segmentName, 
+    columns: .columns | map({(.columnName): .sorted})
+  }' 
+----
+
+[NOTE]
+====
+To refresh our minds, the data in the table was imported in the order shown in the table below:
+
+.activities_realtime
+[format="csv", options="header", cols="10,10,10,10,10,10,8,22,10"]
+|===
+include::content/2022/01/20/data/points.csv[]
+|===
+====
+
+If we run this command, we'll see the following output:
+
+.Output
+[source, json]
+----
+{
+    "segment": "activities_realtime__0__0__20220119T1541Z",
+    "importedFrom": null,
+    "columns": [
+        {"altitude": false},
+        {"distance": false},
+        {"hr": false},
+        {"lon": false},
+        {"cadence": false},
+        {"rawTime": false},
+        {"location": false},
+        {"id": true},
+        {"lat": false},
+        {"timestamp": false}
+    ]
+}
+----
+
+From the output we can see that almost all of the columns aren't sorted.
+The only sorted column is `id` and that's because we only have one unique value in that column.
+
+== Sorted Table
+
+Now let's create a real-time table called `activities_realtime_sorted` that specifies `timestamp` as a sorted column. 
+
+./config/table-realtime.json
+[source, json]
+----
+include::content/2022/01/20/config/table-realtime-sorted.json[]
+----
+
+We can create a table by running the following command:
+
+[source, bash]
+----
+docker exec -it pinot-controller-strava-realtime bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table-realtime-.json   \
+  -exec
+----
+
+We can call the _getSegments_ endpoint to check which segments have been created for this table:
+
+
+[source, bash]
+----
+curl -X GET "http://localhost:9000/segments/activities_realtime_sorted" -H "accept: application/json" 2>/dev/null
+----
+
+.Output
+[source, json]
+----
+[
+  {
+    "REALTIME": [
+      "activities_realtime_sorted__0__0__20220120T0952Z",
+      "activities_realtime_sorted__0__1__20220120T0952Z"
+    ]
+  }
+]
+----
+
+We can then call the `getSegmentMetadata` endpoint to return the metadata for each of these segments:
+
+[source, bash]
+----
+for segment in `curl -X GET "http://localhost:9000/segments/activities_realtime_sorted" -H "accept: application/json" 2>/dev/null | 
+                jq -r '.[] | .REALTIME[]'`; do 
+  curl -X GET "http://localhost:9000/segments/activities_realtime_sorted/${segment}/metadata" \
+    -H "accept: application/json" 2>/dev/null | jq '.'
+done
+----
+
+.Output
+[source, json]
+----
+{
+  "segment.crc": "3864673434",
+  "segment.creation.time": "1642672360783",
+  "segment.end.time": "1570656332000",
+  "segment.flush.threshold.size": "5",
+  "segment.index.version": "v3",
+  "segment.name": "activities_realtime_sorted__0__0__20220120T0952Z",
+  "segment.realtime.download.url": "http://172.21.0.3:9000/segments/activities_realtime_sorted/activities_realtime_sorted__0__0__20220120T0952Z",
+  "segment.realtime.endOffset": "5",
+  "segment.realtime.numReplicas": "1",
+  "segment.realtime.startOffset": "0",
+  "segment.realtime.status": "DONE",
+  "segment.start.time": "1570656325000",
+  "segment.table.name": "activities_realtime_sorted",
+  "segment.time.unit": "MILLISECONDS",
+  "segment.total.docs": "5",
+  "segment.type": "REALTIME"
+}
+{
+  "segment.creation.time": "1642672361525",
+  "segment.flush.threshold.size": "5",
+  "segment.name": "activities_realtime_sorted__0__1__20220120T0952Z",
+  "segment.realtime.numReplicas": "1",
+  "segment.realtime.startOffset": "5",
+  "segment.realtime.status": "IN_PROGRESS",
+  "segment.table.name": "activities_realtime_sorted",
+  "segment.type": "REALTIME"
+}
+----
+
+From this output we learn that segment _activities_realtime_sorted__0__0__20220120T0952Z_ has already been committed and segment _activities_realtime_sorted__0__1__20220120T0952Z_ is still in progress.
+Any new records will be added to segment _activities_realtime_sorted__0__1__20220120T0952Z_. 
+
+Now let's check on the sorted status of columns in these segments using the  _getServerMetaData_ endpoint:
+
+[source, bash]
+----
+curl -X GET "http://localhost:9000/segments/activities_realtime_sorted/metadata?columns=${queryString}" \
+  -H "accept: application/json"  2>/dev/null |
+  jq -c '.[] | select(.columns != null) | {
+    segment: .segmentName, 
+    columns: .columns | map({(.columnName): .sorted})
+  }' 
+----
+
+[NOTE]
+====
+The table below shows the effective order of the data in the segment when it was committed:
+
+.activities_realtime_sorted
+[format="csv", options="header", cols="10,10,10,10,10,10,8,22,10"]
+|===
+include::content/2022/01/20/data/points-sorted.csv[]
+|===
+====
+
+If we run this command, we'll see the following output:
+
+.Output
+[source, json]
+----
+{
+    "segment": "activities_realtime_sorted__0__0__20220120T0952Z",
+    "columns": [
+        {"altitude": true},
+        {"distance": true},
+        {"hr": true},
+        {"lon": false},
+        {"cadence": true},
+        {"rawTime": true},
+        {"location": false},
+        {"id": true},
+        {"lat": false},
+        {"timestamp": true}
+    ]
+}
+----
+
+Now the _timestamp_ field is sorted, which is what we would expect, along with a bunch of other fields as well.
+
+It's unlikely that any of the other fields would remain sorted if we we imported any records.
+_distance_ and _rawTime_ are correlated with _timestamp_ within a single activity, but if a segment contained multiple contained multiple activities that correlation would be lost.
+
+== Conclusion
+
+That's the end of this mini blog series about Pinot's sorted indexes.
+Hopefully it all made sense, but if not feel free to ask any questions on the https://communityinviter.com/apps/apache-pinot/apache-pinot[Pinot Community Slack^].

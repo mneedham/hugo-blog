@@ -90,7 +90,7 @@ docker exec -it pinot-controller-strava bin/pinot-admin.sh AddSchema \
   -schemaFile /config/schema.json -exec
 ----
 
-== Create Tables
+== Create Table
 
 Now let's create an offline table based on that schema.
 
@@ -143,7 +143,7 @@ We'll be importing data from CSV files that contain some of the lat/longs from a
 `activity1.csv` contains the first 5 recorded points from one run:
 
 .activity1.csv
-[format="csv", options="header"]
+[format="csv", options="header", cols="10,10,10,10,10,10,10,20,10"]
 |===
 include::content/2022/01/19/input/activity1.csv[]
 |===
@@ -151,7 +151,7 @@ include::content/2022/01/19/input/activity1.csv[]
 And `activity2.csv` contains 5 recorded points from two different runs:
 
 .activity2.csv
-[format="csv", options="header"]
+[format="csv", options="header", cols="10,10,10,10,10,10,10,20,10"]
 |===
 include::content/2022/01/19/input/activity2.csv[]
 |===
@@ -249,3 +249,10 @@ The only column that was explicitly sorted is `timestamp`, but `rawTime` and `di
 
 For the `activity2.csv` segment the only sorted column is `lat`, which is sorted by chance more than anything else!
 None of the other columns are sorted.
+
+== Summary
+
+So that's the end of this first post explaining how sorted indexes work in Apache Pinot. 
+Hopefully it all made sense, but if not feel free to ask any questions on the https://communityinviter.com/apps/apache-pinot/apache-pinot[Pinot Community Slack^].
+
+In our next post we'll learn how sorted indexes work on real-time tables.
