@@ -1,0 +1,21 @@
++++
+draft = true
+date="2022-01-24 02:44:37"
+title="Kafka: Writing data to a topic from the command line"
+tag=['kafka']
+category=['kafka']
+description="In this post we'll learn how to write data to a Kafka topic from the command line."
+image="uploads/2022/01/sorted-indexes-realtime-banner.png"
++++
+
+
+
+== Park Run
+
+Crystal Palace course - https://www.parkrun.org.uk/crystalpalace/course/
+
+Extract the route coordinates from the KML file - https://www.google.com/maps/d/viewer?mid=1C6rzwI0shc8F-KE2yW9J7DLPThI&ll=51.42114369238401%2C-0.06948599999999638&z=17
+
+
+Richmond - https://www.parkrun.org.uk/richmond/course/
+Wimbledon - https://www.parkrun.org.uk/wimbledon/course/
