@@ -8,6 +8,8 @@ description="In this post we'll learn how to consume messages from a Kafka topic
 image="uploads/2022/01/reset-banner.png"
 +++
 
+:icons: font
+
 I recently had a typo in a https://docs.pinot.apache.org/developers/advanced/ingestion-level-transformations[Pinot ingestion transformation function^] and wanted to have Pinot re-process the Kafka stream without having to restart all the things.
 In this blog post we'll learn how to do that.
 
@@ -108,7 +110,7 @@ All good so far.
 Let's navigate to http://localhost:9000/#/query and query the `events` table:
 
 .No documents
-image::{{<siteurl>}}/uploads/2022/01/events-empty.jpg[]
+image::{{<siteurl>}}/uploads/2022/01/events-empty.png[]
 
 Hmmm, no documents.
 
@@ -234,4 +236,4 @@ curl -X POST "http://localhost:9000/segments/events_REALTIME/events__0__0__20220
 If we now go back to the query editor we'll see that those documents have now been ingested:
 
 .Documents!
-image::{{<siteurl>}}/uploads/2022/01/events-full.jpg[]
+image::{{<siteurl>}}/uploads/2022/01/events-full.png[]
