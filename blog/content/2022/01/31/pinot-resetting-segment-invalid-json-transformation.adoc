@@ -1,0 +1,237 @@
++++
+draft = false
+date="2022-01-31 02:44:37"
+title="Apache Pinot: Resetting a segment after an invalid JSON Transformation"
+tag=['pinot']
+category=['pinot']
+description="In this post we'll learn how to consume messages from a Kafka topic after fixing a faulty JSON transformation."
+image="uploads/2022/01/reset-banner.png"
++++
+
+I recently had a typo in a https://docs.pinot.apache.org/developers/advanced/ingestion-level-transformations[Pinot ingestion transformation function^] and wanted to have Pinot re-process the Kafka stream without having to restart all the things.
+In this blog post we'll learn how to do that.
+
+.Apache Pinot: Resetting a segment after an invalid JSON Transformation
+image::{{<siteurl>}}/uploads/2022/01/reset-banner.png[]
+
+== Setup
+
+We're going to spin up a local instance of Pinot and Kafka using the following Docker compose config:
+
+.docker-compose.yml
+[source, json]
+----
+include::content/2022/01/31/docker/docker-compose.yml[]
+----
+
+We can launch all the components by running the following command:
+
+[source, bash]
+----
+docker-compose up
+----
+
+== Create Schema
+
+We're going to use the following schema:
+
+./config/schema.json
+[source, json]
+----
+include::content/2022/01/31/docker/config/schema.json[]
+----
+
+It's only small, but it will be enough for our purposes.
+We can create the schema by running the following command:
+
+[source, bash]
+----
+docker exec -it pinot-controller-json bin/pinot-admin.sh AddSchema \
+  -schemaFile /config/schema.json -exec
+----
+
+== Create Table
+
+Now let's create a real-time table based on that schema:
+
+./config/table.json
+[source, json]
+----
+include::content/2022/01/31/docker/config/table.json[]
+----
+<1> Type in the JSON path (`'$.ages'`) means that an exception will be thrown when the function is executed.
+
+We can create the table by running the following command:
+
+[source, bash]
+----
+docker exec -it pinot-controller-json bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table.json   \
+  -exec
+----
+
+== Ingest Data into Kafka
+
+Now let's ingest a few messages into the Kafka `events` topic:
+
+[source, bash]
+----
+printf '{"timestamp": "2019-10-09 22:25:25", "payload": {"age": 18}}
+{"timestamp": "2019-10-09 23:25:25", "payload": {"age": 14}}
+{"timestamp": "2019-10-09 23:40:25", "payload": {"age": 16}}\n' |
+docker exec -i kafka-json /opt/kafka/bin/kafka-console-producer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic events
+----
+
+We can check that the messages have been ingested by running the following command:
+
+[source, bash]
+----
+docker exec -i kafka-json /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic events \
+  --from-beginning \
+  --max-messages 3
+----
+
+.Output
+[source, text]
+----
+{"timestamp": "2019-10-09 22:25:25", "payload": {"age": 18}}
+{"timestamp": "2019-10-09 23:25:25", "payload": {"age": 14}}
+{"timestamp": "2019-10-09 23:40:25", "payload": {"age": 16}}
+Processed a total of 3 messages
+----
+
+All good so far.
+Let's navigate to http://localhost:9000/#/query and query the `events` table:
+
+.No documents
+image::{{<siteurl>}}/uploads/2022/01/events-empty.jpg[]
+
+Hmmm, no documents.
+
+== The Debug API
+
+We can find out what's going on by querying the debug API for this table:
+
+[source, bash]
+----
+curl -X GET "http://localhost:9000/debug/tables/events?verbosity=0" -H "accept: application/json"
+----
+
+.Output
+[source, json]
+----
+[
+  {
+    "tableName": "events_REALTIME",
+    "numSegments": 1,
+    "numServers": 1,
+    "numBrokers": 1,
+    "segmentDebugInfos": [
+      {
+        "segmentName": "events__0__0__20220131T1057Z",
+        "serverState": {
+          "Server_172.24.0.6_8098": {
+            "idealState": "CONSUMING",
+            "externalView": "CONSUMING",
+            "segmentSize": "0 bytes",
+            "consumerInfo": {
+              "segmentName": "events__0__0__20220131T1057Z",
+              "consumerState": "CONSUMING",
+              "lastConsumedTimestamp": 1643626843673,
+              "partitionToOffsetMap": {
+                "0": "3"
+              }
+            },
+            "errorInfo": {
+              "timestamp": "2022-01-31 10:57:50 UTC",
+              "errorMessage": "Caught exception while transforming the record: {\n  \"nullValueFields\" : [ ],\n  \"fieldToValueMap\" : {\n    \"payload\" : {\n      \"age\" : 16\n    },\n    \"age\" : null,\n    \"timestamp\" : \"2019-10-09 23:40:25\"\n  }\n}",
+              "stackTrace": "java.lang.RuntimeException: Caught exception while executing function: jsonPathLong(payload,'$.ages')\n\tat org.apache.pinot.segment.local.function.InbuiltFunctionEvaluator$FunctionExecutionNode.execute(InbuiltFunctionEvaluator.java:124)\n\tat org.apache.pinot.segment.local.function.InbuiltFunctionEvaluator.evaluate(InbuiltFunctionEvaluator.java:88)\n\tat org.apache.pinot.segment.local.recordtransformer.ExpressionTransformer.transform(ExpressionTransformer.java:96)\n\tat org.apache.pinot.segment.local.recordtransformer.CompositeTransformer.transform(CompositeTransformer.java:83)\n\tat org.apache.pinot.core.data.manager.realtime.LLRealtimeSegmentDataManager.processStreamEvents(LLRealtimeSegmentDataManager.java:518)\n\tat org.apache.pinot.core.data.manager.realtime.LLRealtimeSegmentDataManager.consumeLoop(LLRealtimeSegmentDataManager.java:420)\n\tat org.apache.pinot.core.data.manager.realtime.LLRealtimeSegmentDataManager$PartitionConsumer.run(LLRealtimeSegmentDataManager.java:568)\n\tat java.base/java.lang.Thread.run(Thread.java:829)\nCaused by: java.lang.IllegalStateException: Caught exception while invoking method: public static long org.apache.pinot.common.function.scalar.JsonFunctions.jsonPathLong(java.lang.Object,java.lang.String) with arguments: [{age=16}, $.ages]\n\tat org.apache.pinot.common.function.FunctionInvoker.invoke(FunctionInvoker.java:131)\n\tat org.apache.pinot.segment.local.function.InbuiltFunctionEvaluator$FunctionExecutionNode.execute(InbuiltFunctionEvaluator.java:122)\n\t... 7 more\nCaused by: java.lang.reflect.InvocationTargetException\n\tat java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)\n\tat java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)\n\tat java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\n\tat java.base/java.lang.reflect.Method.invoke(Method.java:566)\n\tat org.apache.pinot.common.function.FunctionInvoker.invoke(FunctionInvoker.java:128)\n\t... 8 more\nCaused by: com.jayway.jsonpath.PathNotFoundException: No results for path: $['ages']\n\tat com.jayway.jsonpath.internal.path.EvaluationContextImpl.getValue(EvaluationContextImpl.java:133)\n\tat com.jayway.jsonpath.JsonPath.read(JsonPath.java:187)\n\tat com.jayway.jsonpath.internal.JsonContext.read(JsonContext.java:102)\n\tat com.jayway.jsonpath.internal.JsonContext.read(JsonContext.java:85)\n\tat org.apache.pinot.common.function.scalar.JsonFunctions.jsonPath(JsonFunctions.java:89)\n\tat org.apache.pinot.common.function.scalar.JsonFunctions.jsonPathLong(JsonFunctions.java:152)\n\t... 13 more\n"
+            }
+          }
+        }
+      }
+    ],
+    "serverDebugInfos": [],
+    "brokerDebugInfos": [],
+    "tableSize": {
+      "reportedSize": "0 bytes",
+      "estimatedSize": "0 bytes"
+    },
+    "ingestionStatus": {
+      "ingestionState": "HEALTHY",
+      "errorMessage": ""
+    }
+  }
+]
+----
+
+As expected, Pinot failed to find the `ages` property because it doesn't exist in those messages.
+Let's fix the transformation by applying the following table config:
+
+[source, bash]
+----
+docker exec -it pinot-controller-json bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table-fixed.json   \
+  -exec
+----
+
+./config/table-fixed.json
+[source, json]
+----
+include::content/2022/01/31/docker/config/table-fixed.json[]
+----
+<1> Typo has now been fixed
+
+This fixes the table config, but doesn't retrospectively ingest the messages where the exception was thrown.
+We can return the Kafka offset of the consuming segment by running the following:
+
+
+[source, bash]
+----
+curl -X GET "http://localhost:9000/tables/events/consumingSegmentsInfo" -H "accept: application/json"
+----
+
+.Output
+[source, json]
+----
+{
+  "_segmentToConsumingInfoMap": {
+    "events__0__0__20220131T1057Z": [
+      {
+        "serverName": "Server_172.24.0.6_8098",
+        "consumerState": "CONSUMING",
+        "lastConsumedTimestamp": 1643627394569,
+        "partitionToOffsetMap": {
+          "0": "3"
+        }
+      }
+    ]
+  }
+}
+----
+
+The offset for partition 0 is `3`, but we want to process offsets 0-2. 
+
+== Resetting the consuming segment
+
+To do that we'll need to reset the consuming segment, by running the following command:
+
+[source, bash]
+----
+curl -X POST "http://localhost:9000/segments/events_REALTIME/events__0__0__20220131T1057Z/reset" -H "accept: application/json"
+----
+
+.Output
+[source, json]
+----
+{"status":"Successfully reset segment: events__0__0__20220131T1057Z of table: events_REALTIME"}
+----
+
+If we now go back to the query editor we'll see that those documents have now been ingested:
+
+.Documents!
+image::{{<siteurl>}}/uploads/2022/01/events-full.jpg[]

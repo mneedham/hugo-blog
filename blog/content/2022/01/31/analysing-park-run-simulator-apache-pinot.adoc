@@ -1,6 +1,6 @@
 +++
 draft = true
-date="2022-01-24 02:44:37"
+date="2022-01-27 02:44:37"
 title="Kafka: Writing data to a topic from the command line"
 tag=['kafka']
 category=['kafka']
@@ -19,3 +19,8 @@ Extract the route coordinates from the KML file - https://www.google.com/maps/d/
 
 Richmond - https://www.parkrun.org.uk/richmond/course/
 Wimbledon - https://www.parkrun.org.uk/wimbledon/course/
+
+https://www.parkrun.org.uk/events/events/#geo=11.73/51.3734/-0.1784
+
+
+== The Data Generator
