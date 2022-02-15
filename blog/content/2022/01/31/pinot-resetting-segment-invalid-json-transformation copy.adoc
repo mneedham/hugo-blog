@@ -61,7 +61,12 @@ Now let's create a real-time table based on that schema:
 ----
 include::content/2022/01/31/docker/config/table.json[]
 ----
-<1> Type in the JSON path (`'$.ages'`) means that an exception will be thrown when the function is executed.
+<1> Typo in the JSON path (`'$.ages'`) means that an exception will be thrown when the function is executed.
+
+[NOTE]
+==
+For documentation on the JSONPATHLONG function, see the https://docs.pinot.apache.org/configuration-reference/functions/jsonpathlong[JSONPATHLONG function page^].
+==
 
 We can create the table by running the following command:
 

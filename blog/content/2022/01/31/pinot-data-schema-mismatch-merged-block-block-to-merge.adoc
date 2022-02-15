@@ -1,0 +1,267 @@
++++
+draft = false
+date="2022-01-31 02:44:37"
+title="Apache Pinot: Data schema mismatch between merged block and block to merge"
+tag=['pinot']
+category=['pinot']
+description="In this post we'll learn how to consume messages from a Kafka topic after fixing a faulty JSON transformation."
+image="uploads/2022/01/reset-banner.png"
++++
+
+:icons: font
+
+I recently had a typo in a https://docs.pinot.apache.org/developers/advanced/ingestion-level-transformations[Pinot ingestion transformation function^] and wanted to have Pinot re-process the Kafka stream without having to restart all the things.
+In this blog post we'll learn how to do that.
+
+.Apache Pinot: Resetting a segment after an invalid JSON Transformation
+image::{{<siteurl>}}/uploads/2022/01/reset-banner.png[]
+
+== Setup
+
+We're going to spin up a local instance of Pinot and Kafka using the following Docker compose config:
+
+.docker-compose.yml
+[source, json]
+----
+include::content/2022/01/31/docker/docker-compose.yml[]
+----
+
+We can launch all the components by running the following command:
+
+[source, bash]
+----
+docker-compose up
+----
+
+== Create Schema
+
+We're going to use the following schema:
+
+./config/schema-initial.json
+[source, json]
+----
+include::content/2022/01/31/docker/config/schema-initial.json[]
+----
+
+It's only small, but it will be enough for our purposes.
+We can create the schema by running the following command:
+
+[source, bash]
+----
+docker exec -it pinot-controller-json bin/pinot-admin.sh AddSchema \
+  -schemaFile /config/schema-initial.json -exec
+----
+
+== Create Table
+
+Now let's create a real-time table based on that schema:
+
+./config/table-people.json
+[source, json]
+----
+include::content/2022/01/31/docker/config/table-people.json[]
+----
+
+[WARNING]
+====
+The `realtime.segment.flush.threshold.rows` config is intentionally set to an extremely small value so that the segment will be committed after 5 records have been ingested.
+In a production system this value should be set much higher, as described in the https://docs.pinot.apache.org/operators/operating-pinot/tuning/realtime#fine-tuning-the-segment-commit-protocol[real time tuning guide^].
+====
+
+We can create the table by running the following command:
+
+[source, bash]
+----
+docker exec -it pinot-controller-json bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table-people.json   \
+  -exec
+----
+
+== Ingest Data into Kafka
+
+Now let's ingest a few messages into the Kafka `people` topic:
+
+[source, bash]
+----
+printf '{"timestamp": "2019-10-09 22:25:25", "payload": {"name": "James Smith", "age": 18}}
+{"timestamp": "2019-10-09 23:25:25", "payload": {"name": "Patricia Page", "age": 14}}
+{"timestamp": "2019-10-09 23:25:25", "payload": {"name": "Sara Shaw", "age": 14}}
+{"timestamp": "2019-10-09 23:25:25", "payload": {"name": "Alexis Jones", "age": 14}}
+{"timestamp": "2019-10-09 23:40:25", "payload": {"name": "Wayne Davis", "age": 16}}\n' |
+docker exec -i kafka-json /opt/kafka/bin/kafka-console-producer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic people
+----
+
+We can check that the messages have been ingested by running the following command:
+
+[source, bash]
+----
+docker exec -i kafka-json /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic people \
+  --from-beginning \
+  --max-messages 5
+----
+
+.Output
+[source, text]
+----
+{"timestamp": "2019-10-09 22:25:25", "payload": {"name": "James Smith", "age": 18}}
+{"timestamp": "2019-10-09 23:25:25", "payload": {"name": "Patricia Page", "age": 14}}
+{"timestamp": "2019-10-09 23:25:25", "payload": {"name": "Sara Shaw", "age": 14}}
+{"timestamp": "2019-10-09 23:25:25", "payload": {"name": "Alexis Jones", "age": 14}}
+{"timestamp": "2019-10-09 23:40:25", "payload": {"name": "Wayne Davis", "age": 16}}
+Processed a total of 5 messages
+----
+
+All good so far. 
+We can also navigate to http://localhost:9000/#/query and query the `people` table:
+
+[source, sql]
+----
+SELECT *
+FROM people
+----
+
+.Results
+[options="header"]
+|===
+|name	|timestamp
+|James Smith	|2019-10-09 22:25:25.0
+|Patricia Page|	2019-10-09 23:25:25.0
+|Sara Shaw	|2019-10-09 23:25:25.0
+|Alexis Jones|	2019-10-09 23:25:25.0
+|Wayne Davis|	2019-10-09 23:40:25.0
+|===
+
+
+== Evolving the schema
+
+Now let's say we evolve the schema by adding an `age` field to the schema:
+
+
+./config/schema-full.json
+[source, json]
+----
+include::content/2022/01/31/docker/config/schema-full.json[]
+----
+
+[source, bash]
+----
+curl -X PUT "http://localhost:9000/schemas/people?reload=false" \
+  -H "accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d @config/schema-full.json
+----
+
+.Output
+[source, json]
+----
+{"status":"people successfully added"}
+----
+
+And let's also update the table config, so that this new field gets populated:
+
+./config/table-people-full.json
+[source, json]
+----
+include::content/2022/01/31/docker/config/table-people-full.json[]
+----
+
+[WARNING]
+====
+The `realtime.segment.flush.threshold.rows` config is intentionally set to an extremely small value so that the segment will be committed after 5 records have been ingested.
+In a production system this value should be set much higher, as described in the https://docs.pinot.apache.org/operators/operating-pinot/tuning/realtime#fine-tuning-the-segment-commit-protocol[real time tuning guide^].
+====
+
+[source, bash]
+----
+docker exec -it pinot-controller-json bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table-people-full.json   \
+  -exec
+----
+
+And finally we'll write some more records into the Kafka topic:
+
+[source, bash]
+----
+printf '{"timestamp": "2019-10-10 22:25:25", "payload": {"name": "John Smith", "age": 18}}
+{"timestamp": "2019-10-10 23:25:25", "payload": {"name": "Esme Page", "age": 14}}
+{"timestamp": "2019-10-10 23:25:25", "payload": {"name": "Alfie Davies", "age": 22}}
+{"timestamp": "2019-10-10 23:25:25", "payload": {"name": "Arthur Brown", "age": 19}}
+{"timestamp": "2019-10-10 23:25:25", "payload": {"name": "Mila Shaw", "age": 14}}\n' |
+docker exec -i kafka-json /opt/kafka/bin/kafka-console-producer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic people
+----
+
+== Querying with the new schema
+
+Now let's query the `people` table again:
+
+[source, sql]
+----
+select * 
+FROM people
+----
+
+This time we'll see this output:
+
+.Output
+[source, json]
+----
+[
+  {
+    "message": "MergeResponseError:\nData schema mismatch between merged block: [age(LONG),name(STRING),timestamp(TIMESTAMP)] and block to merge: [name(STRING),timestamp(TIMESTAMP)], drop block to merge",
+    "errorCode": 500
+  }
+]
+----
+
+At this point we have three segments, as shown in the print screen below:
+
+.Segments
+image::{{<siteurl>}}/uploads/2022/01/segments-people.png[]
+
+* `people__0__0__20220131T1706Z` knows about the `name` and `timestamp` columns
+* `people__0__1__20220131T1706Z` knows about the `name`, `age`, and `timestamp` columns
+* `people__0__2__20220131T1709Z` (the consuming segment) knows about the `name`, `age`, and `timestamp` columns
+
+From my observations so far, this error only happens if you have committed segments with different schemas. 
+
+== Reloading the broken segment
+
+To fix things we'll need to reload segment `people__0__0__20220131T1706Z`, which will then become aware of the `age` column.
+It will, however, have a null value for each document, which is something that we'd have to take care off by backfilling at a later stage.
+
+The easiest way to reload segments is to do all of them, using the following command:
+
+[source, bash]
+----
+curl -X POST "http://localhost:9000/segments/people/reload?forceDownload=false" -H "accept: application/json"
+----
+
+.Output
+[source, json]
+----
+
+----
+
+To do that we'll need to reset the consuming segment, by running the following command:
+
+[source, bash]
+----
+curl -X POST "http://localhost:9000/segments/events_REALTIME/events__0__0__20220131T1057Z/reset" -H "accept: application/json"
+----
+
+.Output
+[source, json]
+----
+{"status":"Successfully reset segment: events__0__0__20220131T1057Z of table: events_REALTIME"}
+----
+
+If we now go back to the query editor we'll see that those documents have now been ingested:
+
+.Documents!
+image::{{<siteurl>}}/uploads/2022/01/events-full.png[]
