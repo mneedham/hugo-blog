@@ -5,7 +5,7 @@ title="Apache Pinot: Deleting instances in a bad state"
 tag=['pinot']
 category=['pinot']
 description="In this post we'll learn how to write out to the screen only the latest value in a loop of values using Streamlit."
-image="uploads/2022/02/streamlit-banner.png"
+image="uploads/2022/02/bad-state-banner.png"
 +++
 
 Sometimes when I start up a local Pinot cluster after doing a hard shutdown (by restarting my computer) I noticed that the Pinot Data Explorer shows controllers, brokers, or servers in a bad state.
@@ -47,7 +47,7 @@ We want to remove the following instances:
 * Server_172.21.0.4_8098
 * Broker_172.21.0.3_8099
 
-
+Let's try to remove those instances, by running the following command:
 
 [source, bash]
 ----
@@ -68,6 +68,9 @@ done
 {"_code":409,"_error":"Failed to drop instance Server_172.21.0.4_8098 - Instance Server_172.21.0.4_8098 exists in ideal state for races_REALTIME"}
 {"_code":409,"_error":"Failed to drop instance Broker_172.21.0.3_8099 - Instance Broker_172.21.0.3_8099 exists in ideal state for brokerResource"}
 ----
+
+We were able to remove four of the instances, but it looks like two of them are still in use.
+Let's see if we can figure out what's going on.
 
 We can return the ideal state for the `brokerResource` by running the following command:
 
