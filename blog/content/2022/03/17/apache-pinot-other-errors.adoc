@@ -1,0 +1,64 @@
+
++++
+draft = true
+date="2022-03-17 02:44:37"
+title="Apache Pinot: Failed to generate segment - Input path {} does not exist"
+tag=['pinot']
+category=['pinot']
+description="In this post we'll learn how to write out to the screen only the latest value in a loop of values using Streamlit."
+image="uploads/2022/02/bad-state-banner.png"
++++
+
+org.apache.pinot.spi.utils.retry.AttemptsExceededException: Operation failed after 3 attempts\
+\tat org.apache.pinot.spi.utils.retry.BaseRetryPolicy.attempt(BaseRetryPolicy.java:61)\
+\tat org.apache.pinot.common.utils.fetcher.HttpSegmentFetcher.fetchSegmentToLocal(HttpSegmentFetcher.java:54)\
+\tat org.apache.pinot.common.utils.fetcher.SegmentFetcherFactory.fetchSegmentToLocalInternal(SegmentFetcherFactory.java:147)\
+\tat org.apache.pinot.common.utils.fetcher.SegmentFetcherFactory.fetchSegmentToLocal(SegmentFetcherFactory.java:142)\
+\tat org.apache.pinot.common.utils.fetcher.SegmentFetcherFactory.fetchAndDecryptSegmentToLocalInternal(SegmentFetcherFactory.java:163)\
+\tat org.apache.pinot.common.utils.fetcher.SegmentFetcherFactory.fetchAndDecryptSegmentToLocal(SegmentFetcherFactory.java:157)\
+\tat org.apache.pinot.core.data.manager.BaseTableDataManager.downloadAndDecrypt(BaseTableDataManager.java:442)\
+\tat org.apache.pinot.core.data.manager.BaseTableDataManager.downloadSegmentFromDeepStore(BaseTableDataManager.java:429)\
+\tat org.apache.pinot.core.data.manager.BaseTableDataManager.downloadSegment(BaseTableDataManager.java:384)\
+\tat org.apache.pinot.core.data.manager.BaseTableDataManager.addOrReplaceSegment(BaseTableDataManager.java:371)\
+\tat org.apache.pinot.server.starter.helix.HelixInstanceDataManager.addOrReplaceSegment(HelixInstanceDataManager.java:318)\
+\tat org.apache.pinot.server.starter.helix.SegmentOnlineOfflineStateModelFactory$SegmentOnlineOfflineStateModel.onBecomeOnlineFromOffline(SegmentOnlineOfflineStateModelFactory.java:162)\
+\tat java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)\
+\tat java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)\
+\tat java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\
+\tat java.base/java.lang.reflect.Method.invoke(Method.java:566)\
+\tat org.apache.helix.messaging.handling.HelixStateTransitionHandler.invoke(HelixStateTransitionHandler.java:404)\
+\tat org.apache.helix.messaging.handling.HelixStateTransitionHandler.handleMessage(HelixStateTransitionHandler.java:331)\
+\tat org.apache.helix.messaging.handling.HelixTask.call(HelixTask.java:97)\
+\tat org.apache.helix.messaging.handling.HelixTask.call(HelixTask.java:49)\
+\tat java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)\
+\tat java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)\
+\tat java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)\
+\tat java.base/java.lang.Thread.run(Thread.java:829)\
+
+
+Exception while downloading segment
+
+2626:2022/03/07 10:39:02.374 WARN [HttpSegmentFetcher] [HelixTaskExecutor-message_handle_thread] Caught exception while downloading segment from: http://192.168.16.4:9000/segments/events/events_1646409180000_1646409240000_0 to: /tmp/data/pinotServerData/events_OFFLINE/tmp-events_1646409180000_1646409240000_0-f0e83f12-99f8-4254-9e6a-0123e454c5fb/events_1646409180000_1646409240000_0.tar.gz
+2627-shaded.org.apache.http.conn.HttpHostConnectException: Connect to 192.168.16.4:9000 [/192.168.16.4] failed: Connection refused (Connection refused)
+2628-	at shaded.org.apache.http.impl.conn.DefaultHttpClientConnectionOperator.connect(DefaultHttpClientConnectionOperator.java:156) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+2629-	at shaded.org.apache.http.impl.conn.PoolingHttpClientConnectionManager.connect(PoolingHttpClientConnectionManager.java:374) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+2630-	at shaded.org.apache.http.impl.execchain.MainClientExec.establishRoute(MainClientExec.java:393) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+2631-	at shaded.org.apache.http.impl.execchain.MainClientExec.execute(MainClientExec.java:236) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+
+Restart the server
+
+2022/03/07 15:14:03.767 ERROR [TaskFactoryRegistry] [TaskStateModelFactory-task_thread-2] Caught exception while executing task: Task_RealtimeToOfflineSegmentsTask_1646666028680_0
+java.lang.IllegalStateException: watermarkMs in RealtimeToOfflineSegmentsTask metadata: {"tableNameWithType":"events_REALTIME","watermarkMs":1646409300000} does not match windowStartMs: %d in task configs for table: 1646663400000. ZNode may have been modified by another task [events_REALTIME]
+	at shaded.com.google.common.base.Preconditions.checkState(Preconditions.java:738) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+	at org.apache.pinot.plugin.minion.tasks.realtimetoofflinesegments.RealtimeToOfflineSegmentsTaskExecutor.preProcess(RealtimeToOfflineSegmentsTaskExecutor.java:101) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+	at org.apache.pinot.plugin.minion.tasks.BaseMultipleSegmentsConversionExecutor.executeTask(BaseMultipleSegmentsConversionExecutor.java:95) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+	at org.apache.pinot.plugin.minion.tasks.BaseMultipleSegmentsConversionExecutor.executeTask(BaseMultipleSegmentsConversionExecutor.java:58) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+	at org.apache.pinot.minion.taskfactory.TaskFactoryRegistry$1.runInternal(TaskFactoryRegistry.java:111) [pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+	at org.apache.pinot.minion.taskfactory.TaskFactoryRegistry$1.run(TaskFactoryRegistry.java:88) [pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+	at org.apache.helix.task.TaskRunner.run(TaskRunner.java:71) [pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:515) [?:?]
+	at java.util.concurrent.FutureTask.run(FutureTask.java:264) [?:?]
+	at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304) [?:?]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128) [?:?]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628) [?:?]
+	at java.lang.Thread.run(Thread.java:829) [?:?]
