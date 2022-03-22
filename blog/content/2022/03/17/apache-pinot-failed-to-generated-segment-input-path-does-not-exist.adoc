@@ -10,6 +10,7 @@ image="uploads/2022/03/no-import-banner.png"
 +++
 
 In this blog post we're going to learn how to work around a bug when trying to ingest CSV files with the same name into Apache Pinot.
+I came across this issue while writing a recipe showing how to https://dev.startree.ai/docs/pinot/recipes/import-data-files-different-directories[import data files from different directories^].
 
 .Apache Pinot: Failed to generate segment - Input path {} does not exist
 image::{{<siteurl>}}/uploads/2022/03/no-import-banner.png[]

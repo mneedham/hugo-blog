@@ -255,4 +255,4 @@ None of the other columns are sorted.
 So that's the end of this first post explaining how sorted indexes work in Apache Pinot. 
 Hopefully it all made sense, but if not feel free to ask any questions on the https://communityinviter.com/apps/apache-pinot/apache-pinot[Pinot Community Slack^].
 
-In our next post we'll learn how sorted indexes work on real-time tables.
+In our next post we'll learn https://www.markhneedham.com/blog/2022/01/20/apache-pinot-sorted-indexes-realtime-tables/[how sorted indexes work on real-time tables].
