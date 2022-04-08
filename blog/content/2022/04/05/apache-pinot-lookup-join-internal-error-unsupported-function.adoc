@@ -1,0 +1,122 @@
++++
+draft = false
+date="2022-04-05 02:44:37"
+title="Apache Pinot: Lookup Join - 500 Error - Unsupported function: lookup with 4 parameters"
+tag=['pinot']
+category=['pinot']
+description="In this post we'll learn how to solve a problem when using Apache Pinot's lookup join function."
+image="uploads/2022/04/lookup-unsupported-function-banner.png"
++++
+
+I'm currently working on an Apache Pinot demo using data from https://docs.cryptowat.ch/rest-api/[Crypto Watch^], in which I was using the https://dev.startree.ai/docs/pinot/recipes/lookup-joins[lookup function^] and had a bug in my query that didn't return the clearest error message.
+In this blog post we'll have a look at the query and how to fix it.
+
+.Apache Pinot: Lookup Join - 500 Error - Unsupported function: lookup with 4 parameters
+image::{{<siteurl>}}/uploads/2022/04/lookup-unsupported-function-banner.png[]
+
+The query that I was writing was using the lookup function to return the name of the base asset in a transaction:
+
+[source, sql]
+----
+select currencyPairId, orderSide, sum(amount) AS totalAmount, 
+       lookUp('pairs', 'baseName', 'id', currencyPairId) AS baseName
+from trades 
+group by currencyPairId, orderSide
+order by totalAmount DESC
+----
+
+When I ran this query, I got the following error:
+
+.Output
+[source, text]
+----
+ProcessingException(errorCode:150, message:PQLParsingError:
+org.apache.pinot.sql.parsers.SqlCompilationException: 'orderSide' should appear in GROUP BY clause.
+	at org.apache.pinot.sql.parsers.CalciteSqlParser.validateGroupByClause(CalciteSqlParser.java:130)
+	at org.apache.pinot.sql.parsers.CalciteSqlParser.validate(CalciteSqlParser.java:115)
+	at org.apache.pinot.sql.parsers.CalciteSqlParser.queryRewrite(CalciteSqlParser.java:376)
+	at org.apache.pinot.sql.parsers.CalciteSqlParser.compileCalciteSqlToPinotQuery(CalciteSqlParser.java:367))
+----
+
+If we look in the broker's logs, we'll see the following output:
+
+[source, text]
+----
+pinot-broker-crypto | 2022/04/04 08:49:33.068 ERROR [PinotClientRequest] [jersey-server-managed-async-executor-15] Caught exception while processing POST request
+pinot-broker-crypto | java.lang.IllegalArgumentException: Unsupported function: lookup with 4 parameters
+pinot-broker-crypto | 	at shaded.com.google.common.base.Preconditions.checkArgument(Preconditions.java:359) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.apache.pinot.core.query.postaggregation.PostAggregationFunction.<init>(PostAggregationFunction.java:42) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.apache.pinot.core.query.reduce.PostAggregationHandler$PostAggregationValueExtractor.<init>(PostAggregationHandler.java:221) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.apache.pinot.core.query.reduce.PostAggregationHandler.getValueExtractor(PostAggregationHandler.java:120) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.apache.pinot.core.query.reduce.PostAggregationHandler.<init>(PostAggregationHandler.java:70) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.apache.pinot.core.query.reduce.GroupByDataTableReducer.setSQLGroupByInResultTable(GroupByDataTableReducer.java:210) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.apache.pinot.core.query.reduce.GroupByDataTableReducer.reduceAndSetResults(GroupByDataTableReducer.java:128) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.apache.pinot.core.query.reduce.BrokerReduceService.reduceOnDataTable(BrokerReduceService.java:286) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.apache.pinot.broker.requesthandler.SingleConnectionBrokerRequestHandler.processBrokerRequest(SingleConnectionBrokerRequestHandler.java:115) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.apache.pinot.broker.requesthandler.BaseBrokerRequestHandler.handleSQLRequest(BaseBrokerRequestHandler.java:495) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.apache.pinot.broker.requesthandler.BaseBrokerRequestHandler.handleRequest(BaseBrokerRequestHandler.java:197) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.apache.pinot.broker.requesthandler.BaseBrokerRequestHandler.handleRequest(BaseBrokerRequestHandler.java:102) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.apache.pinot.broker.api.resources.PinotClientRequest.processSqlQueryPost(PinotClientRequest.java:191) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at jdk.internal.reflect.GeneratedMethodAccessor22.invoke(Unknown Source) ~[?:?]
+pinot-broker-crypto | 	at jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[?:?]
+pinot-broker-crypto | 	at java.lang.reflect.Method.invoke(Method.java:566) ~[?:?]
+pinot-broker-crypto | 	at org.glassfish.jersey.server.model.internal.ResourceMethodInvocationHandlerFactory.lambda$static$0(ResourceMethodInvocationHandlerFactory.java:52) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.glassfish.jersey.server.model.internal.AbstractJavaResourceMethodDispatcher$1.run(AbstractJavaResourceMethodDispatcher.java:124) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.glassfish.jersey.server.model.internal.AbstractJavaResourceMethodDispatcher.invoke(AbstractJavaResourceMethodDispatcher.java:167) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.glassfish.jersey.server.model.internal.JavaResourceMethodDispatcherProvider$VoidOutInvoker.doDispatch(JavaResourceMethodDispatcherProvider.java:159) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.glassfish.jersey.server.model.internal.AbstractJavaResourceMethodDispatcher.dispatch(AbstractJavaResourceMethodDispatcher.java:79) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.glassfish.jersey.server.model.ResourceMethodInvoker.invoke(ResourceMethodInvoker.java:469) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.glassfish.jersey.server.model.ResourceMethodInvoker.lambda$apply$0(ResourceMethodInvoker.java:381) ~[pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.glassfish.jersey.server.ServerRuntime$AsyncResponder$2$1.run(ServerRuntime.java:819) [pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.glassfish.jersey.internal.Errors$1.call(Errors.java:248) [pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.glassfish.jersey.internal.Errors$1.call(Errors.java:244) [pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.glassfish.jersey.internal.Errors.process(Errors.java:292) [pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.glassfish.jersey.internal.Errors.process(Errors.java:274) [pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.glassfish.jersey.internal.Errors.process(Errors.java:244) [pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.glassfish.jersey.process.internal.RequestScope.runInScope(RequestScope.java:265) [pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at org.glassfish.jersey.server.ServerRuntime$AsyncResponder$2.run(ServerRuntime.java:814) [pinot-all-0.9.3-jar-with-dependencies.jar:0.9.3-e23f213cf0d16b1e9e086174d734a4db868542cb]
+pinot-broker-crypto | 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:515) [?:?]
+pinot-broker-crypto | 	at java.util.concurrent.FutureTask.run(FutureTask.java:264) [?:?]
+pinot-broker-crypto | 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128) [?:?]
+pinot-broker-crypto | 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628) [?:?]
+pinot-broker-crypto | 	at java.lang.Thread.run(Thread.java:829) [?:?]
+----
+
+This error suggests that the lookup function isn't recognised, which is misleading. 
+
+I figured out the actual problem after passing an invalid first parameter to the `lookUp` function, as shown below:
+
+[source, sql]
+----
+select currencyPairId, orderSide, sum(amount) AS totalAmount, 
+       lookUp(pairs, 'baseName', 'id', currencyPairId) AS baseName
+from trades 
+group by currencyPairId, orderSide
+order by totalAmount DESC
+----
+
+.Output
+[source, text]
+----
+ProcessingException(errorCode:150, message:PQLParsingError:
+org.apache.pinot.sql.parsers.SqlCompilationException: 'AS(LOOKUP(pairs, null, null, currencyPairId), baseName)' should appear in GROUP BY clause.
+	at org.apache.pinot.sql.parsers.CalciteSqlParser.validateGroupByClause(CalciteSqlParser.java:130)
+	at org.apache.pinot.sql.parsers.CalciteSqlParser.validate(CalciteSqlParser.java:115)
+	at org.apache.pinot.sql.parsers.CalciteSqlParser.queryRewrite(CalciteSqlParser.java:376)
+	at org.apache.pinot.sql.parsers.CalciteSqlParser.compileCalciteSqlToPinotQuery(CalciteSqlParser.java:367))
+----
+
+The error message this time indicates that we need to include the lookup join field in the `GROUP BY` clause, which we've forgotten to do. 
+If we update our original query to do that:
+
+
+[source, sql]
+----
+select currencyPairId, orderSide, sum(amount) AS totalAmount, 
+       lookUp('pairs', 'baseName', 'id', currencyPairId) AS baseName
+from trades 
+group by currencyPairId, orderSide, baseName
+order by totalAmount DESC
+----
+
+The query now works as expected.
