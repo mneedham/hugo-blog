@@ -1,0 +1,198 @@
++++
+draft = false
+date="2022-04-08 02:44:37"
+title="Apache Pinot: Speeding up queries with IdSets"
+tag=['pinot']
+category=['pinot']
+description="In this post we'll learn how to use Apache Pinot's IdSets to speed up our queries."
+image="uploads/2022/04/id-set-banner.png"
++++
+
+As I continue to build an Apache Pinot demo using https://docs.cryptowat.ch/rest-api/[CryptoWatch^] data, I found myself needing to optimise some queries so that the real-time dashboard would render more quickly.
+I did this using https://docs.pinot.apache.org/users/user-guide-query/filtering-with-idset[IdSets^] and in this blog post we'll learn about those and how to use them.
+
+.Apache Pinot: Speeding up queries with IdSets
+image::{{<siteurl>}}/uploads/2022/04/id-set-banner.png[]
+
+== Pinot Schema
+
+For the purpose of this blog post we don't need to know how to configure the Pinot schema and tables, but we do need to know that we're working with `trades` and `pairs` tables, whose schemas are shown below:
+
+.trades and pairs schemas
+image::{{<siteurl>}}/uploads/2022/04/trades-pairs.png[]
+
+* `trades` is a real-time table that streams data in from a CryptoWatch live stream via a Kafka topic. 
+* `pairs` is a offline dimension table that contains look up data of the available currency pairs used by CryptoWatch
+
+`pairs` has `id` as its primary key and we'll be using Pinot's https://dev.startree.ai/docs/pinot/recipes/lookup-joins[lookup join functionality^] to return the human friendly quotes and bases referred to by the `currencyPairId`.
+
+## Querying pairs
+
+From our dashboard we want to return the trades for a give base and quote. 
+A base is the asset being purchased and a quote is that asset used to buy it.
+
+So to find all the matching rows for buying Bitcoin with US Dollars, we'd write the following query:
+
+[source, sql]
+----
+select count(*) 
+FROM pairs
+WHERE baseName = 'Bitcoin' 
+AND quoteName = 'United States Dollar'
+----
+
+.Results
+[options="header"]
+|===
+|count(*)
+|286
+|===
+
+From the output we learn that there are 286 different currency pairs representing the purchase of Bitcoin using US Dollars.
+
+## Lookup join of pairs and trades
+
+Now let's say we want to find all the trades of Bitcoin using US Dollars. 
+We might write the following query:
+
+[source, sql]
+----
+select avg(price) AS avgPrice, max(price) as maxPrice, min(price) AS minPrice, 
+        count(*) AS count, sum(amount) AS amountTraded
+from trades 
+WHERE lookUp('pairs', 'baseName', 'id', currencyPairId) = 'Bitcoin'
+AND lookUp('pairs', 'quoteName', 'id', currencyPairId) = 'United States Dollar'
+----
+
+If we run this query and look at the query stats for this query, we see the following:
+
+.Query Stats
+[source, json]
+----
+{
+  "numServersQueried": 1,
+  "numServersResponded": 1,
+  "numSegmentsQueried": 37,
+  "numSegmentsProcessed": 37,
+  "numSegmentsMatched": 37,
+  "numConsumingSegmentsQueried": 1,
+  "numDocsScanned": 310757,
+  "numEntriesScannedInFilter": 32212707,
+  "numEntriesScannedPostFilter": 621514,
+  "numGroupsLimitReached": false,
+  "totalDocs": 16155043,
+  "timeUsedMs": 440
+}
+----
+
+I ran this query a few times and it takes between 380ms - 700ms each time.
+It's not an ideal query because we're having to call the `lookUp` function twice per row to check whether it matches the base and quote name.
+
+Another approach to finding the matching trades would be to first query the `pairs` table, get all the matching ids, and then use those ids as part of a `WHERE currencyPairId IN ()` clause in a query against the `trades` table.
+It does seem a bit clunky though.
+
+== Querying with IdSets
+
+Enter the https://docs.pinot.apache.org/users/user-guide-query/filtering-with-idset[IdSet^]!
+
+IdSets are compressed representations of a set of values. 
+For ints Pinot uses a RoaringBitmap, for longs a Roaring64NavigableMap, and for other types a Bloom Filter. 
+
+The simplest way to generate an IdSet is to use the `ID_SET` function, as shown below:
+
+[source, sql]
+----
+SELECT ID_SET(id) 
+FROM pairs 
+WHERE baseName = 'Bitcoin' 
+AND quoteName = 'United States Dollar'
+----
+
+++++
+<style>
+table td {
+    overflow-wrap: anywhere;
+}
+</style>
+++++
+
+.Results
+[options="header"]
+|===
+|idset(id)
+|AgAAAAABAAAAADowAAACAAAAAAAGAAIAFgEYAAAAJgAAAAkAHwAlAEsAbQCvAFYB6rHwsfixHbInsyizMLM1s02zTrNPs1CzUbNSs1OzVLNVs7Ozt7PEs8izybPNs9Gz17PYs9mz4LPis+Sz6rPzs/az97P4s/mz/rP/swq0C7QRtBK0FbQWtCG0JbQttD60RbRGtEe0SLRLtCe1aLVutXW1drV3tXi1erWDtYe1irWLtZG1krWTtZa1nrX2tQe2DbYWthe2GbYctkm2XLZgtmO2a7Zstm62b7Z+toG2ibaXtpq2m7adtp62oba5tsC2xbbHtsy20bbSttm227bituq2Wrdot5m3mreit6m3vbcFuBG4GbgouCm4LLg1uIq4pbituNW45LjluO+4BbkbuSq5QrlUuVi5Y7luuXW5drmEuYi5mrmgubS5vbnFuca5zrnXueK56rnxuQW6GrobuiC6JrosujG6Nbo2uj+6RbpGukq6T7pWumu6dbqZuqO6pLquurO6xLrNuuW6/LoHuw27DrsTuxq7J7szu0m7Wbtou2m7crt6u5+7s7u6u7+7ybvKu8671LvXu+C75bvyuw68D7wVvDq8Q7xbvG68e7yNvJG8lryXvJ28oLyjvLa8x7zOvNW81rzZvN+857z6vBC+GL40vh+/Lb/Kv2TAaMBuwEfBSsGyxLzEv8TCxMXEyMTLxM7E1MT7xCHFacWnxanFrsW3xX3GXshtyIHI+8hRyQzMwc7EzsjOcc91z/DPBtA40DnQZdC70KzSDNMZ0x/TLNOJ05rTCtRJ1ErU
+|===
+
+We could then use this value to query the `trades` table, like this:
+
+[source, sql]
+----
+select avg(price) AS avgPrice, max(price) as maxPrice, min(price) AS minPrice, 
+        count(*) AS count, sum(amount) AS amountTraded
+from trades 
+WHERE IN_ID_SET(
+    currencyPairId,
+    'AgAAAAABAAAAADowAAACAAAAAAAGAAIAFgEYAAAAJgAAAAkAHwAlAEsAbQCvAFYB6rHwsfixHbInsyizMLM1s02zTrNPs1CzUbNSs1OzVLNVs7Ozt7PEs8izybPNs9Gz17PYs9mz4LPis+Sz6rPzs/az97P4s/mz/rP/swq0C7QRtBK0FbQWtCG0JbQttD60RbRGtEe0SLRLtCe1aLVutXW1drV3tXi1erWDtYe1irWLtZG1krWTtZa1nrX2tQe2DbYWthe2GbYctkm2XLZgtmO2a7Zstm62b7Z+toG2ibaXtpq2m7adtp62oba5tsC2xbbHtsy20bbSttm227bituq2Wrdot5m3mreit6m3vbcFuBG4GbgouCm4LLg1uIq4pbituNW45LjluO+4BbkbuSq5QrlUuVi5Y7luuXW5drmEuYi5mrmgubS5vbnFuca5zrnXueK56rnxuQW6GrobuiC6JrosujG6Nbo2uj+6RbpGukq6T7pWumu6dbqZuqO6pLquurO6xLrNuuW6/LoHuw27DrsTuxq7J7szu0m7Wbtou2m7crt6u5+7s7u6u7+7ybvKu8671LvXu+C75bvyuw68D7wVvDq8Q7xbvG68e7yNvJG8lryXvJ28oLyjvLa8x7zOvNW81rzZvN+857z6vBC+GL40vh+/Lb/Kv2TAaMBuwEfBSsGyxLzEv8TCxMXEyMTLxM7E1MT7xCHFacWnxanFrsW3xX3GXshtyIHI+8hRyQzMwc7EzsjOcc91z/DPBtA40DnQZdC70KzSDNMZ0x/TLNOJ05rTCtRJ1ErU'
+) = 1   
+----
+
+The query stats for this query are shown below:
+
+.Query Stats
+[source, json]
+----
+{
+  "numServersQueried": 1,
+  "numServersResponded": 1,
+  "numSegmentsQueried": 38,
+  "numSegmentsProcessed": 37,
+  "numSegmentsMatched": 37,
+  "numConsumingSegmentsQueried": 1,
+  "numDocsScanned": 310757,
+  "numEntriesScannedInFilter": 16155043,
+  "numEntriesScannedPostFilter": 621514,
+  "numGroupsLimitReached": false,
+  "totalDocs": 16155043,
+  "timeUsedMs": 125
+}
+----
+
+This is about 3x faster than our original query - a pretty good improvement!
+It's still a bit annoying though as we need to pass in that really long string value representing all the ids.
+
+Luckily Pinot lets us write sub queries for IdSets, using the `IN_SUBQUERY` function, as shown below:
+
+[source, sql]
+----
+select avg(price) AS avgPrice, max(price) as maxPrice, min(price) AS minPrice, 
+        count(*) AS count, sum(amount) AS amountTraded
+from trades 
+WHERE IN_SUBQUERY(
+  currencyPairId, 
+  'SELECT ID_SET(id) 
+   FROM pairs 
+   WHERE baseName = ''Bitcoin'' 
+   AND quoteName = ''United States Dollar'''
+) = 1
+----
+
+We can see the query stats from running this query below:
+
+.Query Stats
+[source, json]
+----
+{
+  "numServersQueried": 1,
+  "numServersResponded": 1,
+  "numSegmentsQueried": 38,
+  "numSegmentsProcessed": 37,
+  "numSegmentsMatched": 37,
+  "numConsumingSegmentsQueried": 1,
+  "numDocsScanned": 310757,
+  "numEntriesScannedInFilter": 16155043,
+  "numEntriesScannedPostFilter": 621514,
+  "numGroupsLimitReached": false,
+  "totalDocs": 16155043,
+  "timeUsedMs": 132
+}
+----
