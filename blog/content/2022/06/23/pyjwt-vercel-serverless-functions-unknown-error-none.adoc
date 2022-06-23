@@ -1,0 +1,51 @@
++++
+draft = true
+date="2022-06-07 02:44:37"
+title="PyJWT/Vercel Serverless FUnctions: Unknown Error: None"
+tag=['pinot']
+category=['pinot']
+description="In this post we'll learn how to work out a problem when trying to import files with the same name into Apache Pinot."
+image="uploads/2022/03/no-import-banner.png"
++++
+
+??? Unknown Error: None
+
+Have the following code inside a Vercel Serverless function
+
+requirements.txt
+
+[source, text]
+----
+PyJWT==2.3.0
+----
+
+[source, python]
+----
+jwks_client = jwt.PyJWKClient(jwks_uri)
+jwt_signing_key = jwks_client.get_signing_key_from_jwt(token).key
+
+payload = jwt.decode(
+    token,
+    jwt_signing_key,
+    algorithms='RS256',
+    audience='<AUDIENCE>',
+    issuer='<ISSUER_URL>'
+)
+----
+
+If we run it locally:
+
+[source, text]
+----
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/tmp/venv/lib/python3.8/site-packages/jwt/api_jwt.py", line 119, in decode
+    decoded = self.decode_complete(jwt, key, algorithms, options, **kwargs)
+  File "/tmp/venv/lib/python3.8/site-packages/jwt/api_jwt.py", line 90, in decode_complete
+    decoded = api_jws.decode_complete(
+  File "/tmp/venv/lib/python3.8/site-packages/jwt/api_jws.py", line 152, in decode_complete
+    self._verify_signature(signing_input, header, signature, key, algorithms)
+  File "/tmp/venv/lib/python3.8/site-packages/jwt/api_jws.py", line 232, in _verify_signature
+    raise InvalidAlgorithmError("The specified alg value is not allowed")
+jwt.exceptions.InvalidAlgorithmError: The specified alg value is not allowed
+----

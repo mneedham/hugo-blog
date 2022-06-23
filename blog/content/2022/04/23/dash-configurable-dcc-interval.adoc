@@ -1,0 +1,76 @@
++++
+draft = false
+date="2022-04-23 02:44:37"
+title="Dash: Configurable dcc.Interval"
+tag=['dash', 'plotly']
+category=['dash']
+description="In this post we'll learn how to make the timeout on Dash's dcc.Interval component configurable."
+image="uploads/2022/04/dash-banner.png"
++++
+
+:icons: font
+
+As I mentioned in my blog post about https://www.startree.ai/blogs/building-real-time-crypto-dashboard-pinot-dash[building a Real-Time Crypto Dashboard^], I've recently been working with the https://dash.plotly.com/[Dash^] low-code framework for building interactive data apps.
+
+I was using the https://dash.plotly.com/dash-core-components/interval[`dcc.Interval`^] component to automatically refresh components on the page and wanted to make the refresh interval configurable.
+In this blog post we'll learn how to do that.
+
+.Dash: Configurable dcc.Interval
+image::{{<siteurl>}}/uploads/2022/04/dash-banner.png[]
+
+
+== Setup
+
+Let's first setup our Python environment:
+
+[source, bash]
+----
+python -m venv .env
+source .env/bin/activate
+----
+
+And install the dash library:
+
+[source, bash]
+----
+pip install dash
+----
+
+== Building a refreshing dashboard
+
+Now we're going to build a simple dashboard that refreshes a timestamp on the page once every 1,000 milliseconds i.e. once per second.
+The code to do this is shown below:
+
+.dashboard.py
+[source, python]
+----
+include::content/2022/04/23/dashboard.py[]
+----
+
+[source, bash]
+----
+python dashboard.py
+----
+
+If we navigate to http://localhost:8050, we'll see the timestamp updating once per second, as shown in the following animation:
+
+.Refreshing every second
+image::{{<siteurl>}}/uploads/2022/04/dash-once-second.gif[]
+
+The timestamp updates once every second, just as we'd expect.
+
+To make this value configurable we will use `dcc.Slider` to set the new refresh rate and we'll add a new callback that updates the refresh interval.
+
+.dashboard.py
+[source, python]
+----
+include::content/2022/04/23/dashboard2.py[]
+----
+<1> `dcc.Slider` lets us configure a new refresh rate
+<2> This callback updates the value of `interval-component`
+
+Now if we navigate back to our web browser, we can adjust the interval to be whatever we like:
+
+.Refreshing at different intervals
+image::{{<siteurl>}}/uploads/2022/04/adjustable-interval.gif[]
+

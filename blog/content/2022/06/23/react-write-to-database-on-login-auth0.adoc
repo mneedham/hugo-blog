@@ -1,0 +1,18 @@
++++
+draft = true
+date="2022-06-23 02:44:37"
+title="Apache Pinot: Skipping periodic task: Task: PinotTaskManager"
+tag=['pinot']
+category=['pinot']
+description="In this post we'll learn how to solve a problem when periodically importing data into Apache Pinot."
+image="uploads/2022/06/pinot-no-periodic-task-banner.png"
++++
+
+
+auth0 add user to database react first login
+
+https://github.com/iqbal125/react-redux-fullstack-blog/blob/20380453725fb83e084475688262bd27edfb4fce/Client/src/utils/auth.js
+
+
+
+https://stackoverflow.com/questions/51795272/auth0-create-user-in-local-database-after-auth0-sign-up

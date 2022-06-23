@@ -1,0 +1,180 @@
++++
+draft = false
+date="2022-06-23 02:44:37"
+title="Apache Pinot: Skipping periodic task: Task: PinotTaskManager"
+tag=['pinot']
+category=['pinot']
+description="In this post we'll learn how to solve a problem when periodically importing data into Apache Pinot."
+image="uploads/2022/06/pinot-no-periodic-task-banner.png"
++++
+
+As I mentioned in my last blog post, I've been working on an https://dev.startree.ai/docs/pinot/recipes/[Apache Pinot recipe^] showing how to ingest data from S3 and after I'd got that working I moved onto using the https://docs.pinot.apache.org/basics/components/minion#segmentgenerationandpushtask[SegmentGenerationAndPushTask^] to poll S3 and ingest files automatically.
+It took me longer than it should have to get this working and hopefully this blog post will help you avoid the problems that I had.
+
+.Apache Pinot: Skipping periodic task: Task: PinotTaskManager
+image::{{<siteurl>}}/uploads/2022/06/pinot-no-periodic-task-banner.png[]
+
+We're gonna start with a Docker Compose file that spins up Zookeeper and a Pinot Controller, as shown below:
+
+.docker-compose.yml
+[source, yaml]
+----
+version: '3.7'
+services:
+  zookeeper:
+    image: zookeeper:3.5.6
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+  pinot-controller:
+    image: apachepinot/pinot:0.10.0
+    command: "StartController -zkAddress zookeeper:2181"
+    container_name: "pinot-controller"
+    volumes:
+      - ./config:/config
+      - ./input:/input
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    depends_on:
+      - zookeeper
+----
+
+We can run this by using the `docker-compose up` command.
+Once we've done that we're going to create an `events` table that ingests files from S3 once a minute.
+The config for this table is shown below:
+
+./config/table.json
+[source, json]
+----
+{
+    "tableName": "events",
+    "tableType": "OFFLINE",
+    "segmentsConfig": {
+        "timeColumnName": "ts",
+        "schemaName": "events",
+        "replication": "1"
+    },
+    "tableIndexConfig": {
+        "loadMode": "MMAP"
+    },
+    "tenants": {},
+    "metadata": {},
+    "ingestionConfig": {
+        "batchIngestionConfig": {
+            "segmentIngestionType": "APPEND",
+            "segmentIngestionFrequency": "DAILY",
+            "batchConfigMaps": [
+                {
+                    "input.fs.className": "org.apache.pinot.plugin.filesystem.S3PinotFS",
+                    "input.fs.prop.region": "eu-west-2",
+                    "input.fs.prop.accessKey": "<access-key>",
+                    "input.fs.prop.secretKey": "<secret-key>",
+                    "inputDirURI": "s3://<bucket-name>",
+                    "includeFileNamePattern": "glob:**/*.json",
+                    "excludeFileNamePattern": "glob:**/*.tmp",
+                    "inputFormat": "json"
+                }
+            ]
+        }
+    },
+    "task": {
+        "taskTypeConfigsMap": {
+            "SegmentGenerationAndPushTask": {
+                "schedule": "0 */1 * * * ?",
+                "tableMaxNumTasks": 10
+            }
+        }
+    }
+}
+----
+
+I created this table using the following command:
+
+[source, bash]
+----
+docker exec -it pinot-controller bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table.json   \
+  -schemaFile /config/schema.json -exec
+----
+
+I then waited for the JSON documents to be ingested.
+After a few minutes of not seeing any data in my Pinot table, I started debugging to figure out what was going on.
+The `SegmentGenerationAndPushTask` is configured by the `PinotTaskManager`, so I looked for any mentions of that class in the Pinot controller logs:
+
+[source, bash]
+----
+docker exec -it pinot-controller grep -rni --color "PinotTaskManager" logs/ 
+----
+
+.Output
+[source,text]
+----
+logs/pinot-all.log:4055:2022/06/20 09:14:38.608 INFO [PeriodicTaskScheduler] [main] Skipping periodic task: Task: PinotTaskManager, Interval: -1s, Initial Delay: 272s
+----
+
+Hmmm, the periodic task that would schedule our import job is being ignored, which explains why no data is being ingested.
+It took me a while to figure out that the task scheduler is disabled by default, and needs to be enabled in the Controller configuration, as shown below:
+
+./config/controller-conf.conf
+[source, text]
+----
+controller.access.protocols.http.port=9000
+controller.zk.str=zookeeper:2181
+controller.helix.cluster.name=PinotCluster
+controller.host=pinot-controller
+controller.port=9000
+
+controller.task.scheduler.enabled=true
+controller.task.frequencyPeriod=5m
+----
+
+If we're using Docker, we need to update the command for starting the Pinot Controller to refer to that configuration file, as shown below:
+
+[source, yaml]
+----
+version: '3.7'
+services:
+  zookeeper:
+    image: zookeeper:3.5.6
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+  pinot-controller:
+    image: apachepinot/pinot:0.10.0
+    command: "StartController -zkAddress zookeeper:2181 -config /config/controller-conf.conf"
+    container_name: "pinot-controller"
+    volumes:
+      - ./config:/config
+      - ./input:/input
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    depends_on:
+      - zookeeper
+----
+
+And once we've restarted that container, we can search the logs again:
+
+[source, bash]
+----
+docker exec -it pinot-controller grep -rni --color "PinotTaskManager" logs/ 
+----
+
+
+.Output
+[source,text]
+----
+2022/06/23 11:08:34.181 INFO [PeriodicTaskScheduler] [main] Starting periodic task scheduler with tasks: [Task: PinotTaskManager, Interval: 300s, Initial Delay: 280s, Task: RetentionManager, Interval: 21600s, Initial Delay: 183s, Task: OfflineSegmentIntervalChecker, Interval: 86400s, Initial Delay: 215s, Task: RealtimeSegmentValidationManager, Interval: 3600s, Initial Delay: 242s, Task: BrokerResourceValidationManager, Interval: 3600s, Initial Delay: 210s, Task: SegmentStatusChecker, Interval: 300s, Initial Delay: 219s, Task: SegmentRelocator, Interval: 3600s, Initial Delay: 229s, Task: MinionInstancesCleanupTask, Interval: 3600s, Initial Delay: 206s, Task: TaskMetricsEmitter, Interval: 300s, Initial Delay: 263s]
+----
+
+Success!
+Now the `PinotTaskManager` is running and will schedule `SegmentGenerationAndPushTask` as expected.

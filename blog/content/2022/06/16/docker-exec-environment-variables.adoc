@@ -1,0 +1,40 @@
++++
+draft = false
+date="2022-06-16 02:44:37"
+title="docker exec: Passing in environment variables"
+tag=['docker']
+category=['docker']
+description="In this post we'll learn how to pass environment variables to docker exec."
+image="uploads/2022/06/docker-exec.png"
++++
+
+I've been working on an https://dev.startree.ai/docs/pinot/recipes/[Apache Pinot recipe^] showing how to ingest data from S3 and I needed to pass in my AWS credentials to the `docker exec` command that I was running.
+It wasn't difficult to do, but took me a little while to figure out.
+
+.docker exec: Passing in environment variables
+image::{{<siteurl>}}/uploads/2022/06/docker-exec.png[]
+
+The command that I was running looked like this:
+
+[source, bash]
+----
+docker exec \
+  -it pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob \
+  -jobSpecFile /config/job-spec.yml
+----
+
+And the https://docs.pinot.apache.org/basics/data-import/pinot-file-system/amazon-s3[Pinot documentation^] says that I need to pass in `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+I initially came across https://stackoverflow.com/questions/27812548/how-to-set-an-environment-variable-in-a-running-docker-container[a StackOverflow question^] that described a bunch of approaches that didn't work for me, but luckily I found https://devconnected.com/docker-exec-command-with-examples/[a tutorial^] that showed how to do it. 
+
+Effectively we can set these environment variables via the `-e` parameter, as shown below: 
+
+[source, bash]
+----
+docker exec \
+  -e AWS_ACCESS_KEY_ID=<accessKeyId> \
+  -e AWS_SECRET_ACCESS_KEY=<secretAccessKey> \
+  -it pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob \
+  -jobSpecFile /config/job-spec.yml
+----
+
+It's that simple!
