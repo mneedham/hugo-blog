@@ -9,6 +9,7 @@ image="uploads/2022/06/pinot-no-periodic-task-banner.png"
 +++
 
 As I mentioned in my last blog post, I've been working on an https://dev.startree.ai/docs/pinot/recipes/[Apache Pinot recipe^] showing how to ingest data from S3 and after I'd got that working I moved onto using the https://docs.pinot.apache.org/basics/components/minion#segmentgenerationandpushtask[SegmentGenerationAndPushTask^] to poll S3 and ingest files automatically.
+
 It took me longer than it should have to get this working and hopefully this blog post will help you avoid the problems that I had.
 
 .Apache Pinot: Skipping periodic task: Task: PinotTaskManager

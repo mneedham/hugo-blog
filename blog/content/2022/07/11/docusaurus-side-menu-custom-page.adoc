@@ -1,0 +1,59 @@
++++
+draft = false
+date="2022-07-11 02:44:37"
+title="Docusaurus: Side menu on custom page"
+tag=['docusaurus']
+category=['docusaurus']
+description="In this post we'll learn how to add a side menu to a custom page with the Docusaurus static website generator."
+image="uploads/2022/07/docusaurus-banner.png"
++++
+    
+I've been working with Docusaurus to build the https://dev.startree.ai/[dev.startree.ai] website over the last few months and I wanted to add https://docusaurus.io/docs/creating-pages[a custom page^] with a sidebar similar to the one that gets automatically generated on documentation pages. 
+
+All the examples I could find showed you to create a splash page, so it took me a while to figure out how to do what I wanted, but in this post we'll learn how to do it.
+
+.Docusaurus: Side menu on custom page
+image::{{<siteurl>}}/uploads/2022/07/docusaurus-banner.png[]
+
+First, let's create a Docusaurus site called `my-website` by running the following command:
+
+[source, bash]
+----
+npx create-docusaurus@latest my-website classic
+----
+
+We can run the site locally with the following command:
+
+
+[source, bash]
+----
+npm run start
+----
+
+This will run a local webserver at http://localhost:3000, which will show the following page:
+
+.Docusaurus
+image::{{<siteurl>}}/uploads/2022/07/docusaurus.png[]
+
+Custom pages go under `src/pages` and whatever we name our file will be the name of the page. 
+Let's create `myCustomPage.js` with the following contents:
+
+.src/pages/myCustomPage.js
+[source, js,indent=2]
+----
+include::content/2022/07/11/myCustomPage.js[]
+----
+
+If we want to adjust the items show in the side bar we'd need to change the `DocSidebar` component's `sidebar` property. 
+Most of the code shown here describes CSS styles that do change location between minor versions.
+I'll try to keep the example up to date with the latest version.
+
+[NOTE]
+====
+The version of the docusaurus at the time of writing this blog post is 2.0.0-beta.22.
+====
+
+The custom page is created at http://localhost:3000/myCustomPage and looks like this:
+
+.Docusaurus Custom Page
+image::{{<siteurl>}}/uploads/2022/07/docusaurus-myCustomPage.png[]

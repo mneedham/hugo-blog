@@ -1,0 +1,203 @@
++++
+draft = false
+date="2022-07-21 02:44:37"
+title="Apache Pinot: Import JSON data from a CSV file - Illegal Json Path: $['id'] does not match document"
+tag=['pinot']
+category=['pinot']
+description="In this post we'll learn how to solve a problem when ingesting JSON data from a CSV file into Apache Pinot."
+image="uploads/2022/07/json-banner.png"
++++
+
+I've been working on an Apache Pinot dataset where I ingested a JSON document stored in a CSV file.
+I made a mistake with the representation of the JSON and it took me a while to figure out what I'd done wrong.
+
+We'll go through it in this blog post.
+
+.Apache Pinot: Import JSON data from a CSV file - Illegal Json Path: $['id'] does not match document
+image::{{<siteurl>}}/uploads/2022/07/json-banner.png[]
+
+== Setup
+
+We're going to spin up a local instance of Pinot and Kafka using the following Docker compose config:
+
+.docker-compose.yml
+[source, json]
+----
+include::content/2022/07/21/docker-compose.yml[]
+----
+
+We can launch all the components by running the following command:
+
+[source, bash]
+----
+docker-compose up
+----
+
+== Schema and Table
+
+We're going to be using the following schema:
+
+.config/schema.json
+[source, json]
+----
+{
+    "schemaName": "users",
+    "dimensionFieldSpecs": [
+      {
+        "name": "json_field",
+        "dataType": "JSON"
+      }
+    ],
+    "dateTimeFieldSpecs": [
+      {
+        "name": "timestamp_field",
+        "dataType": "TIMESTAMP",
+        "format": "1:MILLISECONDS:EPOCH",
+        "granularity": "1:MILLISECONDS"
+      }
+    ]
+  }
+----
+
+And this table config:
+
+.config/table.json
+[source, json]
+----
+{
+    "tableName": "users",
+    "tableType": "OFFLINE",
+    "segmentsConfig": {
+      "replication": 1,
+      "schemaName": "users",
+      "timeColumnName": "timestamp_field"
+    },
+    "tenants": {},
+    "tableIndexConfig": {},
+    "ingestionConfig": {},
+    "metadata": {}
+  }
+----
+
+We can create them both by running the following command:
+
+[source, bash]
+----
+docker exec -it pinot-controller bin/pinot-admin.sh AddTable   \
+  -tableConfigFile /config/table.json   \
+  -schemaFile /config/schema.json \
+  -exec
+----
+
+== Importing CSV file
+
+Next we're going to import the following CSV file:
+
+.data/output.csv
+[format="csv", options="header"]
+|===
+include::content/2022/07/21/data/output-broken.csv[]
+|===
+
+We'll do this using this job spec:
+
+.config/job-spec.yml
+[source, yml]
+----
+executionFrameworkSpec:
+  name: 'standalone'
+  segmentGenerationJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentGenerationJobRunner'
+  segmentTarPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentTarPushJobRunner'
+jobType: SegmentCreationAndTarPush
+inputDirURI: '/data'
+includeFileNamePattern: 'glob:**/output.csv'
+outputDirURI: '/opt/pinot/data/crimes/'
+overwriteOutput: true
+pinotFSSpecs:
+  - scheme: file
+    className: org.apache.pinot.spi.filesystem.LocalPinotFS
+recordReaderSpec:
+  dataFormat: 'csv'
+  className: 'org.apache.pinot.plugin.inputformat.csv.CSVRecordReader'
+  configClassName: 'org.apache.pinot.plugin.inputformat.csv.CSVRecordReaderConfig'
+tableSpec:
+  tableName: 'users'
+pinotClusterSpecs:
+  - controllerURI: "http://localhost:9000"  
+----
+
+The following command will ingest the CSV file:
+
+
+[source, bash]
+----
+docker exec -it pinot-controller bin/pinot-admin.sh LaunchDataIngestionJob \
+  -jobSpecFile /config/job-spec.yml
+----
+
+== Querying the JSON Field
+
+Now it's time to write a query that pulls out the `id` field from `json_field`, which we can do with this query:
+
+[source, sql]
+----
+select json_extract_scalar(json_field, '$.id', 'STRING') AS id,
+       json_field
+from users 
+----
+
+.Output
+[source, text]
+----
+[
+  {
+    "message": "QueryExecutionError:\njava.lang.IllegalArgumentException: Illegal Json Path: $['id'] does not match document\n\tat org.apache.pinot.core.common.evaluators.DefaultJsonPathEvaluator.throwPathNotFoundException(DefaultJsonPathEvaluator.java:613)\n\tat org.apache.pinot.core.common.evaluators.DefaultJsonPathEvaluator.processValue(DefaultJsonPathEvaluator.java:540)\n\tat org.apache.pinot.core.common.evaluators.DefaultJsonPathEvaluator.evaluateBlock(DefaultJsonPathEvaluator.java:250)\n\tat org.apache.pinot.core.common.DataFetcher$ColumnValueReader.readStringValues(DataFetcher.java:594)",
+    "errorCode": 200
+  }
+]
+----
+
+Hmm, that didn't quite work. 
+Let's have a look at the contents of `json_field`:
+
+[source, sql]
+----
+select json_field
+from users 
+----
+
+.Results
+[options="header"]
+|===
+|json_field
+|"{\"id\": 7886, \"details\": {\"collaborator\": \"Brett Gill\", \"score\": 6056, \"address\": \"2882 Sheila Lakes Apt. 264\\nRhondaville, KS 09803\"}}"
+|===
+
+We can see from the output that we've actually got a string in this field rather than a JSON document, which is why the JSON path query doesn't work.
+
+We'll need to reimport the data after fixing the JSON field, as shown in the CSV file below:
+
+.data/output.csv
+[format="csv", options="header"]
+|===
+include::content/2022/07/21/data/output-working.csv[]
+|===
+
+Once we've done that we can run the following query again:
+
+[source, sql]
+----
+select json_extract_scalar(json_field, '$.id', 'STRING') AS id,
+       json_field
+from users 
+----
+
+.Results
+[options="header"]
+|===
+|id | json_field
+|id	json_field
+|8360|	{"id":8360,"details":{"collaborator":"Mckenzie Brown","score":1384,"address":"68131 Robinson Vista\nChristianport, HI 60353"}}
+|===
+
+Success!

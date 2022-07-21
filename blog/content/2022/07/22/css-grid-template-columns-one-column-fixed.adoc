@@ -1,0 +1,30 @@
++++
+draft = true
+date="2022-06-15 02:44:37"
+title="CSS - grid-template-columns: One column fixed, split the rest equally"
+tag=['docker']
+category=['docker']
+description="In this post we'll learn how to work out a problem when trying to import files with the same name into Apache Pinot."
+image="uploads/2022/03/no-import-banner.png"
++++
+
+
+grid-template-columns one column fixed split the rest equally
+
+https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-columns
+
+
+
+<flex>
+Is a non-negative dimension with the unit fr specifying the track's flex factor. Each <flex>-sized track takes a share of the remaining space in proportion to its flex factor.
+
+When appearing outside a minmax() notation, it implies an automatic minimum (i.e. minmax(auto, <flex>)).
+
+[source, html]
+----
+.grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 1fr 1fr;
+}
+----
