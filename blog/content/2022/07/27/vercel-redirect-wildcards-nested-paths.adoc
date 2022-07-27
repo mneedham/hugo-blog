@@ -1,0 +1,133 @@
++++
+draft = false
+date="2022-07-27 02:44:37"
+title="Vercel: Redirect wildcard (nested) paths"
+tag=['vercel']
+category=['vercel']
+description="In this post we'll learn how to do wildcard redirects for nested paths in Vercel."
+image="uploads/2022/07/vercel-nested-paths-banner.png"
++++
+
+We're deploying the StarTree developer site, https://dev.startree.ai/[dev.startree.ai^], to Vercel, and recently needed to do some redirects of a few pages.
+I initially added https://nextjs.org/docs/api-reference/next.config.js/redirects[individual redirects^] for each page, but there were eventually too many pages and I wanted to automate it.
+In this post we'll learn how to do that.
+
+.Vercel: Redirect wildcard (nested) paths
+image::{{<siteurl>}}/uploads/2022/07/vercel-nested-paths-banner.png[]
+
+We wanted to redirect everything under https://dev.startree.ai/docs/thirdeye to https://dev.startree.ai/docs/startree-enterprise-edition/startree-thirdeye/ and started off by using wild card path matching, as seen in the `vercel.json` file below:
+
+.vercel.json
+[source, json]
+----
+{
+    "redirects": [
+      { 
+        "source": "/docs/thirdeye/:path*",
+        "destination": "/docs/startree-enterprise-edition/startree-thirdeye/:path*", 
+        "permanent": true
+      }
+    ]
+}
+----
+
+This worked for the top level paths and even ones nested to several levels, like https://dev.startree.ai/docs/thirdeye/concepts/root-cause-analysis:
+
+[source, bash]
+----
+wget -S https://dev.startree.ai/docs/thirdeye/concepts/root-cause-analysis
+----
+
+.Output
+[source, text]
+----
+--2022-07-27 10:26:17--  https://dev.startree.ai/docs/thirdeye/concepts/root-cause-analysis
+Resolving dev.startree.ai (dev.startree.ai)... 76.76.21.164, 76.76.21.9
+Connecting to dev.startree.ai (dev.startree.ai)|76.76.21.164|:443... connected.
+HTTP request sent, awaiting response... 
+  HTTP/1.1 308 Permanent Redirect
+  Cache-Control: public, max-age=0, must-revalidate
+  Content-Type: text/plain
+  Date: Wed, 27 Jul 2022 09:26:18 GMT
+  Location: /docs/startree-enterprise-edition/startree-thirdeye/concepts/root-cause-analysis
+  Refresh: 0;url=/docs/startree-enterprise-edition/startree-thirdeye/concepts/root-cause-analysis
+  Server: Vercel
+  Strict-Transport-Security: max-age=63072000
+  X-Vercel-Cache: MISS
+  X-Vercel-Id: lhr1::m8wct-1658913978046-3b7c6c4a96be
+  Transfer-Encoding: chunked
+Location: /docs/startree-enterprise-edition/startree-thirdeye/concepts/root-cause-analysis [following]
+--2022-07-27 10:26:18--  https://dev.startree.ai/docs/startree-enterprise-edition/startree-thirdeye/concepts/root-cause-analysis
+Reusing existing connection to dev.startree.ai:443.
+HTTP request sent, awaiting response... 
+  HTTP/1.1 200 OK
+----
+
+I thought this was gonna be the solution, but then I checked a URL that had a trailing slash and the redirection didn't work anymore:
+
+[source, bash]
+----
+wget -S https://dev.startree.ai/docs/thirdeye/concepts/root-cause-analysis/
+----
+
+.Output
+[source, text]
+----
+--2022-07-27 10:25:23--  https://dev.startree.ai/docs/thirdeye/concepts/root-cause-analysis/
+Resolving dev.startree.ai (dev.startree.ai)... 76.76.21.61, 76.76.21.241
+Connecting to dev.startree.ai (dev.startree.ai)|76.76.21.61|:443... connected.
+HTTP request sent, awaiting response... 
+  HTTP/1.1 404 Not Found
+----
+
+A bit of searching led me to this https://github.com/vercel/next.js/issues/24288[GitHub issue^], which suggested that I needed to use the https://nextjs.org/docs/api-reference/next.config.js/rewrites#regex-path-matching[regex path matching^] syntax instead of wildcard path matching.
+
+I updated my vercel.json file to look like this:
+
+.vercel.json
+[source, json]
+----
+{
+    "redirects": [
+      { 
+        "source": "/docs/thirdeye/:path(.*)",
+        "destination": "/docs/startree-enterprise-edition/startree-thirdeye/:path", 
+        "permanent": true
+      }
+    ]
+}
+----
+
+And now if we try to access the page with the trailing slash again:
+
+[source, bash]
+----
+wget -S https://dev.startree.ai/docs/thirdeye/concepts/root-cause-analysis/
+----
+
+.Output
+[source, text]
+----
+--2022-07-27 10:28:34--  https://dev.startree.ai/docs/thirdeye/concepts/root-cause-analysis/
+Resolving dev.startree.ai (dev.startree.ai)... 76.76.21.93, 76.76.21.98
+Connecting to dev.startree.ai (dev.startree.ai)|76.76.21.93|:443... connected.
+HTTP request sent, awaiting response... 
+  HTTP/1.1 308 Permanent Redirect
+  Cache-Control: public, max-age=0, must-revalidate
+  Content-Type: text/plain
+  Date: Wed, 27 Jul 2022 09:28:34 GMT
+  Location: /docs/startree-enterprise-edition/startree-thirdeye/concepts/root-cause-analysis/
+  Refresh: 0;url=/docs/startree-enterprise-edition/startree-thirdeye/concepts/root-cause-analysis/
+  Server: Vercel
+  Strict-Transport-Security: max-age=63072000
+  X-Vercel-Cache: MISS
+  X-Vercel-Id: lhr1::rz74m-1658914114559-78a83552b924
+  Transfer-Encoding: chunked
+Location: /docs/startree-enterprise-edition/startree-thirdeye/concepts/root-cause-analysis/ [following]
+--2022-07-27 10:28:34--  https://dev.startree.ai/docs/startree-enterprise-edition/startree-thirdeye/concepts/root-cause-analysis/
+Reusing existing connection to dev.startree.ai:443.
+HTTP request sent, awaiting response... 
+  HTTP/1.1 200 OK
+----
+
+Success!
