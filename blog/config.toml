@@ -10,8 +10,16 @@ theme = "hugo-theme-crisp"
   disqus = "markhneedham"
   twitter = "markhneedham"
   gplus = "100354797468725665406"
-  ga = "UA-9991626-1"
+  ga = "G-KVLB7W6R20"
 
 [taxonomies]
   tag = "tag"
   category = "category"
+
+[security]
+  [security.exec]
+    allow = ['^asciidoctor']
+
+[outputs]
+  home = ['HTML', 'RSS']
+  page = ['HTML', 'RSS']
