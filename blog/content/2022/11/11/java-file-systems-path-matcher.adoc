@@ -10,9 +10,6 @@ image="uploads/2022/11/path-matcher.png"
 
 I was debugging something in the https://github.com/apache/pinot/[Apache Pinot code^] earlier this week and came across the `FileSystems.getDefault().getPathMatcher` function, which didn't work quite how I expected. 
 
-.FileSystems.getDefault().getPathMatcher: IllegalArgumentException
-image::{{<siteurl>}}/uploads/2022/11/path-matcher.png[]
-
 The function creates a `PathMatcher` that you can use to match against Paths.
 I was passing through a value of `*.json`, which was then resulting in code similar to this:
 

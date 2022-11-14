@@ -1,14 +1,18 @@
 +++
-draft = true
+draft = false
 date="2022-11-14 02:44:37"
-title="Apache Pinot: Side menu on custom page"
-tag=['docusaurus']
-category=['docusaurus']
-description="In this post we'll learn how to add a side menu to a custom page with the Docusaurus static website generator."
-image="uploads/2022/07/docusaurus-banner.png"
+title="Apache Pinot: Unable to render templates on ingestion job spec template file"
+tag=['pinot']
+category=['pinot']
+description="In this post we'll learn about the render templates error when running an Apache Pinot ingestion job spec."
+image="uploads/2022/11/render-templates-banner.png"
 +++
 
+I was recently trying to ingest some JSON files into Apache Pinot from an S3 bucket and came across an exception when trying to pass a variable to the LaunchDataIngestionJob command
 
+I was using the following ingestion job specification:
+
+.config/job-spec.yml
 [source, yaml]
 ----
 executionFrameworkSpec:
@@ -37,6 +41,10 @@ pinotClusterSpecs:
   - controllerURI: 'http://${PINOT_CONTROLLER}:9000'
 ----
 
+This job spec takes in the `PINOT_CONTROLLER` variable. 
+
+I initially ran the job like this:
+
 [source, bash]
 ----
 docker run \
@@ -47,10 +55,12 @@ docker run \
   apachepinot/pinot:0.11.0 LaunchDataIngestionJob \
   -jobSpecFile /config/job-spec.yml \
   -values PINOT_CONTROLLER pinot-controller
-----  
+----
 
+Which resulted in the following error:
 
-
+[source, text]
+----
 2022/11/10 11:49:43.030 ERROR [LaunchDataIngestionJobCommand] [main] Got exception to generate IngestionJobSpec for data ingestion job -
 java.lang.RuntimeException: Unable to render templates on ingestion job spec template file - [/config/job-spec.yml] with propertiesMap - [[]].
 	at org.apache.pinot.spi.ingestion.batch.IngestionJobLauncher.getSegmentGenerationJobSpec(IngestionJobLauncher.java:85) ~[pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
@@ -100,6 +110,11 @@ Caused by: groovy.lang.MissingPropertyException: No such property: PINOT_CONTROL
 	at org.apache.pinot.spi.utils.GroovyTemplateUtils.renderTemplate(GroovyTemplateUtils.java:45)
 	at org.apache.pinot.spi.ingestion.batch.IngestionJobLauncher.getSegmentGenerationJobSpec(IngestionJobLauncher.java:82)
 	... 12 more
+----
+
+I was kinda confused about this since I thought I had passed in this parameter. 
+It turns out that the library used to parse command line arguments expects variables to be specified in the format `-values variable=value` rather than `-values variable value`
+So I fixed my command to read like the following:
 
 
 [source, bash]
@@ -110,7 +125,8 @@ docker run \
   -e AWS_ACCESS_KEY_ID=abc \
   -e AWS_SECRET_ACCESS_KEY=def \
   apachepinot/pinot:0.11.0 LaunchDataIngestionJob \
-  
   -jobSpecFile /config/job-spec.yml \
   -values PINOT_CONTROLLER=pinot-controller
 ----  
+
+And now Pinot is happy with me again :)
