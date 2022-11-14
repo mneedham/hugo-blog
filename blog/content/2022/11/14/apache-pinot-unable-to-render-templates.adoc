@@ -1,0 +1,116 @@
++++
+draft = true
+date="2022-11-14 02:44:37"
+title="Apache Pinot: Side menu on custom page"
+tag=['docusaurus']
+category=['docusaurus']
+description="In this post we'll learn how to add a side menu to a custom page with the Docusaurus static website generator."
+image="uploads/2022/07/docusaurus-banner.png"
++++
+
+
+[source, yaml]
+----
+executionFrameworkSpec:
+  name: 'standalone'
+  segmentGenerationJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentGenerationJobRunner'
+  segmentTarPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentTarPushJobRunner'
+  segmentUriPushJobRunnerClassName: 'org.apache.pinot.plugin.ingestion.batch.standalone.SegmentUriPushJobRunner'
+jobType: SegmentCreationAndTarPush
+inputDirURI: 's3://marks-st-cloud-bucket/events/'
+includeFileNamePattern: 'glob:**/*.json'
+outputDirURI: '/data'
+overwriteOutput: true
+pinotFSSpecs:
+  - scheme: s3
+    className: org.apache.pinot.plugin.filesystem.S3PinotFS
+    configs:
+      region: 'eu-west-2'
+  - scheme: file
+    className: org.apache.pinot.spi.filesystem.LocalPinotFS
+recordReaderSpec:
+  dataFormat: 'json'
+  className: 'org.apache.pinot.plugin.inputformat.json.JSONRecordReader'
+tableSpec:
+  tableName: 'events'
+pinotClusterSpecs:
+  - controllerURI: 'http://${PINOT_CONTROLLER}:9000'
+----
+
+[source, bash]
+----
+docker run \
+  --network ingest-json-files-s3 \
+  -v $PWD/config:/config \
+  -e AWS_ACCESS_KEY_ID=abc \
+  -e AWS_SECRET_ACCESS_KEY=def \
+  apachepinot/pinot:0.11.0 LaunchDataIngestionJob \
+  -jobSpecFile /config/job-spec.yml \
+  -values PINOT_CONTROLLER pinot-controller
+----  
+
+
+
+2022/11/10 11:49:43.030 ERROR [LaunchDataIngestionJobCommand] [main] Got exception to generate IngestionJobSpec for data ingestion job -
+java.lang.RuntimeException: Unable to render templates on ingestion job spec template file - [/config/job-spec.yml] with propertiesMap - [[]].
+	at org.apache.pinot.spi.ingestion.batch.IngestionJobLauncher.getSegmentGenerationJobSpec(IngestionJobLauncher.java:85) ~[pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at org.apache.pinot.tools.admin.command.LaunchDataIngestionJobCommand.execute(LaunchDataIngestionJobCommand.java:111) [pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at org.apache.pinot.tools.Command.call(Command.java:33) [pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at org.apache.pinot.tools.Command.call(Command.java:29) [pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at picocli.CommandLine.executeUserObject(CommandLine.java:1953) [pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at picocli.CommandLine.access$1300(CommandLine.java:145) [pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at picocli.CommandLine$RunLast.executeUserObjectOfLastSubcommandWithSameParent(CommandLine.java:2352) [pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at picocli.CommandLine$RunLast.handle(CommandLine.java:2346) [pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at picocli.CommandLine$RunLast.handle(CommandLine.java:2311) [pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at picocli.CommandLine$AbstractParseResultHandler.execute(CommandLine.java:2179) [pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at picocli.CommandLine.execute(CommandLine.java:2078) [pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at org.apache.pinot.tools.admin.PinotAdministrator.execute(PinotAdministrator.java:165) [pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at org.apache.pinot.tools.admin.PinotAdministrator.main(PinotAdministrator.java:196) [pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+Caused by: groovy.lang.MissingPropertyException: No such property: PINOT_CONTROLLER for class: SimpleTemplateScript1
+	at org.codehaus.groovy.runtime.ScriptBytecodeAdapter.unwrap(ScriptBytecodeAdapter.java:66) ~[pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at org.codehaus.groovy.runtime.callsite.PogoGetPropertySite.getProperty(PogoGetPropertySite.java:51) ~[pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at org.codehaus.groovy.runtime.callsite.AbstractCallSite.callGroovyObjectGetProperty(AbstractCallSite.java:310) ~[pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at SimpleTemplateScript1.run(SimpleTemplateScript1.groovy:1) ~[?:?]
+	at groovy.text.SimpleTemplateEngine$SimpleTemplate$1.writeTo(SimpleTemplateEngine.java:181) ~[pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at groovy.text.SimpleTemplateEngine$SimpleTemplate$1.toString(SimpleTemplateEngine.java:193) ~[pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at org.apache.pinot.spi.utils.GroovyTemplateUtils.renderTemplate(GroovyTemplateUtils.java:45) ~[pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	at org.apache.pinot.spi.ingestion.batch.IngestionJobLauncher.getSegmentGenerationJobSpec(IngestionJobLauncher.java:82) ~[pinot-all-0.11.0-jar-with-dependencies.jar:0.11.0-1b4d6b6b0a27422c1552ea1a936ad145056f7033]
+	... 12 more
+java.lang.RuntimeException: Unable to render templates on ingestion job spec template file - [/config/job-spec.yml] with propertiesMap - [[]].
+	at org.apache.pinot.spi.ingestion.batch.IngestionJobLauncher.getSegmentGenerationJobSpec(IngestionJobLauncher.java:85)
+	at org.apache.pinot.tools.admin.command.LaunchDataIngestionJobCommand.execute(LaunchDataIngestionJobCommand.java:111)
+	at org.apache.pinot.tools.Command.call(Command.java:33)
+	at org.apache.pinot.tools.Command.call(Command.java:29)
+	at picocli.CommandLine.executeUserObject(CommandLine.java:1953)
+	at picocli.CommandLine.access$1300(CommandLine.java:145)
+	at picocli.CommandLine$RunLast.executeUserObjectOfLastSubcommandWithSameParent(CommandLine.java:2352)
+	at picocli.CommandLine$RunLast.handle(CommandLine.java:2346)
+	at picocli.CommandLine$RunLast.handle(CommandLine.java:2311)
+	at picocli.CommandLine$AbstractParseResultHandler.execute(CommandLine.java:2179)
+	at picocli.CommandLine.execute(CommandLine.java:2078)
+	at org.apache.pinot.tools.admin.PinotAdministrator.execute(PinotAdministrator.java:165)
+	at org.apache.pinot.tools.admin.PinotAdministrator.main(PinotAdministrator.java:196)
+Caused by: groovy.lang.MissingPropertyException: No such property: PINOT_CONTROLLER for class: SimpleTemplateScript1
+	at org.codehaus.groovy.runtime.ScriptBytecodeAdapter.unwrap(ScriptBytecodeAdapter.java:66)
+	at org.codehaus.groovy.runtime.callsite.PogoGetPropertySite.getProperty(PogoGetPropertySite.java:51)
+	at org.codehaus.groovy.runtime.callsite.AbstractCallSite.callGroovyObjectGetProperty(AbstractCallSite.java:310)
+	at SimpleTemplateScript1.run(SimpleTemplateScript1.groovy:1)
+	at groovy.text.SimpleTemplateEngine$SimpleTemplate$1.writeTo(SimpleTemplateEngine.java:181)
+	at groovy.text.SimpleTemplateEngine$SimpleTemplate$1.toString(SimpleTemplateEngine.java:193)
+	at org.apache.pinot.spi.utils.GroovyTemplateUtils.renderTemplate(GroovyTemplateUtils.java:45)
+	at org.apache.pinot.spi.ingestion.batch.IngestionJobLauncher.getSegmentGenerationJobSpec(IngestionJobLauncher.java:82)
+	... 12 more
+
+
+[source, bash]
+----
+docker run \
+  --network ingest-json-files-s3 \
+  -v $PWD/config:/config \
+  -e AWS_ACCESS_KEY_ID=abc \
+  -e AWS_SECRET_ACCESS_KEY=def \
+  apachepinot/pinot:0.11.0 LaunchDataIngestionJob \
+  
+  -jobSpecFile /config/job-spec.yml \
+  -values PINOT_CONTROLLER=pinot-controller
+----  

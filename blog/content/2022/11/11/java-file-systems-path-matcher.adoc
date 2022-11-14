@@ -1,0 +1,65 @@
++++
+draft = false
+date="2022-11-11 02:44:37"
+title="Java: FileSystems.getDefault().getPathMatcher: IllegalArgumentException"
+tag=['java']
+category=['java']
+description="In this post we'll learn how to use Java's FileSystems.getDefault().getPathMatcher"
+image="uploads/2022/11/path-matcher.png"
++++
+
+I was debugging something in the https://github.com/apache/pinot/[Apache Pinot code^] earlier this week and came across the `FileSystems.getDefault().getPathMatcher` function, which didn't work quite how I expected. 
+
+.FileSystems.getDefault().getPathMatcher: IllegalArgumentException
+image::{{<siteurl>}}/uploads/2022/11/path-matcher.png[]
+
+The function creates a `PathMatcher` that you can use to match against Paths.
+I was passing through a value of `*.json`, which was then resulting in code similar to this:
+
+[source, java]
+----
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+
+class Main {  
+  public static void main(String args[]) { 
+    PathMatcher matcher = FileSystems.getDefault().getPathMatcher("*.json");
+    System.out.println(matcher.matches(Path.of("/tmp", "mark.json")));
+  } 
+}
+----
+
+I've copied that code into https://replit.com/@MarkNeedham/Mark-Needham#Main.java[Replit^] and if we run it on there, we'll see the following exception:
+
+[source, text]
+----
+Exception in thread "main" java.lang.IllegalArgumentException
+    at java.base/sun.nio.fs.UnixFileSystem.getPathMatcher(UnixFileSystem.java:286)
+    at Main.main(Main.java:5)
+exit status 1
+----
+
+After reading the https://docs.oracle.com/javase/7/docs/api/java/nio/file/FileSystem.html#getPathMatcher(java.lang.String)[documentation^] I learnt that the pattern needs to be prefixed with `regex:` or `glob:`, otherwise it won't work. 
+Let's update the example to do that:
+
+[source, java]
+----
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+
+class Main {  
+  public static void main(String args[]) { 
+    PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:*.json");
+    System.out.println(matcher.matches(Path.of("/tmp", "mark.json")));
+  } 
+}
+----
+
+If we run that again, this time we get a result telling us that the file doesn't exist:
+
+[source, text]
+----
+false
+----

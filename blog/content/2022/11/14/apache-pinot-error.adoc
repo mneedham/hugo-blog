@@ -1,0 +1,87 @@
++++
+draft = true
+date="2022-07-11 02:44:37"
+title="Docusaurus: Side menu on custom page"
+tag=['docusaurus']
+category=['docusaurus']
+description="In this post we'll learn how to add a side menu to a custom page with the Docusaurus static website generator."
+image="uploads/2022/07/docusaurus-banner.png"
++++
+
+[source, sql]
+----
+INSERT INTO "events"
+FROM FILE 's3://marks-st-cloud-bucket/events/*.json'
+OPTION(
+  taskName='myTask-s3',
+  input.fs.className='org.apache.pinot.plugin.filesystem.S3PinotFS',
+  input.fs.prop.accessKey='AKIARCOCT6DWLUB7F77Z',
+  input.fs.prop.secretKey='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',
+  input.fs.prop.region='eu-west-2'
+);
+----
+
+Trying to do this with a basic Docker Compose setup:
+
+[source, text]
+----
+[
+  {
+    "message": "QueryExecutionError:\norg.apache.commons.httpclient.HttpException: Unable to get tasks states map. Error code 500, Error message: {\"code\":500,\"error\":\"Failed to create adhoc task: java.lang.NullPointerException\\n\\tat java.base/java.util.HashMap.putMapEntries(HashMap.java:497)\\n\\tat java.base/java.util.HashMap.putAll(HashMap.java:781)\\n\\tat org.apache.pinot.plugin.minion.tasks.segmentgenerationandpush.SegmentGenerationAndPushTaskGenerator.generateTasks(SegmentGenerationAndPushTaskGenerator.java:202)\\n\\tat org.apache.pinot.controller.helix.core.minion.PinotTaskManager.createTask(PinotTaskManager.java:194)\\n\\tat org.apache.pinot.controller.api.resources.PinotTaskRestletResource.executeAdhocTask(PinotTaskRestletResource.java:542)\\n\\tat jdk.internal.reflect.GeneratedMethodAccessor257.invoke(Unknown Source)\\n\\tat java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\\n\\tat java.base/java.lang.reflect.Method.invoke(Method.java:566)\\n\\tat org.glassfish.jersey.server.model.internal.ResourceMethodInvocationHandlerFactory.lambda$static$0(ResourceMethodInvocationHandlerFactory.java:52)\\n\\tat org.glassfish.jersey.server.model.internal.AbstractJavaResourceMethodDispatcher$1.run(AbstractJavaResourceMethodDispatcher.java:124)\\n\\tat org.glassfish.jersey.server.model.internal.AbstractJavaResourceMethodDispatcher.invoke(AbstractJavaResourceMethodDispatcher.java:167)\\n\\tat org.glassfish.jersey.server.model.internal.JavaResourceMethodDispatcherProvider$VoidOutInvoker.doDispatch(JavaResourceMethodDispatcherProvider.java:159)\\n\\tat org.glassfish.jersey.server.model.internal.AbstractJavaResourceMethodDispatcher.dispatch(AbstractJavaResourceMethodDispatcher.java:79)\\n\\tat org.glassfish.jersey.server.model.ResourceMethodInvoker.invoke(ResourceMethodInvoker.java:475)\\n\\tat org.glassfish.jersey.server.model.ResourceMethodInvoker.lambda$apply$0(ResourceMethodInvoker.java:387)\\n\\tat org.glassfish.jersey.server.ServerRuntime$AsyncResponder$2$1.run(ServerRuntime.java:816)\\n\\tat org.glassfish.jersey.internal.Errors$1.call(Errors.java:248)\\n\\tat org.glassfish.jersey.internal.Errors$1.call(Errors.java:244)\\n\\tat org.glassfish.jersey.internal.Errors.process(Errors.java:292)\\n\\tat org.glassfish.jersey.internal.Errors.process(Errors.java:274)\\n\\tat org.glassfish.jersey.internal.Errors.process(Errors.java:244)\\n\\tat org.glassfish.jersey.process.internal.RequestScope.runInScope(RequestScope.java:265)\\n\\tat org.glassfish.jersey.server.ServerRuntime$AsyncResponder$2.run(ServerRuntime.java:811)\\n\\tat java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:515)\\n\\tat java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)\\n\\tat java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)\\n\\tat java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)\\n\\tat java.base/java.lang.Thread.run(Thread.java:829)\\n\"}\n\tat org.apache.pinot.common.minion.MinionClient.executeTask(MinionClient.java:123)\n\tat org.apache.pinot.core.query.executor.sql.SqlQueryExecutor.executeDMLStatement(SqlQueryExecutor.java:102)\n\tat org.apache.pinot.controller.api.resources.PinotQueryResource.executeSqlQuery(PinotQueryResource.java:145)\n\tat org.apache.pinot.controller.api.resources.PinotQueryResource.handlePostSql(PinotQueryResource.java:103)",
+    "errorCode": 200
+  }
+]
+----
+
+That fails because we're missing this section in the table config:
+
+
+[source, json]
+----
+  "task": {
+    "taskTypeConfigsMap": {
+      "SegmentGenerationAndPushTask": {
+      }
+    }
+  }
+----
+
+Once I added that:
+
+[source, text]
+----
+[
+  {
+    "message": "QueryExecutionError:\norg.apache.commons.httpclient.HttpException: Unable to get tasks states map. Error code 500, Error message: {\"code\":500,\"error\":\"Failed to create adhoc task: java.lang.ClassNotFoundException: 'org.apache.pinot.plugin.filesystem.S3PinotFS'\\n\\tat java.base/java.net.URLClassLoader.findClass(URLClassLoader.java:476)\\n\\tat java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:589)\\n\\tat org.apache.pinot.spi.plugin.PluginClassLoader.loadClass(PluginClassLoader.java:104)\\n\\tat org.apache.pinot.spi.plugin.PluginManager.createInstance(PluginManager.java:354)\\n\\tat org.apache.pinot.spi.plugin.PluginManager.createInstance(PluginManager.java:325)\\n\\tat org.apache.pinot.spi.plugin.PluginManager.createInstance(PluginManager.java:306)\\n\\tat org.apache.pinot.plugin.minion.tasks.segmentgenerationandpush.SegmentGenerationAndPushTaskUtils.getInputPinotFS(SegmentGenerationAndPushTaskUtils.java:47)\\n\\tat org.apache.pinot.plugin.minion.tasks.segmentgenerationandpush.SegmentGenerationAndPushTaskGenerator.getInputFilesFromDirectory(SegmentGenerationAndPushTaskGenerator.java:326)\\n\\tat org.apache.pinot.plugin.minion.tasks.segmentgenerationandpush.SegmentGenerationAndPushTaskGenerator.generateTasks(SegmentGenerationAndPushTaskGenerator.java:211)\\n\\tat org.apache.pinot.controller.helix.core.minion.PinotTaskManager.createTask(PinotTaskManager.java:194)\\n\\tat org.apache.pinot.controller.api.resources.PinotTaskRestletResource.executeAdhocTask(PinotTaskRestletResource.java:542)\\n\\tat jdk.internal.reflect.GeneratedMethodAccessor257.invoke(Unknown Source)\\n\\tat java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\\n\\tat java.base/java.lang.reflect.Method.invoke(Method.java:566)\\n\\tat org.glassfish.jersey.server.model.internal.ResourceMethodInvocationHandlerFactory.lambda$static$0(ResourceMethodInvocationHandlerFactory.java:52)\\n\\tat org.glassfish.jersey.server.model.internal.AbstractJavaResourceMethodDispatcher$1.run(AbstractJavaResourceMethodDispatcher.java:124)\\n\\tat org.glassfish.jersey.server.model.internal.AbstractJavaResourceMethodDispatcher.invoke(AbstractJavaResourceMethodDispatcher.java:167)\\n\\tat org.glassfish.jersey.server.model.internal.JavaResourceMethodDispatcherProvider$VoidOutInvoker.doDispatch(JavaResourceMethodDispatcherProvider.java:159)\\n\\tat org.glassfish.jersey.server.model.internal.AbstractJavaResourceMethodDispatcher.dispatch(AbstractJavaResourceMethodDispatcher.java:79)\\n\\tat org.glassfish.jersey.server.model.ResourceMethodInvoker.invoke(ResourceMethodInvoker.java:475)\\n\\tat org.glassfish.jersey.server.model.ResourceMethodInvoker.lambda$apply$0(ResourceMethodInvoker.java:387)\\n\\tat org.glassfish.jersey.server.ServerRuntime$AsyncResponder$2$1.run(ServerRuntime.java:816)\\n\\tat org.glassfish.jersey.internal.Errors$1.call(Errors.java:248)\\n\\tat org.glassfish.jersey.internal.Errors$1.call(Errors.java:244)\\n\\tat org.glassfish.jersey.internal.Errors.process(Errors.java:292)\\n\\tat org.glassfish.jersey.internal.Errors.process(Errors.java:274)\\n\\tat org.glassfish.jersey.internal.Errors.process(Errors.java:244)\\n\\tat org.glassfish.jersey.process.internal.RequestScope.runInScope(RequestScope.java:265)\\n\\tat org.glassfish.jersey.server.ServerRuntime$AsyncResponder$2.run(ServerRuntime.java:811)\\n\\tat java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:515)\\n\\tat java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)\\n\\tat java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)\\n\\tat java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)\\n\\tat java.base/java.lang.Thread.run(Thread.java:829)\\n\"}\n\tat org.apache.pinot.common.minion.MinionClient.executeTask(MinionClient.java:123)\n\tat org.apache.pinot.core.query.executor.sql.SqlQueryExecutor.executeDMLStatement(SqlQueryExecutor.java:102)\n\tat org.apache.pinot.controller.api.resources.PinotQueryResource.executeSqlQuery(PinotQueryResource.java:145)\n\tat org.apache.pinot.controller.api.resources.PinotQueryResource.handlePostSql(PinotQueryResource.java:103)",
+    "errorCode": 200
+  }
+]
+----
+
+Don't put the values in quotes or it blows up.
+
+[source, sql]
+----
+INSERT INTO "events"
+FROM FILE 's3://marks-st-cloud-bucket/events/*.json'
+OPTION(
+  taskName=myTask-s3,
+  input.fs.className=org.apache.pinot.plugin.filesystem.S3PinotFS,
+  input.fs.prop.accessKey=AKIARCOCT6DWLUB7F77Z,
+  input.fs.prop.secretKey=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,
+  input.fs.prop.region=eu-west-2
+);
+----
+
+[source, text]
+----
+[
+[
+  {
+    "message": "QueryExecutionError:\norg.apache.commons.httpclient.HttpException: Unable to get tasks states map. Error code 400, Error message: {\"code\":400,\"error\":\"No task is generated for table: events, with task type: SegmentGenerationAndPushTask\"}\n\tat org.apache.pinot.common.minion.MinionClient.executeTask(MinionClient.java:123)\n\tat org.apache.pinot.core.query.executor.sql.SqlQueryExecutor.executeDMLStatement(SqlQueryExecutor.java:102)\n\tat org.apache.pinot.controller.api.resources.PinotQueryResource.executeSqlQuery(PinotQueryResource.java:145)\n\tat org.apache.pinot.controller.api.resources.PinotQueryResource.handlePostSql(PinotQueryResource.java:103)",
+    "errorCode": 200
+  }
+]
+----
+
+This last message is presumably because we don't have a Minion in our cluster.
