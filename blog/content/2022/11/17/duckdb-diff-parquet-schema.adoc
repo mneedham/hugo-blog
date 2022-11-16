@@ -1,0 +1,243 @@
++++
+draft = false
+date="2022-11-16 02:44:37"
+title="Diffing Apache Parquet schemas with DuckDB"
+tag=['duckdb', 'parquet']
+category=['parquet']
+description="In this post we'll learn how to diff Apache Parquet schemas using DuckDB."
+image="uploads/2022/07/parquet-diff-banner.png"
++++
+
+I've been playing around with DuckDB, the https://techcrunch.com/2022/11/15/motherduck-secures-investment-from-andreessen-horowitz-to-commercialize-duckdb/[new hotness^] in the analytics space, over the last month, and my friend Michael Hunger asked whether you could use it to compute a diff of Apache Parquet schemas.
+
+Challenge accepted!
+
+image::{{<siteurl>}}/uploads/2022/11/challenge-accepted.gif[Challenge Accepted!]
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/vfIzz2-ZFB0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+++++
+
+====
+
+## Querying the Parqeut Schema
+
+Let's say we have three Parquet files that represent ATP tennis players - `players1.parquet`, `players2.parquet`, and `players3.parquet`.
+We can get the list of column names along with their data type and file name by running the following query in the https://duckdb.org/docs/api/cli.html[DuckDB CLI^]:
+
+[source, sql]
+----
+SELECT file_name, name, type
+FROM parquet_schema('players*.parquet')
+ORDER BY file_name;
+----
+
+If we run this query, we'll see the following results:
+
+
+.Results
+[opts="header"]
+|===
+|      file_name | name  | type
+| players1.parquet | duckdb_schema | BOOLEAN    
+| players1.parquet | player_id     | INT32      
+| players1.parquet | name_first    | BYTE_ARRAY 
+| players1.parquet | name_last     | BYTE_ARRAY 
+| players1.parquet | hand          | BYTE_ARRAY 
+| players1.parquet | dob           | INT32      
+| players1.parquet | ioc           | BYTE_ARRAY 
+| players1.parquet | height        | INT32      
+| players1.parquet | wikidata_id   | BYTE_ARRAY 
+| players2.parquet | duckdb_schema | BOOLEAN    
+| players2.parquet | player_id     | INT32      
+| players2.parquet | first_name    | BYTE_ARRAY 
+| players2.parquet | last_name     | BYTE_ARRAY 
+| players2.parquet | hand          | BYTE_ARRAY 
+| players2.parquet | dob           | INT32      
+| players2.parquet | ioc           | BYTE_ARRAY 
+| players2.parquet | height        | INT32      
+| players2.parquet | wikidata_id   | BYTE_ARRAY 
+| players3.parquet | duckdb_schema | BOOLEAN    
+| players3.parquet | player_id     | BYTE_ARRAY 
+| players3.parquet | first_name    | BYTE_ARRAY 
+| players3.parquet | last_name     | BYTE_ARRAY 
+| players3.parquet | hand          | BYTE_ARRAY 
+| players3.parquet | dob           | BYTE_ARRAY 
+| players3.parquet | ioc           | BYTE_ARRAY 
+| players3.parquet | height        | BYTE_ARRAY 
+|===
+
+From scanning this list, we can see that there are some differences in the schemas, but it's not entirely obvious what those differences are.
+Let's see if we can write some queries to figure it out.
+
+## Temporary Tables
+
+But first, we're going to create a temporary table per schema file to simplify the queries that we have to write.
+Temporary tables are stored in memory for the current session and will be gone should be exit the DuckDB CLI.
+
+The following code creates the temporary tables:
+
+[source, sql]
+----
+CREATE OR REPLACE TEMP TABLE p1Schema AS 
+SELECT * FROM parquet_schema('players1.parquet');
+
+CREATE OR REPLACE TEMP TABLE p2Schema AS 
+SELECT * FROM parquet_schema('players2.parquet');
+
+CREATE OR REPLACE TEMP TABLE p3Schema AS 
+SELECT * FROM parquet_schema('players3.parquet');
+----
+
+## Missing fields
+
+Now we're going to write a query that finds the fields that are in p1Schema, but not in p2Schema.
+We'll use SQL's `EXCEPT` clause to do this:
+
+[source, sql]
+----
+SELECT name, type FROM p1Schema
+EXCEPT
+SELECT name, type FROM p2Schema;
+----
+
+If we run this query, we'll see the following results:
+
+.Results
+[opts="header"]
+|===
+|      name | type
+| name_first | BYTE_ARRAY
+| name_last  | BYTE_ARRAY
+|===
+
+There are a couple of fields missing in `p2Schema` that are in `p1Schema`.
+Let's now run the inverse query to discover fields that are in `p2Schema`, but not in `p1Schema`:
+
+[source, sql]
+----
+SELECT name, type FROM p2Schema
+EXCEPT
+SELECT name, type FROM p1Schema;
+----
+
+The results are as follows:
+
+.Results
+[opts="header"]
+|===
+|      name | type
+| first_name | BYTE_ARRAY
+| last_name  | BYTE_ARRAY
+|===
+
+It looks like we did some basic field renaming between these two schemas!
+Let's put both those queries together, along with a description that explains what's going on for missing column:
+
+[source, sql]
+----
+WITH schema1 AS (
+    SELECT name, type FROM p1Schema
+), schema2 AS (
+    SELECT name, type FROM p2Schema
+), notInSchema1 AS (
+    SELECT * FROM schema1 EXCEPT SELECT * FROM schema2
+), notInSchema2 AS (
+    SELECT * FROM  schema2 EXCEPT SELECT * FROM schema1
+)
+
+SELECT *, 'Missing in players2.parquet' AS description
+FROM notInSchema1
+UNION ALL 
+SELECT *, 'Missing in players1.parquet' AS description
+FROM notInSchema2;
+----
+
+If we run this query, we'll see this outpu
+
+.Results
+[opts="header"]
+|===
+|      name | type | description
+| name_first | BYTE_ARRAY | Missing in players2.parquet 
+| name_last  | BYTE_ARRAY | Missing in players2.parquet 
+| first_name | BYTE_ARRAY | Missing in players1.parquet 
+| last_name  | BYTE_ARRAY | Missing in players1.parquet 
+|===
+
+Now we can clearly see that the first two fields are missing in `players2.parquet` and the latter ones are missing in `players1.parquet`.
+
+How about if we do the same thing for `p2Schema` and `p3Schema`?
+
+[source, sql]
+----
+WITH schema1 AS (
+    SELECT name, type FROM p2Schema
+), schema2 AS (
+    SELECT name, type FROM p3Schema
+), notInSchema1 AS (
+    SELECT * FROM schema1 EXCEPT SELECT * FROM schema2
+), notInSchema2 AS (
+    SELECT * FROM  schema2 EXCEPT SELECT * FROM schema1
+)
+
+SELECT *, 'Missing in players3.parquet' AS description
+FROM notInSchema1
+UNION ALL 
+SELECT *, 'Missing in players2.parquet' AS description
+FROM notInSchema2;
+----
+
+And let's run tha
+
+.Results
+[opts="header"]
+|===
+|      name | type | description
+| player_id   | INT32      | Missing in players3.parquet 
+| dob         | INT32      | Missing in players3.parquet 
+| height      | INT32      | Missing in players3.parquet 
+| wikidata_id | BYTE_ARRAY | Missing in players3.parquet 
+| player_id   | BYTE_ARRAY | Missing in players2.parquet 
+| dob         | BYTE_ARRAY | Missing in players2.parquet 
+| height      | BYTE_ARRAY | Missing in players2.parquet 
+|===
+
+`wikidata_id` is missing in players3.parquet, but the other 3 fields are clearly in both schemas, so why are they showing up?!
+It turns out they have a different data type in each schema.
+
+## Same columns, different type
+
+To return an easier to read representation of schemas that have the same fields/columns, with different types, we can write the following query:
+
+[source, sql]
+----
+
+    SELECT schema1.name AS s1Name, schema1.type AS s1Type, schema2.type AS s2Type, 
+        schema1.file_name AS s1File, schema2.file_name AS s2File
+    FROM p2Schema AS schema1
+    INNER JOIN p3Schema AS schema2 ON schema2.name = schema1.name
+    WHERE s1Type <> s2Type;
+
+
+----
+
+And let's see those results...
+
+.Results
+[opts="header"]
+|===
+|  s1Name   | s1Type |   s2Type   |      s1File      |      s2File      
+| player_id | INT32  | BYTE_ARRAY | players2.parquet | players3.parquet 
+| dob       | INT32  | BYTE_ARRAY | players2.parquet | players3.parquet 
+| height    | INT32  | BYTE_ARRAY | players2.parquet | players3.parquet 
+|===
+
+## Conclusion
+
+It turns out that computing Parquet schema diffs is another thing that DuckDB is really good at!
+So give it a try the next time you have some mismatched schemas, but you don't know exactly what's not matching!
