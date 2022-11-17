@@ -24,7 +24,7 @@ I've created a video showing how to do this on https://www.youtube.com/@learndat
 
 ====
 
-## Querying the Parqeut Schema
+## Querying the Parquet Schema
 
 Let's say we have three Parquet files that represent ATP tennis players - `players1.parquet`, `players2.parquet`, and `players3.parquet`.
 We can get the list of column names along with their data type and file name by running the following query in the https://duckdb.org/docs/api/cli.html[DuckDB CLI^]:
@@ -77,7 +77,7 @@ Let's see if we can write some queries to figure it out.
 ## Temporary Tables
 
 But first, we're going to create a temporary table per schema file to simplify the queries that we have to write.
-Temporary tables are stored in memory for the current session and will be gone should be exit the DuckDB CLI.
+Temporary tables are stored in memory for the current session and will be gone should we exit the DuckDB CLI.
 
 The following code creates the temporary tables:
 
@@ -192,7 +192,7 @@ SELECT *, 'Missing in players2.parquet' AS description
 FROM notInSchema2;
 ----
 
-And let's run tha
+And let's run that:
 
 .Results
 [opts="header"]
@@ -216,14 +216,11 @@ To return an easier to read representation of schemas that have the same fields/
 
 [source, sql]
 ----
-
-    SELECT schema1.name AS s1Name, schema1.type AS s1Type, schema2.type AS s2Type, 
-        schema1.file_name AS s1File, schema2.file_name AS s2File
-    FROM p2Schema AS schema1
-    INNER JOIN p3Schema AS schema2 ON schema2.name = schema1.name
-    WHERE s1Type <> s2Type;
-
-
+SELECT schema1.name AS s1Name, schema1.type AS s1Type, schema2.type AS s2Type, 
+    schema1.file_name AS s1File, schema2.file_name AS s2File
+FROM p2Schema AS schema1
+INNER JOIN p3Schema AS schema2 ON schema2.name = schema1.name
+WHERE s1Type <> s2Type;
 ----
 
 And let's see those results...
