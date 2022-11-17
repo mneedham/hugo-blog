@@ -1,9 +1,9 @@
 +++
 draft = true
-date="2022-07-11 02:44:37"
+date="2022-07-17 02:44:37"
 title="Docusaurus: Side menu on custom page"
-tag=['docusaurus']
-category=['docusaurus']
+tag=['pinot']
+category=['pinot']
 description="In this post we'll learn how to add a side menu to a custom page with the Docusaurus static website generator."
 image="uploads/2022/07/docusaurus-banner.png"
 +++

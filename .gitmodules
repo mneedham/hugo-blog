@@ -1,0 +1,10 @@
+[submodule "hugo-theme-crisp"] 
+  path = blog/themes/hugo-theme-crisp
+  url = git@github.com:mneedham/hugo-theme-crisp.git
+
+
+[submodule "hugo-theme-robust"]
+  path = blog/themes/hugo_theme_robust
+  url = git@github.com:dim0627/hugo_theme_robust.git
+
+

@@ -5,10 +5,10 @@ title="Diffing Apache Parquet schemas with DuckDB"
 tag=['duckdb', 'parquet']
 category=['parquet']
 description="In this post we'll learn how to diff Apache Parquet schemas using DuckDB."
-image="uploads/2022/07/parquet-diff-banner.png"
+image="uploads/2022/11/parquet-diff-banner.png"
 +++
 
-I've been playing around with DuckDB, the https://techcrunch.com/2022/11/15/motherduck-secures-investment-from-andreessen-horowitz-to-commercialize-duckdb/[new hotness^] in the analytics space, over the last month, and my friend Michael Hunger asked whether you could use it to compute a diff of Apache Parquet schemas.
+I've been playing around with DuckDB, the https://techcrunch.com/2022/11/15/motherduck-secures-investment-from-andreessen-horowitz-to-commercialize-duckdb/[new hotness^] in the analytics space, over the last month, and my friend https://twitter.com/mesirii[Michael Hunger^] asked whether you could use it to compute a diff of Apache Parquet schemas.
 
 Challenge accepted!
 
