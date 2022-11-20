@@ -1,0 +1,61 @@
++++
+draft = false
+date="2022-11-18 02:44:37"
+title="Apache Pinot: Inserts from SQL - Unable to get tasks states map - NullPointerException"
+tag=['pinot']
+category=['pinot']
+description="In this post we'll learn how to fix the Unable to get tasks states map - Failed to create adhoc task NullPointerException error when using Apache Pinot's inserts from SQL feature."
+image="uploads/2022/11/npe-banner.png"
++++
+
+I recently wrote a post on the StarTre blog describing the https://startree.ai/blog/apache-pinot-0-11-inserts-from-sql[inserts from SQL^] feature that was added in Apache Pinot 0.11, and while writing it I came across some interesting exceptions due to configuration mistakes I'd made.
+In this post we're going to describe one of those exceptions.
+
+To recap, I was trying to ingest a bunch of JSON files from an S3 bucket using the following SQL query:
+
+[source, sql]
+----
+INSERT INTO "events"
+FROM FILE 's3://marks-st-cloud-bucket/events/*.json'
+OPTION(
+  taskName=myTask-s3,
+  input.fs.className=org.apache.pinot.plugin.filesystem.S3PinotFS,
+  input.fs.prop.accessKey=AKIARCOCT6DWLUB7F77Z,
+  input.fs.prop.secretKey=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,
+  input.fs.prop.region=eu-west-2
+);
+----
+
+[NOTE]
+====
+Don't worry, those credentials were deactivated and deleted several days ago.
+====
+
+I tried to run the query using an existing Docker setup that I had and got the following exception:
+
+[source, text]
+----
+[
+  {
+    "message": "QueryExecutionError:\norg.apache.commons.httpclient.HttpException: Unable to get tasks states map. Error code 500, Error message: {\"code\":500,\"error\":\"Failed to create adhoc task: java.lang.NullPointerException\\n\\tat java.base/java.util.HashMap.putMapEntries(HashMap.java:497)\\n\\tat java.base/java.util.HashMap.putAll(HashMap.java:781)\\n\\tat org.apache.pinot.plugin.minion.tasks.segmentgenerationandpush.SegmentGenerationAndPushTaskGenerator.generateTasks(SegmentGenerationAndPushTaskGenerator.java:202)\\n\\tat org.apache.pinot.controller.helix.core.minion.PinotTaskManager.createTask(PinotTaskManager.java:194)\\n\\tat org.apache.pinot.controller.api.resources.PinotTaskRestletResource.executeAdhocTask(PinotTaskRestletResource.java:542)\\n\\tat jdk.internal.reflect.GeneratedMethodAccessor257.invoke(Unknown Source)\\n\\tat java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\\n\\tat java.base/java.lang.reflect.Method.invoke(Method.java:566)\\n\\tat org.glassfish.jersey.server.model.internal.ResourceMethodInvocationHandlerFactory.lambda$static$0(ResourceMethodInvocationHandlerFactory.java:52)\\n\\tat org.glassfish.jersey.server.model.internal.AbstractJavaResourceMethodDispatcher$1.run(AbstractJavaResourceMethodDispatcher.java:124)\\n\\tat org.glassfish.jersey.server.model.internal.AbstractJavaResourceMethodDispatcher.invoke(AbstractJavaResourceMethodDispatcher.java:167)\\n\\tat org.glassfish.jersey.server.model.internal.JavaResourceMethodDispatcherProvider$VoidOutInvoker.doDispatch(JavaResourceMethodDispatcherProvider.java:159)\\n\\tat org.glassfish.jersey.server.model.internal.AbstractJavaResourceMethodDispatcher.dispatch(AbstractJavaResourceMethodDispatcher.java:79)\\n\\tat org.glassfish.jersey.server.model.ResourceMethodInvoker.invoke(ResourceMethodInvoker.java:475)\\n\\tat org.glassfish.jersey.server.model.ResourceMethodInvoker.lambda$apply$0(ResourceMethodInvoker.java:387)\\n\\tat org.glassfish.jersey.server.ServerRuntime$AsyncResponder$2$1.run(ServerRuntime.java:816)\\n\\tat org.glassfish.jersey.internal.Errors$1.call(Errors.java:248)\\n\\tat org.glassfish.jersey.internal.Errors$1.call(Errors.java:244)\\n\\tat org.glassfish.jersey.internal.Errors.process(Errors.java:292)\\n\\tat org.glassfish.jersey.internal.Errors.process(Errors.java:274)\\n\\tat org.glassfish.jersey.internal.Errors.process(Errors.java:244)\\n\\tat org.glassfish.jersey.process.internal.RequestScope.runInScope(RequestScope.java:265)\\n\\tat org.glassfish.jersey.server.ServerRuntime$AsyncResponder$2.run(ServerRuntime.java:811)\\n\\tat java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:515)\\n\\tat java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)\\n\\tat java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)\\n\\tat java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)\\n\\tat java.base/java.lang.Thread.run(Thread.java:829)\\n\"}\n\tat org.apache.pinot.common.minion.MinionClient.executeTask(MinionClient.java:123)\n\tat org.apache.pinot.core.query.executor.sql.SqlQueryExecutor.executeDMLStatement(SqlQueryExecutor.java:102)\n\tat org.apache.pinot.controller.api.resources.PinotQueryResource.executeSqlQuery(PinotQueryResource.java:145)\n\tat org.apache.pinot.controller.api.resources.PinotQueryResource.handlePostSql(PinotQueryResource.java:103)",
+    "errorCode": 200
+  }
+]
+----
+
+A bit of debugging of the https://github.com/apache/pinot[Pinot source code^] made me realise that I was missing the `SegmentGenerationAndPushTask` definition in my table config.
+This means that the task to do the data ingestion can't be scheduled.
+
+The missing configuration is shown below:
+
+[source, json]
+----
+  "task": {
+    "taskTypeConfigsMap": {
+      "SegmentGenerationAndPushTask": {
+      }
+    }
+  }
+----
+
+Once I added that everything was happy again and the files were ingested into Pinot.

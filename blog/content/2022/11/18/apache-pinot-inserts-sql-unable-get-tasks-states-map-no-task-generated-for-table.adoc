@@ -1,0 +1,47 @@
++++
+draft = false
+date="2022-11-18 02:44:37"
+title="Apache Pinot: Inserts from SQL - Unable to get tasks states map - No task is generated for table"
+tag=['pinot']
+category=['pinot']
+description="In this post we'll learn how to fix the Unable to get tasks states map - No task is generated for table error when using Apache Pinot's inserts from SQL feature."
+image="uploads/2022/11/no-task-banner.png"
++++
+
+I recently wrote a post on the StarTre blog describing the https://startree.ai/blog/apache-pinot-0-11-inserts-from-sql[inserts from SQL^] feature that was added in Apache Pinot 0.11, and while writing it I came across some interesting exceptions due to configuration mistakes I'd made.
+In this post we're going to describe one of those exceptions.
+
+To recap, I was trying to ingest a bunch of JSON files from an S3 bucket using the following SQL query:
+
+[source, sql]
+----
+INSERT INTO "events"
+FROM FILE 's3://marks-st-cloud-bucket/events/*.json'
+OPTION(
+  taskName=myTask-s3,
+  input.fs.className=org.apache.pinot.plugin.filesystem.S3PinotFS,
+  input.fs.prop.accessKey=AKIARCOCT6DWLUB7F77Z,
+  input.fs.prop.secretKey=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,
+  input.fs.prop.region=eu-west-2
+);
+----
+
+[NOTE]
+====
+Don't worry, those credentials were deactivated and deleted several days ago.
+====
+
+When I ran this query against a Pinot cluster that contained a controller, broker, and server, I got the following exception:
+
+[source, text]
+----
+[
+  {
+    "message": "QueryExecutionError:\norg.apache.commons.httpclient.HttpException: Unable to get tasks states map. Error code 400, Error message: {\"code\":400,\"error\":\"No task is generated for table: events, with task type: SegmentGenerationAndPushTask\"}\n\tat org.apache.pinot.common.minion.MinionClient.executeTask(MinionClient.java:123)\n\tat org.apache.pinot.core.query.executor.sql.SqlQueryExecutor.executeDMLStatement(SqlQueryExecutor.java:102)\n\tat org.apache.pinot.controller.api.resources.PinotQueryResource.executeSqlQuery(PinotQueryResource.java:145)\n\tat org.apache.pinot.controller.api.resources.PinotQueryResource.handlePostSql(PinotQueryResource.java:103)",
+    "errorCode": 200
+  }
+]
+----
+
+My mistake here was that I **didn't have a minion** in the cluster.
+The ingestion job is run by the minion component, so without one of those this feature doesn't work!
