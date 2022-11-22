@@ -1,0 +1,91 @@
++++
+draft = false
+date="2022-11-22 02:44:37"
+title="Blogging for Google: Why I write about error messages"
+tag=['writing', 'blogging', 'devrel']
+category=['Writing']
+description="In this post we'll talk about the benefits of writing about error messages."
+image="uploads/2022/11/blogging-for-google-banner.png"
++++
+
+Writing blog posts that aim to go viral on social media is a well-known content strategy, but in this post, I want to persuade you that you should blog for Google as well.
+
+== Blog for Google?
+
+What does blogging for Google even mean? 
+
+The easiest demonstration is to look at a screenshot from the Google Console Insights report I was sent last week. 
+This section of the report shows the most used search terms that result in someone ending up on my blog.
+
+.Google Console Insights
+image::{{<siteurl>}}/uploads/2022/11/google-search-insights.png[Google Console Insights]
+
+As you can see, 4 of the top 5 search terms are for error messages, and very specific ones at that.
+I don't think I ever mentioned these blog posts on social media because they're just not that interesting to a general audience.
+
+They are useful to a very specific audience though: people who have come across those error messages and don't know what to do next! 
+
+== When should I wrote about errors?
+
+When I get an error message that I don't understand, the first thing that I do is paste it into Google to see if someone else has come across it.
+If there's already a blog post or a StackOverflow answer that covers the exact same problem I'll probably move on, safe in the knowledge that this error message is already covered.
+
+I should say that I sometimes find the answer to my problem under a completely different search term, perhaps buried in the comments of a GitHub issue.
+In that case I might still write a post and link to the place where I found the answer.
+
+== What goes in these posts? 
+
+Hopefully you're now slightly curious about writing about exceptions or error messages and in this section we're going to learn what these posts should contain. 
+They do tend to be quite short and I follow rougly this template:
+
+. Describe what you were doing.
+. Paste the entire error message that you received.
+. Explain how you worked around or fixed the error message. 
+. Optionally, if you found the answer to your problem from somewhere, make sure to link to that place or credit that person. 
+
+The title of the post should contain the error message and/or the search term that you used/would use if you encountered this problem in future.
+
+[NOTE]
+====
+Even if the error message indicates a bug with the product/software, it's still worth writing about because there'll be a period in time where people are still using the version of the software that has the bug!
+
+I understand that you might not want to write about error messages in a product made by the company that employees you.
+
+My response is that all products have bugs or throw exceptions - at least this way your users will know how to work around them.
+====
+
+Below are some recent examples of posts that I've written about error messages:
+
+* https://www.markhneedham.com/blog/2022/11/14/apache-pinot-unable-to-render-templates/[Apache Pinot: Unable to render templates on ingestion job spec template file^]
+
+* https://www.markhneedham.com/blog/2022/06/23/apache-pinot-skipping-periodic-task-pinot-task-manager/[Apache Pinot: Skipping periodic task: Task: PinotTaskManager^]
+
+* https://www.markhneedham.com/blog/2022/04/05/apache-pinot-lookup-join-internal-error-unsupported-function/[Apache Pinot: Lookup Join - 500 Error - Unsupported function: lookup with 4 parameters^]
+
+* https://www.markhneedham.com/blog/2020/12/31/materialize-unable-automatically-determine-timestamp-query/[Materialize: Unable to automatically determine a timestamp for your query; this can happen if your query depends on non-materialized sources^]
+
+* https://www.markhneedham.com/blog/2020/03/31/streamlit-multiselect-numpy-no-attribute-index/[Streamlit: multiselect - AttributeError: 'numpy.ndarray' object has no attribute 'index'^]
+
+Notice that none of these posts are all that long - by my calculations the maximum number of written words in any of them is ~300.
+
+== The scratchpad
+
+So far we've covered why you should write about error messages and what should go into a post about error messages, but how do we do it?
+
+There's certainly a temptation when you come across error messages to try to solve them as quickly as possible and then move on.
+I would encourage you (and me!) to be a bit more deliberate about it.
+
+I try to keep some sort of scratchpad document open on my computer whenever I'm coding. 
+It could be a Google Doc or an empty text file, it doesn't matter. 
+
+It just needs to be easily accessible so that when you come across an error message, you can paste it into the file.
+I'd also suggest adding some context around the error message, such as what you were doing when you got it and any search terms that you used when trying to figure it out.
+
+When you (hopefully!) solve the problem, you can then copy/paste the context and the error message to your blogging platform, add in the solution, and you're done!
+
+== In Summary
+
+Write about error messages!
+These are some of the easiest blog posts that you'll ever write and your users will thank you for it 😊
+
+One of those users might even be your future self - I frequently come across my old blog posts when searching for error messages to the point where Google is almost acting like my external brain.
