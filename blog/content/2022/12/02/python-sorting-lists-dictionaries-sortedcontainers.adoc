@@ -1,0 +1,202 @@
++++
+draft = false
+date="2022-12-02 02:44:37"
+title="Python: Sorting lists of dictionaries with sortedcontainers"
+tag=['python', 'sortedcontainers']
+category=['python']
+description="In this post we'll learn how to sort lists of dictionaries in Python with the sortedcontainers library."
+image="uploads/2022/12/dictionaries-banner.png"
++++
+
+I was recently working on a Kafka streams data generator, where I only wanted to publish events once the time on those events had been reached.
+To solve this problem I needed a sorted list and in this blog post we're going to explore how I went about doing this.
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/RmNNlC7zhZw" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+++++
+====
+
+== Unsorted lists
+
+We're going to start out by created a list of dictionaries that contain a timestamp and name, as shown below:
+
+[source, python]
+----
+import datetime as dt
+
+now = dt.datetime.now()
+items = [
+  {"timestamp": now, "name": "Mark"},
+  {"timestamp": now + dt.timedelta(hours=1), "name": "Dunith"},
+  {"timestamp": now - dt.timedelta(minutes=27), "name": "Michael"}
+]
+----
+
+If we want to print out this list, we could do so using a for loop:
+
+[source, python]
+----
+for item in items:
+    print(item)
+----
+
+We'd see the following output:
+
+.Output
+[source, json]
+----
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 36, 31, 757235), 'name': 'Mark'}
+{'timestamp': datetime.datetime(2022, 11, 24, 8, 36, 31, 757235), 'name': 'Dunith'}
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 9, 31, 757235), 'name': 'Michael'}
+----
+
+As you'd probably expect, this is sorted in insertion order.
+
+If we want to sort the results we could wrap `items` in the `sorted` function, like this:
+
+[source, python]
+----
+for item in sorted(items, key=lambda x: x["timestamp"]):
+    print(item)
+----
+
+In this code sample we're sorting by the `timestamp` property, and if we run this code, we'll see the following output:
+
+.Output
+[source, json]
+----
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 9, 31, 757235), 'name': 'Michael'}
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 36, 31, 757235), 'name': 'Mark'}
+{'timestamp': datetime.datetime(2022, 11, 24, 8, 36, 31, 757235), 'name': 'Dunith'}
+----
+
+This time Michael comes first, then Mark, and finally Dunith. 
+
+When you want to do some adhoc sorting, this is a reasonable approach, but I wanted a list that's always sorted.
+
+== sortedcontainers
+
+Enter the  https://grantjenks.com/docs/sortedcontainers/[sortedcontainers^] library, a collections library written in Python that's super fast and supports sorted lists, maps, and dictionaries.
+
+We're only going to use the list, so let's import that:
+
+
+[source, python]
+----
+from sortedcontainers import SortedList
+----
+
+When we create an instance of `SortedList` we need to pass in a lamba expression that describes our sorting key:
+
+[source, python]
+----
+sorted_items = SortedList(key=lambda x: x["timestamp"])
+----
+
+We can have it sort an existing list using the `update` function:
+
+[source, python]
+----
+sorted_items.update(items)
+----
+
+Let's print that list:
+
+[source, python]
+----
+for item in sorted_items:
+    print(item)
+----
+
+.Output
+[source, json]
+----
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 9, 31, 757235), 'name': 'Michael'}
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 36, 31, 757235), 'name': 'Mark'}
+{'timestamp': datetime.datetime(2022, 11, 24, 8, 36, 31, 757235), 'name': 'Dunith'}
+----
+
+So far so good.
+We can also add items to the list:
+
+[source, python]
+----
+sorted_items.add(
+    {"timestamp": now + dt.timedelta(minutes=12), "name": "Jennifer"}
+)
+
+for item in sorted_items:
+    print(item)
+----
+
+
+.Output
+[source, json]
+----
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 9, 31, 757235), 'name': 'Michael'}
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 36, 31, 757235), 'name': 'Mark'}
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 48, 31, 757235), 'name': 'Jennifer'}
+{'timestamp': datetime.datetime(2022, 11, 24, 8, 36, 31, 757235), 'name': 'Dunith'}
+----
+
+And as we'd expect, the Jennifer list item gets sorted between Mark and Dunith. 
+
+The classic list operations are sorted as well. 
+
+.Checking an item exists
+[source, python]
+----
+{"timestamp": now, "name": "Mark"} in sorted_items
+----
+
+.Output
+[source, json]
+----
+True
+----
+
+.Concatenating lists
+[source, python]
+----
+for item in (sorted_items + sorted_items):
+    print(item)
+----
+
+.Output
+[source, json]
+----
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 9, 31, 757235), 'name': 'Michael'}
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 9, 31, 757235), 'name': 'Michael'}
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 36, 31, 757235), 'name': 'Mark'}
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 36, 31, 757235), 'name': 'Mark'}
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 48, 31, 757235), 'name': 'Jennifer'}
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 48, 31, 757235), 'name': 'Jennifer'}
+{'timestamp': datetime.datetime(2022, 11, 24, 8, 36, 31, 757235), 'name': 'Dunith'}
+{'timestamp': datetime.datetime(2022, 11, 24, 8, 36, 31, 757235), 'name': 'Dunith'}
+----
+
+.Deleting items
+[source, python]
+----
+sorted_items.remove({"timestamp": now, "name": "Mark"})
+
+for item in sorted_items:
+    print(item)
+----
+
+.Output
+[source, json]
+----
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 9, 31, 757235), 'name': 'Michael'}
+{'timestamp': datetime.datetime(2022, 11, 24, 7, 48, 31, 757235), 'name': 'Jennifer'}
+{'timestamp': datetime.datetime(2022, 11, 24, 8, 36, 31, 757235), 'name': 'Dunith'}
+----
+
+=== In Summary
+
+So far my experience with the sortedcontainers library is great - it's done everything I expected and is really easy to use.
+Give it a try!

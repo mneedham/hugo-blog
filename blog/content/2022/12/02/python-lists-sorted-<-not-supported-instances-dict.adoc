@@ -1,0 +1,63 @@
++++
+draft = true
+date="2022-11-24 02:44:37"
+title="Python 3: sorted lists - TypeError: '<' not supported between instances of 'dict' and 'dict'"
+tag=['python']
+category=['python']
+description="In this post we'll learn how to deal with the change in how items are compared between Python 2 and Python 3."
+image="uploads/2022/12/dictionaries-banner.png.png"
++++
+
+
+[source, python]
+----
+import datetime as dt
+
+now = dt.datetime.now()
+items = [
+  {"timestamp": now, "name": "Mark"},
+  {"timestamp": now + dt.timedelta(hours=1), "name": "Dunith"},
+  {"timestamp": now - dt.timedelta(minutes=27), "name": "Michael"}
+]
+----
+
+[source, python]
+----
+for item in sorted(items, reverse=True):
+    print(item)
+----
+
+In Python 2.7.18 this works and results in the following output:
+
+[source, text]
+----
+{'timestamp': datetime.datetime(2022, 11, 24, 9, 41, 14, 496963), 'name': 'Michael'}
+{'timestamp': datetime.datetime(2022, 11, 24, 10, 8, 14, 496963), 'name': 'Mark'}
+{'timestamp': datetime.datetime(2022, 11, 24, 11, 8, 14, 496963), 'name': 'Dunith'}
+----
+
+> TypeError: '<' not supported between instances of 'dict' and 'dict'
+
+https://stackoverflow.com/questions/55695479/typeerror-not-supported-between-instances-of-dict-and-dict
+
+
+[source, python]
+----
+for item in sorted(items, key=lambda x: x["timestamp"], reverse=False):
+    print(item)
+----
+
+[source, python]
+----
+for item in sorted(items, key="sorted"):
+    print(item)
+----
+
+> TypeError: 'str' object is not callable
+
+
+[source, python]
+----
+for item in sorted(items, key=lambda x: x["timestamp"]):
+    print(item)
+----

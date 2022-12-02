@@ -1,0 +1,53 @@
++++
+draft = true
+date="2022-11-22 02:44:37"
+title="kcat/jq: Reached end of topic at offset: exiting"
+tag=['kafka', 'kcat', 'jq']
+category=['Kafka']
+description="In this post we'll talk about the benefits of writing about error messages."
+image="uploads/2022/11/blogging-for-google-banner.png"
++++
+
+
+[source, bash]
+----
+kcat -C -b localhost:29092 -t mysql.pizzashop.products -e  | jq '.payload | select(.id == 1)'
+{
+  "id": 1,
+  "name": "Moroccan Spice Pasta Pizza - Veg",
+  "description": "A pizza loaded with a spicy combination of Harissa sauce and delicious pasta.",
+  "category": "veg pizzas",
+  "price": 335,
+  "image": "https://www.dominos.co.in//files/items/MoroccanSpicePPVG_N.jpg",
+  "created_at": "2022-11-22T10:07:36Z",
+  "updated_at": 1669111656000,
+  "__deleted": "false"
+}
+% Reached end of topic mysql.pizzashop.products [0] at offset 83: exiting
+{
+  "id": 1,
+  "name": "Moroccan Spice Pasta Pizza",
+  "description": "A pizza loaded with a spicy combination of Harissa sauce and delicious pasta.",
+  "category": "veg pizzas",
+  "price": 335,
+  "image": "https://www.dominos.co.in//files/items/MoroccanSpicePPVG_N.jpg",
+  "created_at": "2022-11-22T10:07:36Z",
+  "updated_at": 1669117483000,
+  "__deleted": "false"
+}
+{
+  "id": 1,
+  "name": "Moroccan Spice Pasta Pizza (Veg)",
+  "description": "A pizza loaded with a spicy combination of Harissa sauce and delicious pasta.",
+  "category": "veg pizzas",
+  "price": 335,
+  "image": "https://www.dominos.co.in//files/items/MoroccanSpicePPVG_N.jpg",
+  "created_at": "2022-11-22T10:07:36Z",
+  "updated_at": 1669117577000,
+  "__deleted": "false"
+}
+----
+
+https://ftisiot.net/posts/jq-kcat-consumer/
+
+Need to pass in the `-u` flag

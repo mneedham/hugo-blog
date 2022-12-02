@@ -1,0 +1,16 @@
++++
+draft = true
+date="2022-11-22 02:44:37"
+title="kcat/jq: Reached end of topic at offset: exiting"
+tag=['kafka', 'kcat', 'jq']
+category=['Kafka']
+description="In this post we'll talk about the benefits of writing about error messages."
+image="uploads/2022/11/blogging-for-google-banner.png"
++++
+
+using Docker Run and Docker Compose together
+
+Docker Compose stuff all runs on a network
+What's the network if you don't define it?
+
+Best to define it, then you can connect your docker run commands to it directly

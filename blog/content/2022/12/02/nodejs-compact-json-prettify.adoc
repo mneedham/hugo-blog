@@ -1,0 +1,54 @@
++++
+draft = true
+date="2022-11-24 02:44:37"
+title="Python 3: sorted lists - TypeError: '<' not supported between instances of 'dict' and 'dict'"
+tag=['python']
+category=['python']
+description="In this post we'll learn how to deal with the change in how items are compared between Python 2 and Python 3."
+image="uploads/2022/11/blogging-for-google-banner.png"
++++
+
+
+const stringify = require("json-stringify-pretty-compact");
+
+const table = {
+  "tableName":"events",
+  "tableType":"REALTIME",
+  "segmentsConfig":{
+    "timeColumnName":"ts",
+    "schemaName":"events",
+    "replication":"1",
+    "replicasPerPartition":"1"
+  },
+  "tableIndexConfig":{
+    "loadMode":"MMAP",
+    "streamConfigs":{
+      "streamType":"kafka",
+      "stream.kafka.topic.name":"events",
+      "stream.kafka.broker.list":"kafka:9093",
+      "stream.kafka.consumer.type":"lowlevel",
+      "stream.kafka.consumer.prop.auto.offset.reset":"smallest",
+      "stream.kafka.consumer.factory.class.name":"org.apache.pinot.plugin.stream.kafka20.KafkaConsumerFactory",
+      "stream.kafka.decoder.class.name":"org.apache.pinot.plugin.stream.kafka.KafkaJSONMessageDecoder",
+      "realtime.segment.flush.threshold.rows":"0",
+      "realtime.segment.flush.threshold.time":"1h",
+      "realtime.segment.flush.threshold.segment.size":"5M"
+    }
+  },
+  "ingestionConfig":{
+    "transformConfigs": [
+      {
+          "columnName": "ts",
+          "transformFunction": "FromDateTime(tsString, 'YYYY-MM-dd''T''HH:mm:ss.SS''Z''')"
+      }
+    ]
+  },
+  "tenants":{
+    
+  },
+  "metadata":{
+    
+  }
+}
+
+console.log(stringify(table))
