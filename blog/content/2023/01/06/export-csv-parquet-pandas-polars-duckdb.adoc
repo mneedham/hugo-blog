@@ -301,6 +301,6 @@ du -h output/duck_atp_rankings.parquet
 
 This file is a bit bigger than the Polars one, which I think is because we used a different compression format.
 
-== Conclusion.
+== Conclusion
 
 Pandas is a great choice for converting CSV files that fit in memory, but if we want to work with really big files Polars and DuckDB are ready and waiting to step in - both work equally well in my experiments!
