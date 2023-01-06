@@ -1,0 +1,64 @@
++++
+draft = false
+date="2022-12-06 02:44:37"
+title="kcat/jq: Reached end of topic at offset: exiting"
+tag=['kafka', 'kcat', 'jq']
+category=['Kafka']
+description="In this post we'll learn how to work around a problem when using kcat and jq together."
+image="uploads/2022/12/kcat-jq-exiting-banner.png"
++++
+ 
+I've recently been working with Debezium to get the https://dev.startree.ai/docs/pinot/demo-apps/pizza-shop[Pizza Shop product catalogue^] from MySQL into Apache Kafka and ran into an issue when querying the resulting stream using https://docs.confluent.io/platform/current/app-development/kafkacat-usage.html[kcat^] and https://stedolan.github.io/jq/[jq^].
+In this blog I'll show how I worked around that problem.
+
+I configured Debezium to write any changes to the products table into the `mysql.pizzashop.products` topic. 
+I then queriesthis topic to find the changes for just one of the products:
+
+[source, bash]
+----
+kcat -C -b localhost:29092 -t mysql.pizzashop.products -e  | jq '.payload | select(.id == 1)'
+----
+
+And got the following output:
+
+.Output
+[source, bash]
+----
+{
+  "id": 1,
+  "name": "Moroccan Spice Pasta Pizza - Veg",
+  "description": "A pizza loaded with a spicy combination of Harissa sauce and delicious pasta.",
+  "category": "veg pizzas",
+  "price": 335,
+  "image": "https://www.dominos.co.in//files/items/MoroccanSpicePPVG_N.jpg",
+  "created_at": "2022-11-22T10:07:36Z",
+  "updated_at": 1669111656000,
+  "__deleted": "false"
+}
+% Reached end of topic mysql.pizzashop.products [0] at offset 83: exiting
+{
+  "id": 1,
+  "name": "Moroccan Spice Pasta Pizza",
+  "description": "A pizza loaded with a spicy combination of Harissa sauce and delicious pasta.",
+  "category": "veg pizzas",
+  "price": 335,
+  "image": "https://www.dominos.co.in//files/items/MoroccanSpicePPVG_N.jpg",
+  "created_at": "2022-11-22T10:07:36Z",
+  "updated_at": 1669117483000,
+  "__deleted": "false"
+}
+----
+
+If I took away the `jq` command I wasn't getting the 'reached end of topic' error message, it was returning both events properly.
+But the messages don't format so nicely without jq so I still needed a solution.
+
+A bit of searching led me to https://ftisiot.net/posts/jq-kcat-consumer/[a blog post^] written by Francesco Tisiot in which he described exactly the same problem that I was having.
+The solution is to pass in the `-u` flag to kcat, which stops it from buffering the output.
+We end up with the following command that works perfectly:
+
+[source, bash]
+----
+kcat -C -b localhost:29092 -t mysql.pizzashop.products -e -u  | jq '.payload | select(.id == 1)'
+----
+
+Thanks Francesco!

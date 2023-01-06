@@ -1,0 +1,58 @@
++++
+draft = true
+date="2022-12-08 02:44:37"
+title="jooq: org.apache.calcite.sql.SqlDynamicParam cannot be cast to class org.apache.calcite.sql.SqlBasicCall"
+tag=['jooq']
+category=['jooq']
+description="In this post we'll talk about the benefits of writing about error messages."
+image="uploads/2022/11/blogging-for-google-banner.png"
++++
+
+
+.Output
+[source, text]
+----
+org.apache.pinot.client.PinotClientException: Query had processing exceptions: 
+[{"message":"SQLParsingError:\njava.lang.ClassCastException: class org.apache.calcite.sql.SqlDynamicParam cannot be cast to class org.apache.calcite.sql.SqlBasicCall (org.apache.calcite.sql.SqlDynamicParam and org.apache.calcite.sql.SqlBasicCall are in unnamed module of loader 'app')\n\tat org.apache.pinot.sql.parsers.CalciteSqlParser.toExpression(CalciteSqlParser.java:745)\n\tat org.apache.pinot.sql.parsers.CalciteSqlParser.compileFunctionExpression(CalciteSqlParser.java:803)\n\tat org.apache.pinot.sql.parsers.CalciteSqlParser.toExpression(CalciteSqlParser.java:745)\n\tat org.apache.pinot.sql.parsers.CalciteSqlParser.compileSqlNodeToPinotQuery(CalciteSqlParser.java:423)","errorCode":150}]
+	at org.apache.pinot.client.Connection.execute(Connection.java:124)
+	at org.apache.pinot.client.Connection.execute(Connection.java:93)
+	at pizzashop.rest.OrdersResource.runQuery(OrdersResource.java:246)
+	at pizzashop.rest.OrdersResource.userOrders(OrdersResource.java:231)
+	at pizzashop.rest.OrdersResource_Subclass.userOrders$$superforward1(Unknown Source)
+	at pizzashop.rest.OrdersResource_Subclass$$function$$6.apply(Unknown Source)
+	at io.quarkus.arc.impl.AroundInvokeInvocationContext.proceed(AroundInvokeInvocationContext.java:53)
+	at io.quarkus.arc.runtime.devconsole.InvocationInterceptor.proceed(InvocationInterceptor.java:62)
+	at io.quarkus.arc.runtime.devconsole.InvocationInterceptor.monitor(InvocationInterceptor.java:49)
+	at io.quarkus.arc.runtime.devconsole.InvocationInterceptor_Bean.intercept(Unknown Source)
+	at io.quarkus.arc.impl.InterceptorInvocation.invoke(InterceptorInvocation.java:41)
+	at io.quarkus.arc.impl.AroundInvokeInvocationContext.perform(AroundInvokeInvocationContext.java:40)
+	at io.quarkus.arc.impl.InvocationContexts.performAroundInvoke(InvocationContexts.java:32)
+	at pizzashop.rest.OrdersResource_Subclass.userOrders(Unknown Source)
+	at pizzashop.rest.OrdersResource_ClientProxy.userOrders(Unknown Source)
+	at pizzashop.rest.OrdersResource$quarkusrestinvoker$userOrders_ccab2abd5523d8b01feccd763726ecef5015b16d.invoke(Unknown Source)
+	at org.jboss.resteasy.reactive.server.handlers.InvocationHandler.handle(InvocationHandler.java:29)
+	at io.quarkus.resteasy.reactive.server.runtime.QuarkusResteasyReactiveRequestContext.invokeHandler(QuarkusResteasyReactiveRequestContext.java:115)
+	at org.jboss.resteasy.reactive.common.core.AbstractResteasyReactiveContext.run(AbstractResteasyReactiveContext.java:140)
+	at io.quarkus.vertx.core.runtime.VertxCoreRecorder$14.runWith(VertxCoreRecorder.java:560)
+	at org.jboss.threads.EnhancedQueueExecutor$Task.run(EnhancedQueueExecutor.java:2449)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1452)
+	at org.jboss.threads.DelegatingRunnable.run(DelegatingRunnable.java:29)
+	at org.jboss.threads.ThreadLocalResettingRunnable.run(ThreadLocalResettingRunnable.java:29)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+----
+
+[source, sql]
+----
+select id, price, ToDateTime(ts, 'YYYY-MM-dd HH:mm:ss') as "ts" 
+from orders_enriched 
+where userId = ? 
+order by ts desc 
+fetch next 50 rows only
+----
+
+select id, price, ToDateTime(ts, 'YYYY-MM-dd HH:mm:ss') as "ts" 
+from orders_enriched 
+where userId = ? 
+order by ts desc 
+fetch next 50 rows only

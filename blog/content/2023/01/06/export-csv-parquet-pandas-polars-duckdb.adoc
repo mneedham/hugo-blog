@@ -1,0 +1,306 @@
++++
+draft = false
+date="2023-01-06 02:44:37"
+title="Exporting CSV files to Parquet file format with Pandas, Polars, and DuckDB"
+tag=['python', 'polars', 'pandas', 'duckdb']
+category=['Python']
+description="In this post we'll learn how to export bigger-than-memory CSV files from CSV to Parquet format using Pandas, Polars, and DuckDB."
+image="uploads/2023/01/csv-parquet-banner.png"
++++
+
+I was recently trying to convert a CSV file to Parquet format and came across https://stackoverflow.com/questions/50604133/convert-csv-to-parquet-file-using-python[a StackOverflow post^] that described a collection of different options.
+My CSV file was bigger than the amount of memory I had available, which ruled out some of the methods.
+In this blog post we're going to walk through some options for exporting big CSV files to Parquet format.
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/aexszHMKdy8" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+++++
+====
+
+== The Dataset
+
+We're going to be exploring this problem using a CSV file that contains the rankings of male tennis players going back to the 1970s.
+This file is 270MB in size and contains about 12 million records.
+A sample is shown below:
+
+[source, bash]
+----
+head -n10 output/atp_rankings.csv
+----
+
+.Output
+[source, text]
+----
+ranking_date,rank,player,points
+19900101,1,100656,2913
+19900101,2,101414,2279
+19900101,3,101222,2111
+19900101,4,100763,1398
+19900101,5,100581,1354
+19900101,6,102021,1328
+19900101,7,101381,1217
+19900101,8,101736,1160
+19900101,9,101309,1039
+----
+
+== Pandas
+
+The simplest way to convert this file to Parquet format would be to use Pandas, as shown in the script below:
+
+.scripts/duck_to_parquet.py
+[source, python]
+----
+import pandas as pd
+
+pd.read_csv("/output/atp_rankings.csv").to_parquet(
+    "/output/pandas_atp_rankings.parquet")
+----
+
+This code loads the file into memory before converting it to Parquet format.
+
+We're going to run it using a Docker image that I've created that contains a Python runtime along with a bunch of pre-installed libraries.
+The Dockerfile is shown below:
+
+.Dockerfile
+[source, text]
+----
+FROM python:3.11
+
+WORKDIR /usr/src/app
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+CMD [ "python"]
+----
+
+`requirements.txt` contains the following:
+
+requirements.txt
+[source, text]
+----
+pandas
+fastparquet
+polars
+duckdb
+----
+
+Let's run the Pandas code with 1GB of RAM assigned to the Docker container:
+
+[source, bash]
+----
+docker run -it \
+  -v $PWD/scripts:/scripts \
+  -v $PWD/output:/output \
+  -m 1024m \
+  --name python-tennis \
+  --rm python-tennis:0.0.1 \
+  python /scripts/pandas_to_parquet.py
+----
+
+This will take 10-15 seconds and at the end of that we'll have the data in Parquet format:
+
+[source, bash]
+----
+du -h output/pandas_atp_rankings.parquet
+----
+
+.Output
+[source, text]
+----
+ 51M	output/pandas_atp_rankings.parquet
+----
+
+So far, so good.
+But what about if we reduce the memory to 100MB?
+
+[source, bash]
+----
+docker run -it \
+  -v $PWD/scripts:/scripts \
+  -v $PWD/output:/output \
+  -m 100m \
+  --name python-tennis \
+  --rm python-tennis:0.0.1 \
+  python /scripts/pandas_to_parquet.py
+----
+
+This time the container exits with the following exit code:
+
+[source, bash]
+----
+echo $?
+----
+
+.Output
+[source, text]
+----
+137
+----
+
+This is the error code that indicates Docker terminated the container due to an out of memory exception. 
+Let's see if we can fix that using some other tools.
+
+== Polars
+
+First up is https://pola-rs.github.io/polars-book/user-guide/[Polars^], a DataFrames library implemented in Rust using Apache Arrow Columnar Format as the memory model.
+
+Polars has a neat function called `scan_csv` that lets us process CSV files without loading everything into memory. 
+The equivalent script to convert CSV to Parquet therefore looks like this:
+
+
+.scripts/polars_to_parquet.py
+[source, python]
+----
+import polars as pl
+
+pl.scan_csv("/output/atp_rankings.csv").sink_parquet(
+    "/output/polars_atp_rankings.parquet",
+    compression="zstd",
+    row_group_size=100_000
+)
+----
+
+The `sink_parquet` function lets us define the compression algorithm to use as well as the size to use for each group size, which is nice. 
+There are some other parameters you can set as well, but I left those as they were.
+
+We're going to run this script using Docker, but we're also going to track the memory usage of the container so we can see what's going on.
+We'll do this using the following function that is a wrapper around `docker stats`:
+
+[source, bash]
+----
+check_memory_usage() {
+    maxTime=${1:=30}
+
+    start=$(date +%s)
+    hasStarted=0
+    while true; do
+        if [ $(date +%s) -gt `expr ${start} + ${maxTime}` ]; then
+            break;
+        fi
+        stats=$(docker stats --format '{{.Name}}\t{{.MemPerc}}\t{{.MemUsage}}' --no-stream)
+
+        if [ -z "${stats}" ]; then
+            if [ ${hasStarted} -eq 1 ]; then
+                break;
+            fi
+            continue;
+        fi
+        hasStarted=1
+        echo "$(date "+%Y-%m-%d %H:%M:%S")\t${stats}"
+    done
+}
+----
+
+Now let's run the Polars code:
+
+[source, bash]
+----
+docker run -it -d \
+  -v $PWD/scripts:/scripts \
+  -v $PWD/output:/output \
+  -m 100m \
+  --name python-tennis \
+  --rm python-tennis:0.0.1 \
+  python /scripts/polars_to_parquet.py &>/dev/null && check_memory_usage
+----
+
+If we run this command, we'll see the following output:
+
+.Output
+[source, text]
+----
+2023-01-06 17:10:58	python-tennis	62.79%	62.79MiB / 100MiB
+2023-01-06 17:11:00	python-tennis	72.71%	72.71MiB / 100MiB
+2023-01-06 17:11:02	python-tennis	74.48%	74.48MiB / 100MiB
+2023-01-06 17:11:04	python-tennis	74.69%	74.69MiB / 100MiB
+2023-01-06 17:11:06	python-tennis	82.39%	82.39MiB / 100MiB
+2023-01-06 17:11:08	python-tennis	82.64%	82.64MiB / 100MiB
+2023-01-06 17:11:10	python-tennis	82.65%	82.65MiB / 100MiB
+----
+
+And we have another Parquet file!
+
+
+[source, bash]
+----
+du -h output/polars_atp_rankings.parquet
+----
+
+.Output
+[source, text]
+----
+ 25M	output/polars_atp_rankings.parquet
+----
+
+== DuckDB
+
+Finally, let's have a look at how to do the same thing with DuckDB, an in-process SQL OLAP database management system.
+A script that uses DuckDB's Python client looks like this:
+
+.scripts/duck_to_parquet.py
+[source, python]
+----
+import duckdb
+
+con = duckdb.connect(database=':memory:')
+
+con.execute("SET memory_limit='100MB'")
+
+con.execute("""
+COPY (SELECT * FROM '/output/atp_rankings.csv')
+TO '/output/duck_atp_rankings.parquet' 
+(FORMAT PARQUET, CODEC 'SNAPPY', ROW_GROUP_SIZE 100000);
+""")
+----
+
+I found when using DuckDB that I needed to tell it the memory limit explicitly, otherwise it was trying to use more than that and I was ending up with incomplete and invalid Parquet files.
+As with Polars, we can define the compression algorithm (called codec in this case) and the row group size.
+Let's give this one a whirl:
+
+[source, bash]
+----
+docker run -it -d \
+  -v $PWD/scripts:/scripts \
+  -v $PWD/output:/output \
+  -m 100m \
+  --name python-tennis \
+  --rm python-tennis:0.0.1 \
+  python /scripts/duck_to_parquet.py &>/dev/null && check_memory_usage
+----
+
+.Output
+[source, text]
+----
+2023-01-06 17:15:47	python-tennis	77.29%	77.29MiB / 100MiB
+2023-01-06 17:15:49	python-tennis	98.82%	98.82MiB / 100MiB
+2023-01-06 17:15:51	python-tennis	98.59%	98.59MiB / 100MiB
+2023-01-06 17:15:53	python-tennis	99.47%	99.47MiB / 100MiB
+2023-01-06 17:15:55	python-tennis	98.94%	98.94MiB / 100MiB
+----
+
+And we have one final Parquet file!
+
+
+[source, bash]
+----
+du -h output/duck_atp_rankings.parquet
+----
+
+.Output
+[source, text]
+----
+ 51M	output/duck_atp_rankings.parquet
+----
+
+This file is a bit bigger than the Polars one, which I think is because we used a different compression format.
+
+== Conclusion.
+
+Pandas is a great choice for converting CSV files that fit in memory, but if we want to work with really big files Polars and DuckDB are ready and waiting to step in - both work equally well in my experiments!
