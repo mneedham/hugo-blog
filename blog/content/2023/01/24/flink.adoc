@@ -1,0 +1,155 @@
+
+
+[source, sql]
+----
+CREATE TABLE EnrichedOrderItems (
+  `orderId` STRING,
+  `createdAt` STRING,
+  `orderItem` STRING,
+  `product` STRING
+
+) WITH (
+  'connector' = 'upsert-kafka',
+  'topic' = 'enriched-order-items',
+  'properties.bootstrap.servers' = 'kafka:9092',
+  'properties.group.id' = 'testGroup',
+  'value.format' = 'json',
+  'key.format' = 'json',
+  'key.fields' = 'orderId'
+);
+----
+
+
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.TableException: Table sink 'default_catalog.default_database.EnrichedOrderItems' doesn't support consuming update and delete changes which is produced by node Join(joinType=[InnerJoin], where=[(id0 = productId)], select=[id, createdAt, productId, quantity, price0, id0, name, description, category, price, image], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+
+
+
+[source, sql]
+----
+CREATE TABLE EnrichedOrderItems (
+  `orderId` STRING,
+  `createdAt` STRING,
+  `orderItem` STRING,
+  `product` STRING
+
+) WITH (
+  'connector' = 'upsert-kafka',
+  'topic' = 'enriched-order-items',
+  'properties.bootstrap.servers' = 'kafka:9092',
+  'properties.group.id' = 'testGroup',
+  'value.format' = 'json',
+  'key.format' = 'json',
+  'key.fields' = 'orderId'
+);
+----
+
+[source, sql]
+----
+INSERT INTO EnrichedOrderItems
+select 
+  Orders.id AS orderId, 
+  Orders.createdAt AS createdAt,
+  JSON_OBJECT(
+    KEY 'productId' VALUE orderItem.productId,
+    KEY 'quantity' VALUE orderItem.quantity,
+    KEY 'price' VALUE orderItem.price
+  ) AS orderItem,
+  JSON_OBJECT(
+    KEY 'id' VALUE Products.id,
+    KEY 'name' VALUE Products.name,
+    KEY 'description' VALUE Products.description,
+    KEY 'category' VALUE Products.category,
+    KEY 'image' VALUE Products.image,
+    KEY 'price' VALUE Products.price
+  ) AS product
+FROM Orders
+CROSS JOIN UNNEST(items) AS orderItem (productId, quantity, price)
+JOIN Products ON Products.id = orderItem.productId;
+----
+
+
+
+[source, text]
+----
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: 'upsert-kafka' tables require to define a PRIMARY KEY constraint. The PRIMARY KEY specifies which columns should be read from or write to the Kafka message key. The PRIMARY KEY also defines records in the 'upsert-kafka' table should update or delete on which keys.
+----
+
+[source, sql]
+----
+DROP TABLE EnrichedOrderItems;
+----
+
+[source, sql]
+----
+CREATE TABLE EnrichedOrderItems (
+  `orderId` STRING,
+  `createdAt` STRING,
+  `orderItem` MAP<STRING,STRING>,
+  `product` MAP<STRING,STRING>,
+   PRIMARY KEY (orderId) NOT ENFORCED
+) WITH (
+  'connector' = 'upsert-kafka',
+  'topic' = 'enriched-order-items',
+  'properties.bootstrap.servers' = 'kafka:9092',
+  'properties.group.id' = 'testGroup',
+  'value.format' = 'json',
+  'key.format' = 'json'
+);
+----
+
+[source, text]
+----
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.calcite.sql.validate.SqlValidatorException: Parameters must be of the same type
+----
+
+[source, sql]
+----
+INSERT INTO EnrichedOrderItems
+select 
+  Orders.id AS orderId, 
+  Orders.createdAt AS createdAt,
+  MAP[
+    'productId', CAST(orderItem.productId AS STRING),
+    'quantity', CAST(orderItem.quantity AS STRING),
+    'price', CAST(orderItem.price AS STRING)
+   ] AS orderItem,
+  MAP[
+    'id', CAST(Products.id AS STRING),
+    'name', CAST(Products.name AS STRING),
+    'description', CAST(Products.description AS STRING),
+    'category', CAST(Products.category AS STRING),
+    'image', CAST(Products.image AS STRING),
+    'price', CAST(Products.price AS STRING)
+   ] AS product
+FROM Orders
+CROSS JOIN UNNEST(items) AS orderItem (productId, quantity, price)
+JOIN Products ON Products.id = orderItem.productId;
+----
+
+[source, sql]
+----
+select STR_TO_MAP('id:' || id || 
+                  ';userId:' || userId,
+                   ';',':') AS `addresses` 
+FROM Orders;
+----
+
+[source, sql]
+----
+INSERT INTO EnrichedOrderItems
+select 
+  Orders.id AS orderId, 
+  Orders.createdAt AS createdAt,
+  STR_TO_MAP(
+    'productId:' || orderItem.productId || 
+    'price:' || orderItem.price || 
+    ';quantity:' || orderItem.quantity,
+    ';',':'
+  ) AS orderItem
+FROM Orders
+CROSS JOIN UNNEST(items) AS orderItem (productId, quantity, price)
+JOIN Products ON Products.id = orderItem.productId;
+----
