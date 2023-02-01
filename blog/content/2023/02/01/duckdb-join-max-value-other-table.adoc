@@ -1,0 +1,169 @@
++++
+draft = false
+date="2023-02-01 02:44:37"
+title="DuckDB: Join based on maximum value in other table"
+tag=['duckdb', 'sql']
+category=['DuckDB']
+description="In this post we'll learn how to write a SQL join where one of the tables has multiple rows per key."
+image="uploads/2023/02/duckdb-join-banner.png"
++++
+
+In this blog post we're going to learn how to write a SQL query to join two tables where one of the tables has multiple rows for each key.
+We want to select only the rows that contain the most recent (or maximum) value from that table.
+
+Our story begins with a https://www.youtube.com/watch?v=ogge3kmm_2g[YouTube video^] that I created showing how to query the https://www.kaggle.com/datasets/hugomathien/soccer[European Soccer SQLite database^] with DuckDB.
+This database contains lots of different tables, but we are only interested in `Player` and `Player_Attributes`.
+
+Let's have a quick look at the structure of those tables:
+
+[source,sql]
+----
+DESCRIBE Player;
+----
+
+.Output
+[format="csv", options="header"]
+|===
+column_name,column_type,null,key,default,extra
+id,BIGINT,YES,,,
+player_api_id,BIGINT,YES,,,
+player_name,VARCHAR,YES,,,
+player_fifa_api_id,BIGINT,YES,,,
+birthday,VARCHAR,YES,,,
+height,FLOAT,YES,,,
+weight,BIGINT,YES,,,
+|===
+
+[source,sql]
+----
+DESCRIBE Player_Attributes;
+----
+
+.Output
+[format="csv", options="header"]
+|===
+column_name,column_type,null,key,default,extra
+id,BIGINT,YES,,,
+player_fifa_api_id,BIGINT,YES,,,
+player_api_id,BIGINT,YES,,,
+date,VARCHAR,YES,,,
+overall_rating,BIGINT,YES,,,
+potential,BIGINT,YES,,,
+preferred_foot,VARCHAR,YES,,,
+attacking_work_rate,VARCHAR,YES,,,
+defensive_work_rate,VARCHAR,YES,,,
+crossing,BIGINT,YES,,,
+finishing,BIGINT,YES,,,
+heading_accuracy,BIGINT,YES,,,
+short_passing,BIGINT,YES,,,
+volleys,BIGINT,YES,,,
+dribbling,BIGINT,YES,,,
+curve,BIGINT,YES,,,
+free_kick_accuracy,BIGINT,YES,,,
+long_passing,BIGINT,YES,,,
+ball_control,BIGINT,YES,,,
+acceleration,BIGINT,YES,,,
+sprint_speed,BIGINT,YES,,,
+agility,BIGINT,YES,,,
+reactions,BIGINT,YES,,,
+balance,BIGINT,YES,,,
+shot_power,BIGINT,YES,,,
+jumping,BIGINT,YES,,,
+stamina,BIGINT,YES,,,
+strength,BIGINT,YES,,,
+long_shots,BIGINT,YES,,,
+aggression,BIGINT,YES,,,
+interceptions,BIGINT,YES,,,
+positioning,BIGINT,YES,,,
+vision,BIGINT,YES,,,
+penalties,BIGINT,YES,,,
+marking,BIGINT,YES,,,
+standing_tackle,BIGINT,YES,,,
+sliding_tackle,BIGINT,YES,,,
+gk_diving,BIGINT,YES,,,
+gk_handling,BIGINT,YES,,,
+gk_kicking,BIGINT,YES,,,
+gk_positioning,BIGINT,YES,,,
+gk_reflexes,BIGINT,YES,,,
+|===
+
+Let's start by writing a query that finds the `overall_rating` for Lionel Messi by joining the `Player` and `Player_Attributes` tables:
+
+[source, sql]
+----
+SELECT date, overall_rating
+FROM Player
+JOIN Player_Attributes ON Player_Attributes.player_api_id = Player.player_api_id
+WHERE PLayer.player_name = 'Lionel Messi'
+LIMIT 10;
+----
+
+.Output
+[format="csv", options="header"]
+|===
+date,overall_rating
+"2015-12-17 00:00:00",94
+"2015-10-16 00:00:00",94
+"2015-09-21 00:00:00",94
+"2015-06-26 00:00:00",93
+"2015-03-13 00:00:00",93
+"2015-02-20 00:00:00",93
+"2015-01-23 00:00:00",93
+"2014-10-17 00:00:00",93
+"2014-09-18 00:00:00",93
+"2014-04-25 00:00:00",94
+|===
+
+We can see that there are at least 10 entries for Messi in the `Player_Attributes` table.
+We only want the most recent ranking, which we can do by using a windowing operation that numbers each row and selects the first one.
+
+We can write the following query to find the top 10 players ordered by their most recent ranking:
+
+[source, sql]
+----
+SELECT player_name, overall_rating
+FROM Player
+JOIN (
+    select *, ROW_NUMBER() OVER (partition by player_api_id ORDER BY date DESC) rn
+    FROM Player_Attributes
+) AS attrs ON attrs.player_api_id = Player.player_api_id AND rn = 1
+WHERE overall_rating is not null
+ORDER BY overall_rating DESC
+LIMIT 10;
+----
+
+.Output
+[format="csv", options="header"]
+|===
+player_name,overall_rating
+"Lionel Messi",94
+"Cristiano Ronaldo",93
+"Luis Suarez",90
+Neymar,90
+"Manuel Neuer",90
+"Zlatan Ibrahimovic",89
+"Arjen Robben",89
+"Andres Iniesta",88
+"Mesut Oezil",88
+"Eden Hazard",88
+|===
+
+This is the query that I included in the video and I didn't know there was a better way until https://www.linkedin.com/feed/update/urn:li:activity:7022269018371682304?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7022269018371682304%2C7023816359096573952%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287023816359096573952%2Curn%3Ali%3Aactivity%3A7022269018371682304%29[Richard Wesley wrote me the following message^], suggesting that I used the `arg_max` function instead.
+
+image::{{<siteurl>}}/uploads/2023/02/richard-wesley-message.png[title="Richard Wesley Message"]
+
+I'd not come across this function before, but I updated my query to use it:
+
+[source, sql]
+----
+SELECT player_name, arg_max(overall_rating, date) AS overall_rating
+FROM Player
+JOIN Player_Attributes ON Player_Attributes.player_api_id = Player.player_api_id
+GROUP BY ALL
+ORDER BY overall_rating DESC
+LIMIT 10;
+----
+
+The results are the same as with the other query and I can also get rid of the `WHERE overall_rating is not null` clause, which is great.
+
+Thanks Richard!
