@@ -1,0 +1,155 @@
++++
+draft = false
+date="2023-03-20 02:44:37"
+title="DuckDB/Python: Cannot combine LEFT and RIGHT relations of different connections!"
+tag=['duckdb']
+category=['duckdb']
+description="In this post we'll learn how to solve an error that you might run into when using DuckDB's Relational API."
+image="uploads/2023/03/duckdb-join-banner.png"
++++
+
+I've been playing around with DuckDB over the weekend and ran into an interesting problem while using the Relational API in the Python package. 
+We're going to explore that in this blog post.
+
+== Set up
+
+To get started, let's install DuckDB:
+
+[source, bash]
+----
+pip install duckdb
+----
+
+And now let's open a Python shell and import the package:
+
+[source, python]
+----
+import duckdb
+----
+
+Next, let's create a DuckDB connection and import the `httpfs` module, which we'll use in just a minute:
+
+[source, python]
+----
+con = duckdb.connect('file.db')
+
+con.sql("INSTALL httpfs")
+con.sql("LOAD httpfs")
+----
+
+== Importing ATP matches
+
+We're going to import some matches from the ATP tennis tour using the following code:
+
+[source, python]
+----
+csv_files = [
+    f"https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_{year}.csv"
+    for year in range(1968,2024)
+]
+con.execute("""
+CREATE OR REPLACE TABLE matches AS 
+SELECT * FROM read_csv_auto($1, types={'winner_seed': 'VARCHAR', 'loser_seed': 'VARCHAR'})
+""", [csv_files])
+----
+
+We can check that the table has been populated by running the following command:
+
+[source, python]
+----
+con.table("matches").project("tourney_date, winner_name, loser_name, score").limit(5)
+----
+
+.Output
+[source, python]
+----
+┌──────────────┬─────────────────┬─────────────────┬─────────┐
+│ tourney_date │   winner_name   │   loser_name    │  score  │
+│    int64     │     varchar     │     varchar     │ varchar │
+├──────────────┼─────────────────┼─────────────────┼─────────┤
+│     19680708 │ Douglas Smith   │ Peter Ledbetter │ 6-1 7-5 │
+│     19680708 │ Louis Pretorius │ Maurice Pollock │ 6-1 6-1 │
+│     19680708 │ Cecil Pedlow    │ John Mulvey     │ 6-2 6-2 │
+│     19680708 │ Tom Okker       │ Unknown Fearmon │ 6-1 6-1 │
+│     19680708 │ Armistead Neely │ Harry Sheridan  │ 6-2 6-4 │
+└──────────────┴─────────────────┴─────────────────┴─────────┘
+----
+
+== Nadal vs Djokovic
+
+I wanted to find the matches between Rafael Nadal and Novak Djokovic and in order to keep using the Relational API, I needed to use the `sql` function to do this, which meant I couldn't pass in any parameters.
+I therefore ended up with the following code:
+
+[source, python]
+----
+players_df = pd.DataFrame({"player1": ["Rafael Nadal"], "player2": ["Novak Djokovic"]})
+players = duckdb.from_df(players_df).set_alias("players")
+----
+
+I then wrote the following code to find the matches won by Nadal:
+
+[source, python]
+----
+matches = con.table("matches")
+matches.join(players, 
+  condition="matches.winner_name = players.player1 AND matches.loser_name = players.player2",
+  how="inner"
+)
+----
+
+Unfortunately, this threw an error:
+
+[source, text]
+----
+duckdb.Error: Cannot combine LEFT and RIGHT relations of different connections!
+----
+
+The mistake I made here is that the `players` and `matches` relations were created on different DuckDB connections, as the error suggests. 
+If we want to get them on the same connection, we need to update the following line:
+
+[source, python]
+----
+players = duckdb.from_df(players_df)
+----
+
+To instead read:
+
+[source, python]
+----
+players = con.from_df(players_df).set_alias("players")
+----
+
+This will make sure that the `players` relation is part of the same connection as `matches`.
+I hadn't realised that calling `duckdb.from_df` actually adds the relation to the default DuckDB connection.
+
+If we then run the join query again:
+
+[source, python]
+----
+(matches
+  .join(players, 
+    condition="matches.winner_name = players.player1 AND matches.loser_name = players.player2",
+    how="inner")
+  .project("tourney_name, tourney_date, round")
+  .limit(5)
+)
+----
+
+We'll get the following output:
+
+
+[source, text]
+----
+┌──────────────────────┬──────────────┬─────────┐
+│     tourney_name     │ tourney_date │  round  │
+│       varchar        │    int64     │ varchar │
+├──────────────────────┼──────────────┼─────────┤
+│ Roland Garros        │     20060529 │ QF      │
+│ Indian Wells Masters │     20070305 │ F       │
+│ Rome Masters         │     20070507 │ QF      │
+│ Roland Garros        │     20070528 │ SF      │
+│ Wimbledon            │     20070625 │ SF      │
+└──────────────────────┴──────────────┴─────────┘
+----
+
+Success!
