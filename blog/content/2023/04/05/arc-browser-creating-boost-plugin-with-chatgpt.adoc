@@ -1,0 +1,90 @@
++++
+draft = true
+date="2023-04-02 02:44:37"
+title="Arc Browser: Building a plugin (Boost) with help from ChatGPT"
+tag=['chatgpt', 'arc']
+category=['ChatGPT']
+description="In this post I'll explain how I built a plugin for the Arc Browser with help from ChatGPT."
+image="uploads/2023/03/duckdb-streamlit-banner.png"
++++
+
+I start with this code, which I had 
+
+[source, javascript]
+----
+javascript:(()=>{  
+    function decodeHtml(html) {      
+        var txt = document.createElement("textarea");      
+        txt.innerHTML = html;    
+        return txt.value;  
+    }    
+    
+    let rows = $("article[data-played-at]").map(function(idx, ele) {        
+        let row = "* Listened to " + $(ele).attr('data-title') +   " by " + $(ele).find("div.title").text() + " - https://player.fm/series/" + $(ele).attr('data-series-id') + "/" + $(ele).attr('data-slug');        
+        return decodeHtml(row);    
+    }).get();    
+    
+    setTimeout(async()=>{    
+        console.log(rows.join("\n"));    
+        alert(rows.length + " podcasts copied")  
+    }, 2000)}
+)()
+----
+
+[source, javascript]
+----
+function decodeHtml(html) {      
+  var txt = document.createElement("textarea");      
+  txt.innerHTML = html;    
+  return txt.value;  
+} 
+
+// Create an image
+const buttonDiv = document.createElement("div");
+buttonDiv.style.display = "flex";
+buttonDiv.style.justifyContent = "center";
+buttonDiv.style.marginBottom = "16px";
+
+const button = document.createElement("button");
+button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <path d="M11 0H3a2 2 0 0 0-2 2v9h2V2h8V2a2 2 0 0 0-2-2zm1 4H4v9h8V4z"/>
+  </svg> Copy Podcasts`;
+
+button.style.display = "flex";
+button.style.alignItems = "center";
+button.style.gap = "8px";
+button.style.backgroundColor = "white";
+button.style.border = "1px solid #ccc";
+button.style.borderRadius = "4px";
+button.style.padding = "8px";
+
+
+button.onclick = function () {
+    let rows = Array.from(document.querySelectorAll("article[data-played-at]")).map(function(ele) {        
+        let row = "* Listened to " + ele.attributes['data-title'].value + 
+        " by " + ele.querySelector("div.title").textContent + 
+        " - https://player.fm/series/" + ele.attributes['data-series-id'].value + 
+        "/" + ele.attributes['data-slug'].value;
+
+        return decodeHtml(row);    
+    });
+ 
+    const textToCopy = rows.join("\n");
+
+    const textArea = document.createElement('textarea');
+    textArea.value = textToCopy;
+    document.body.appendChild(textArea);
+
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+
+    console.log(textToCopy);    
+    alert(rows.length + " podcasts copied")  
+};
+
+buttonDiv.appendChild(button);
+
+const preamble = document.querySelector(".preamble");
+preamble.insertAdjacentElement("beforebegin", buttonDiv);
+----

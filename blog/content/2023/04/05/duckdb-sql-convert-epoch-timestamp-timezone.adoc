@@ -1,0 +1,150 @@
++++
+draft = false
+date="2023-04-02 02:44:37"
+title="DuckDB/SQL: Convert epoch to timestamp with timezone"
+tag=['duckdb']
+category=['duckdb']
+description="In this post we'll learn how to convert an epoch timestamp into a SQL timestamp with timezone support using DuckDB."
+image="uploads/2023/03/duckdb-streamlit-banner.png"
++++
+
+I've been playing around with the Citi Bike Stations dataset on Kaggle with DuckDB and ran into trouble when trying to convert a column containing epoch timestamps to a timestamp with timezone support.
+In this blog we'll learn how to do that, which will at least be helpful to future me, if noone else!
+
+The dataset contains 4GB worth of CSV files, but I've just downloaded a few of them manually for now. 
+Once I downloaded them, I unpacked the ZIP file and put the CSV files into a `data` directory.
+
+I installed DuckDB as well and then launched it:
+
+[source, bash]
+----
+./duckdb bikes.duck.db
+----
+
+.Output
+[source, bash]
+----
+v0.7.1 b00b93f0b1
+Enter ".help" for usage hints
+----
+
+Next, we'll create a table called `bikeStations` that's populated from those CSV files, as shown below:
+
+[source, sql]
+----
+CREATE OR REPLACE TABLE bikeStations AS
+FROM read_csv_auto('data/*.csv', types={"station_id": "VARCHAR"}) 
+WHERE missing_station_information = false;
+----
+
+The table contains a column called `station_status_last_reported` that we want to convert to a timestamp type. 
+Let's query that column to view its contents:
+
+[source, sql]
+----
+select station_status_last_reported 
+FROM bikeStations 
+LIMIT 5;
+----
+
+.Output
+[opts="header"]
+|===
+| station_status_last_reported
+| 1604692013
+| 1572853294
+| 1630455776
+| 1617131040
+| 1569461183
+|===
+
+We can convert the epoch to a timestamp using the to_timestamp function, like this:
+
+[source, sql]
+----
+select to_timestamp(station_status_last_reported) AS ts
+FROM bikeStations 
+LIMIT 5;
+----
+
+.Output
+[opts="header"]
+|===
+| ts
+| 2020-11-06 19:46:53
+| 2019-11-04 07:41:34
+| 2021-09-01 00:22:56
+| 2021-03-30 19:04:00
+| 2019-09-26 01:26:23
+|===
+
+At the moment this timestamp is using the UTC timezone, but we can't see that unless we cast the result to `timestamptz`:
+
+
+[source, sql]
+----
+select to_timestamp(station_status_last_reported)::timestamptz AS tstz
+FROM bikeStations 
+LIMIT 5;
+----
+
+.Output
+[opts="header"]
+|===
+| tstz
+| 2020-11-06 19:46:53+00
+| 2019-11-04 07:41:34+00
+| 2021-09-01 00:22:56+01
+| 2021-03-30 19:04:00+01
+| 2019-09-26 01:26:23+01
+|===
+
+But the dataset is actually from New York, so we need to convert it to be in Eastern time instead. 
+We can do that like this:
+
+[source, sql]
+----
+select to_timestamp(station_status_last_reported)::TIMESTAMPTZ AT TIME ZONE 'US/Eastern' AS tstz
+FROM bikeStations 
+LIMIT 5;
+----
+
+.Output
+[opts="header"]
+|===
+| tstz
+| 2020-11-06 14:46:53
+| 2019-11-04 02:41:34
+| 2021-08-31 19:22:56
+| 2021-03-30 14:04:00
+| 2019-09-25 20:26:23
+|===
+
+And if we want to persist that to the table in another column, we can write the following code:
+
+[source, sql]
+----
+ALTER TABLE bikeStations ADD COLUMN ts TIMESTAMP;
+UPDATE bikeStations 
+SET ts = to_timestamp(station_status_last_reported)::TIMESTAMPTZ AT TIME ZONE 'US/Eastern';
+----
+
+And let's check it worked:
+
+[source, sql]
+----
+select station_status_last_reported, ts 
+from bikeStations 
+LIMIT 5;
+----
+
+.Output
+[opts="header"]
+|===
+| station_status_last_reported | ts
+| 1604692013                   | 2020-11-06 14:46:53
+| 1572853294                   | 2019-11-04 02:41:34
+| 1630455776                   | 2021-08-31 19:22:56
+| 1617131040                   | 2021-03-30 14:04:00
+| 1569461183                   | 2019-09-25 20:26:23
+|===
