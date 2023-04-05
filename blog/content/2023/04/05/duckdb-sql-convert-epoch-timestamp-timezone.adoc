@@ -1,6 +1,6 @@
 +++
 draft = false
-date="2023-04-02 02:44:37"
+date="2023-04-05 02:44:37"
 title="DuckDB/SQL: Convert epoch to timestamp with timezone"
 tag=['duckdb']
 category=['duckdb']
