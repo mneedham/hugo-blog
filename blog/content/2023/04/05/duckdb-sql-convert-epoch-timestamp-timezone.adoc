@@ -5,7 +5,7 @@ title="DuckDB/SQL: Convert epoch to timestamp with timezone"
 tag=['duckdb']
 category=['duckdb']
 description="In this post we'll learn how to convert an epoch timestamp into a SQL timestamp with timezone support using DuckDB."
-image="uploads/2023/03/duckdb-streamlit-banner.png"
+image="uploads/2023/04/epoch-timezone-banner.png"
 +++
 
 I've been playing around with the Citi Bike Stations dataset on Kaggle with DuckDB and ran into trouble when trying to convert a column containing epoch timestamps to a timestamp with timezone support.

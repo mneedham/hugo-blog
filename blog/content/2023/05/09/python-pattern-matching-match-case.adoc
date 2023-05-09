@@ -1,0 +1,84 @@
++++
+draft = false
+date="2023-05-09 02:44:37"
+title="Python 3.10: Pattern matching with match/case"
+tag=['python', 'til']
+category=['TIL']
+description="In this post we'll learn about Python 3.10's pattern matching with the match/case statement."
+image="uploads/2023/05/python-pattern-banner.png"
++++
+
+:icons: font
+
+I've been reading https://www.oreilly.com/library/view/fluent-python-2nd/9781492056348/[Fluent Python^] and learnt about pattern matching with the match/case statement, introduced in Python 3.10.
+You can use it instead of places where you'd otherwise use `if`, `elif`, `else` statements.
+
+I created a small example to understand how it works.
+The following function takes in a list where the first argument should be `foo`, followed by a variable number of arguments, which we print to the console:
+
+[source, python]
+----
+def parse_if(x):
+    if x[0] == "foo":
+        if len(x[1:]) > 1:
+            print(f"Multiple values: {'_'.join([str(n) for n in x[1:]])}")
+        elif len(x[1:]) == 1:
+            if x[1] == 5:
+                print(f"Only one value and it's the magical 5")
+            else:
+                print(f"Only one value: {x[1]}")
+        else:
+            print("No values")
+    else:
+        raise SyntaxError(f"Invalid expression: {x}")
+----
+
+Let's run that function with some different arguments:
+
+[source, python]
+----
+parse_if(["foo", *(range(0,10))])
+parse_if(["foo", 1])
+parse_if(["foo"])
+parse_if(["bar"])
+----
+
+.Output
+[source, text]
+----
+Multiple values: 0_1_2_3_4_5_6_7_8_9
+Only one value: 1
+Only one value and it's the magical 5
+No values
+Traceback (most recent call last):
+  File "/Users/markhneedham/projects/fluent_python/destruct.py", line 40, in <module>
+    fn(["bar"])
+  File "/Users/markhneedham/projects/fluent_python/destruct.py", line 14, in parse_if
+    raise SyntaxError(f"Invalid expression: {x}")
+SyntaxError: Invalid expression: ['bar']
+----
+
+A version of that function rewritten to use pattern matching would look like this:
+
+[source, python]
+----
+def parse_match(x):
+    match x: <1>
+        case ['foo']:
+            print("No values")
+        case ['foo', 5]: <2>
+            print(f"Only one value and it's the magical 5")
+        case ['foo', other]: <3>
+            print(f"Only one value: {other}")
+        case ['foo', *other]: <4>
+            print(f"Multiple values: {'_'.join([str(n) for n in other])}")
+        case _: <5>
+            raise SyntaxError(f"Invalid expression: {x}")
+----
+<1> `x` is our pattern matching subject
+<2> We can match literal values inside a case statement
+<3> Or we can assign to a variable instead.
+<4> The `*` operator matches multiple values
+<5> `_` is a wildcard character that matches everything else
+
+I think this second example is a little bit easier to read than the first and I can see this syntax being super useful for more gnarly combinations of predicates.

@@ -8,7 +8,10 @@ description="In this post I'll explain how I built a plugin for the Arc Browser 
 image="uploads/2023/03/duckdb-streamlit-banner.png"
 +++
 
-I start with this code, which I had 
+I've been trying out the https://arc.net/[Arc Browser^] over the last week or so and I wanted to port over a Chrome bookmark that I use to capture the podcasts that I've listened to on https://player.fm/[Player.FM^].
+In this blog post I'll show how ChatGPT helped me convert the bookmark code to an Arc Boost, which is effectively a lightweight plugin.
+
+I started with this code that finds all the listened to podcasts and then writes them out to the console:
 
 [source, javascript]
 ----
@@ -30,6 +33,37 @@ javascript:(()=>{
     }, 2000)}
 )()
 ----
+
+An example of the output is shown below:
+
+[source, text]
+----
+* Listened to A groundbreaking new proof for Pythagoras’ Theorem? by More or Less: Behind the Stats - https://player.fm/series/1301260/a-groundbreaking-new-proof-for-pythagoras-theorem
+* Listened to Twitter storm by Trending - https://player.fm/series/1301465/twitter-storm
+* Listened to After Pulse: Suddenly Unemployed by Community Pulse - https://player.fm/series/1409158/after-pulse-suddenly-unemployed
+----
+
+I was relying on jQuery to do find the parts of the page, but that isn't available in an Arc Boost, so I need to use the built in APIs instead.
+
+I started by changing:
+
+[source, javascript]
+----
+$("article[data-played-at]")
+----
+
+to:
+
+[source, javascript]
+----
+document.querySelectorAll("article[data-played-at]")
+----
+
+But then I wasn't sure how to call the `map` function on that output, so I asked ChatGPT.
+
+image::{{<siteurl>}}/uploads/2023/04/chatgpt-opener.png[ChatGPT - Iterate over querySelectorAll]
+
+I updated my code to do that, but then I needed 
 
 [source, javascript]
 ----

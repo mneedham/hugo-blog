@@ -1,0 +1,82 @@
++++
+draft = false
+date="2023-04-20 02:44:37"
+title="DuckDB/SQL: Get decade from date"
+tag=['duckdb']
+category=['duckdb']
+description="In this post we'll learn how to extract the decade from a date using SQL and DuckDB."
+image="uploads/2023/04/get-decade-from-date-banner.png"
++++
+
+Working with dates in SQL can sometimes be a bit tricky, especially when you need to extract specific information, like the decade a date belongs to. 
+In this blog post, we'll explore how to easily obtain the decade from a date using DuckDB, a lightweight and efficient SQL database engine. 
+
+First, https://duckdb.org/docs/installation/[install DuckDB^] and launch it:
+
+[source, bash]
+----
+./duckdb
+----
+
+Next, we're going to create a `movies` table that has columns for `title` and `releaseDate`:
+
+[source, sql]
+----
+create or replace table movies(title VARCHAR, releaseDate DATE);
+----
+
+And now let's add some records of famous movies and their release dates:
+
+[source, sql]
+----
+INSERT INTO movies 
+VALUES ('Avatar', '2009-12-10'), 
+       ('Star Wars: The Force Awakens', '2015-12-15'),
+       ('Titanic', '1997-11-18'),
+       ('The Avengers', '2012-04-25'),
+       ('Jurassic World', '2015-06-09'),
+       ('Furious 7', '2015-04-01');
+----
+
+The `releaseDate` column contains the actual day the movie was released, but I want to know the decade.
+We can do this by first extracting the year using the `year` function and then dividing that by 10 and multiplying it by 10.
+
+The following query does this:
+
+[source, sql]
+----
+select title, releaseDate, year(releaseDate)/10*10 AS decade 
+From movies;
+----
+
+.Output
+[options="header"]
+|===
+| title                         | releaseDate | decade
+| Avatar                        | 2009-12-10  | 2000
+| Star Wars: The Force Awakens  | 2015-12-15  | 2010
+| Titanic                       | 1997-11-18  | 1990
+| The Avengers                  | 2012-04-25  | 2010
+| Jurassic World                | 2015-06-09  | 2010
+| Furious 7                     | 2015-04-01  | 2010
+|===
+
+We could then write a new query that counts the number of movies released per decade:
+
+[source, sql]
+----
+select year(releaseDate)/10*10 AS decade, count(*)
+From movies
+GROUP BY ALL
+----
+
+.Output
+[options="header"]
+|===
+| decade | count_star()
+| 2000   | 1
+| 2010   | 4
+| 1990   | 1
+|===
+
+Tada!
