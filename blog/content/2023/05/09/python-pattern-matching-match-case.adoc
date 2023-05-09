@@ -39,6 +39,7 @@ Let's run that function with some different arguments:
 ----
 parse_if(["foo", *(range(0,10))])
 parse_if(["foo", 1])
+parse_if(["foo", 5])
 parse_if(["foo"])
 parse_if(["bar"])
 ----
