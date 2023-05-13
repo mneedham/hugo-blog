@@ -1,0 +1,62 @@
++++
+draft = false
+date="2023-05-13 02:44:37"
+title="Python: Naming slices"
+tag=['python', 'til']
+category=['TIL']
+description="In this post we'll learn about Python's named slices and show how to use that to extract parts of a vehicle identification number."
+image="uploads/2023/05/naming-slices-banner.png"
++++
+
+:icons: font
+
+Another gem from https://www.oreilly.com/library/view/fluent-python-2nd/9781492056348/[Fluent Python^] is that you can name slices. 
+How did I not know that?!
+
+Let's have a look how it works using an example of a https://www.autocheck.com/vehiclehistory/vin-basics[Vehicle Identification Number^], which has 17 characters that act as a unique identifier for a vehicle.
+Different parts of that string mean different things. 
+
+So given the following VIN:
+
+[source, python]
+----
+vin = "2B3HD46R02H210893"
+----
+
+We can extract components like this:
+
+[source, python]
+----
+print(f"""
+World manufacturer identifier: {vin[0:3]}
+Vehicle Descriptor: {vin[3:9]}
+Vehicle Identifier: {vin[9:17]}
+""".strip())
+----
+
+If we run this code, we'll see the following output:
+
+.Output
+[source, text]
+----
+World manufacturer identifier: 2B3
+Vehicle Descriptor: HD46R0
+Vehicle Identifiern: 2H210893
+----
+
+Let's say we want to reuse those slices elsewhere in our code. 
+Maybe when we write the code we can remember what each of the slice indexes mean, but for future us it would help to name them, which we can do using the https://docs.python.org/3.11/library/functions.html#slice[`slice`^] function.
+Our code would then look like this:
+
+[source, python]
+----
+world_manufacturer_id = slice(0,3)
+vehicle_descriptor = slice(3,9)
+vehicle_identifier = slice(9,17)
+
+print(f"""
+World manufacturer identifier: {vin[world_manufacturer_id]}
+Vehicle Descriptor: {vin[vehicle_descriptor]}
+Vehicle Identifier: {vin[vehicle_identifier]}
+""".strip())
+----
