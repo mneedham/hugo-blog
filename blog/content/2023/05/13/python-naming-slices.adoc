@@ -46,6 +46,7 @@ Vehicle Identifiern: 2H210893
 
 Let's say we want to reuse those slices elsewhere in our code. 
 Maybe when we write the code we can remember what each of the slice indexes mean, but for future us it would help to name them, which we can do using the https://docs.python.org/3.11/library/functions.html#slice[`slice`^] function.
+
 Our code would then look like this:
 
 [source, python]
