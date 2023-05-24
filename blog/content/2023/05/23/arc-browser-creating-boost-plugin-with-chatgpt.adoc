@@ -1,15 +1,17 @@
 +++
-draft = true
-date="2023-04-02 02:44:37"
+draft = false
+date="2023-05-23 02:44:37"
 title="Arc Browser: Building a plugin (Boost) with help from ChatGPT"
-tag=['chatgpt', 'arc']
+tag=['chatgpt', 'arc', 'til']
 category=['ChatGPT']
 description="In this post I'll explain how I built a plugin for the Arc Browser with help from ChatGPT."
-image="uploads/2023/03/duckdb-streamlit-banner.png"
+image="uploads/2023/05/arc-banner.png"
 +++
 
-I've been trying out the https://arc.net/[Arc Browser^] over the last week or so and I wanted to port over a Chrome bookmark that I use to capture the podcasts that I've listened to on https://player.fm/[Player.FM^].
-In this blog post I'll show how ChatGPT helped me convert the bookmark code to an Arc Boost, which is effectively a lightweight plugin.
+I've been using the https://arc.net/[Arc Browser^] for a couple of months now and one of my favourite things is the simplicity of the plugin (or as they call it, 'Boost') functionality.
+
+I wanted to port over a Chrome bookmark that I use to capture the podcasts that I've listened to on https://player.fm/[Player.FM^].
+In this blog post I'll show how ChatGPT helped me convert the bookmark code to an Arc Boost.
 
 I started with this code that finds all the listened to podcasts and then writes them out to the console:
 
@@ -44,8 +46,7 @@ An example of the output is shown below:
 ----
 
 I was relying on jQuery to do find the parts of the page, but that isn't available in an Arc Boost, so I need to use the built in APIs instead.
-
-I started by changing:
+ChatGPT guided me towards the `document.querySelectorAll` function and converted this:
 
 [source, javascript]
 ----
@@ -59,11 +60,29 @@ to:
 document.querySelectorAll("article[data-played-at]")
 ----
 
-But then I wasn't sure how to call the `map` function on that output, so I asked ChatGPT.
+But then I wasn't sure how to call the `map` function on that output, so I asked ChatGPT again.
 
 image::{{<siteurl>}}/uploads/2023/04/chatgpt-opener.png[ChatGPT - Iterate over querySelectorAll]
 
-I updated my code to do that, but then I needed 
+So I did that and then needed to work out how to extract attributes from each element.
+The function calls that ChatGPT told me to make didn't exist, so I had to fall back on the documentation (I know!). 
+I eventually ended up with the following code to extract the rows:
+
+[source, javascript]
+----
+let rows = Array.from(document.querySelectorAll("article[data-played-at]")).map(function(ele) {        
+    let row = "* Listened to " + ele.attributes['data-title'].value + 
+    " by " + ele.querySelector("div.title").textContent + 
+    " - https://player.fm/series/" + ele.attributes['data-series-id'].value + 
+    "/" + ele.attributes['data-slug'].value;
+
+    return decodeHtml(row);    
+});
+----
+
+Next I asked it to add a button to the page that I could click on to copy the listened episodes to the clipboard. 
+It first suggested using `navigator.clipboard`, but that wasn't working for me at the time, so it suggested I used `document.execCommand('copy')` instead. 
+The full code for the plugin looks like this:
 
 [source, javascript]
 ----
@@ -122,3 +141,7 @@ buttonDiv.appendChild(button);
 const preamble = document.querySelector(".preamble");
 preamble.insertAdjacentElement("beforebegin", buttonDiv);
 ----
+
+You can see the Boost in action below:
+
+image::{{<siteurl>}}/uploads/2023/05/arc-plugin.gif[Animation of an Arc Boost copying listened episodes from Player.FM to the clipboard]

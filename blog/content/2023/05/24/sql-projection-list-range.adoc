@@ -1,0 +1,30 @@
++++
+draft = true
+date="2023-05-16 02:44:37"
+title="GitHub: Get a CSV containing my pull requests (PRs)"
+tag=['github', 'til']
+category=['TIL']
+description="In this post we'll learn how to get a list of our latest PRs using the GitHub CLI tool."
+image="uploads/2023/05/ffmpeg-banner.png"
++++
+
+:icons: font
+
+
+Create a range of numbers?
+
+You can do it in DuckDB using the generate_series function.
+
+[source, sql]
+----
+select generate_series(0,1) 
+from matches 
+LIMIT 1;
+----
+
+[source, sql]
+----
+select 
+from generate_series(0,1) 
+LIMIT 1;
+----

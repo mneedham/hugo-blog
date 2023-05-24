@@ -1,0 +1,79 @@
++++
+draft = false
+date="2023-05-17 02:44:37"
+title="Venkat - An inline code snippet execution extension for VS Code (Made in GPT-4)"
+tag=['venkat', 'vscode']
+category=['VSCode']
+description="In this post we introduce venkat, a VS Code extension that lets you execute inline code snippets."
+image="uploads/2023/05/venkat-banner.png"
++++
+
+(Co-authored with https://data-folks.masto.host/@mesirii@chaos.social[Michael Hunger^])
+
+https://twitter.com/venkat_s[Venkat Subramaniam^] is a legendary speaker on the tech conference circuit whose https://www.youtube.com/results?search_query=venkat+subramaniam[presentations^] are famous for executing arbitrary code snippets and showing the results as a tooltip directly in the editor.
+This makes it really great for videos or talks as you don't need a second output terminal to run your code and you can just continue explaining what you're doing.
+The results go away afterwards, so you don't need to worry about that.
+
+image::{{<siteurl>}}/uploads/2023/05/venkat-textmate.png[A screenshot from a talk by Venkat Subramaniam showing code snippets]
+
+He even published a https://www.agilelearner.com/presentation/5[dedicated free course^] back in 2013 explaining how he does it using the TextMate editor.
+
+I wanted to use a similar effect in my https://youtube.com/@learndatawithmark[LearnDataWithMark videos^], so my friend Michael Hunger and I were unsuccessfully looking for a VS Code extension that does it.
+
+So what else could we do at 10 pm than *fire up ChatGPT4* to help us build a VS Code extension.
+Keep in mind that we've never built a VS Code extension before, nore are we that good at Typescript.
+We were following in the footsteps of Simon Willisons, https://simonwillison.net/2023/Mar/27/ai-enhanced-development/[who pointed out^] that with the assistance of GPT4, he's now able to take on and complete ambitious projects in a few hours instead of a few days.
+
+GPT-4 did an excellent job, guiding us through the initial setup of all the `package.json` and `launch.json` files and putting together a minimal example for executing selected Python code.
+Initially, just passing the code directly to the interpreter and capturing the result.
+
+[source,typescript]
+----
+import * as vscode from 'vscode';
+import { exec } from 'child_process';
+
+export function activate(context: vscode.ExtensionContext) {
+    let disposable = vscode.commands.registerCommand('extension.executePythonAndComment', async () => {
+        let editor = vscode.window.activeTextEditor;
+        if (editor) {
+            let document = editor.document;
+            let selection = editor.selection;
+            let code = document.getText(selection);
+
+            exec(`python -c "${code}"`, (error, stdout, stderr) => {
+                if (error || stderr) {
+                    console.log(`error: ${error ? error.message : stderr}`);
+                    return;
+                }
+                editor.edit(editBuilder => {
+                    let position = new vscode.Position(selection.end.line + 1, 0);
+                    editBuilder.insert(position, `# Result: ${stdout}`);
+                });
+            });
+        }
+    });
+    context.subscriptions.push(disposable);
+}
+----
+
+We evolved it to run the whole file up to the end of the current line, which made it necessary to write out the content to a file and execute that file.
+This design choice fortuitously opened up the opportunity to support different languages and not have to fiddle around with escaping symbols to avoid shell expansion.
+
+Within two hours we had a working prototype and were happy.
+
+GPT also provided us with instructions to package and publish the extension.
+Somewhat surprisingly, it also did a better job of explaining the registration and publication process than the official documentation.
+
+The most tricky part was selecting an icon, but we think we came up with a good one in the end!
+
+image::{{<siteurl>}}/uploads/2023/05/venkat-marketplace.png[link=https://marketplace.visualstudio.com/items?itemName=MarkNeedham.venkat,alt="Emoji with mustache and glasses, Install Venkat from the VS Code marketplace",target="_blank"]
+
+You can install https://marketplace.visualstudio.com/items?itemName=MarkNeedham.venkat[Venkat from the VS Code Marketplace^] and an animation showing how it works in Python is shown below.
+
+image::{{<siteurl>}}/uploads/2023/05/venkat-demo.gif[]
+
+This was fun, so we continued to add a few more features - GPT-4 helped with all the steps because what do we know!
+
+We think it's now in a state where it can be tried out by other people, so we'd love for you to give it a try.
+And if you have any feature requests please let us know, GPT-4 is patiently waiting for some more work to do!
+
