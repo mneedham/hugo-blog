@@ -1,0 +1,95 @@
++++
+draft = false
+date="2023-05-25 02:44:37"
+title="DuckDB: Ingest a bunch of CSV files from GitHub"
+tag=['duckdb', 'til']
+category=['TIL']
+description="In this post we'll learn how to ingest a collection of CSV files from a GitHub repository."
+image="uploads/2023/05/ingest-banner.png"
++++
+
+:icons: font
+
+Jeff Sackmann's https://github.com/jeffsackmann/tennis_atp/[tennis_atp^] repository is one of the best collections of tennis data and I wanted to ingest the ATP Tour singles matches using the DuckDB CLI.
+In this blog post we'll learn how to do that.
+
+Usually when I'm ingesting data into DuckDB I'll specify the files that I want to ingest using the wildcard syntax.
+In this case that would mean running a query like this:
+
+[source, sql]
+----
+CREATE OR REPLACE TABLE matches AS 
+SELECT * 
+FROM "https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_*.csv"
+----
+
+But we can't use that technique for files on GitHub because it's not a file system. 
+If we run the query above, we'll get the following error message:
+
+[source, sql]
+----
+Error: Invalid Error: HTTP Error: Unable to connect to URL "https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_*.csv": 404 (Not Found)
+----
+
+So, instead, we need to construct a list of URLs, which we can do using a combination of the `generate_series` function that I https://www.markhneedham.com/blog/2023/05/24/duckdb-sql-create-list-numbers/[covered in my last blog post^] and the `list_transform` function.
+
+We'll use `generate_series` to create a list of the years, like this:
+ 
+[source, sql]
+----
+SELECT range(1968, 1970)
+----
+
+[options="header"]
+.Output
+|===
+|range(1968, 1970)
+|[1968, 1969]
+|===
+
+And then we can use `list_transform` to map or project over each value to construct a URL:
+
+[source, sql]
+----
+SELECT list_transform(
+  range(1968, 1970),
+  y ->  'https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_' || y || '.csv'
+) AS files; 
+----
+
+[options="header"]
+.Output
+|===
+|files
+|[https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_1968.csv, https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_1969.csv]
+|===
+
+And then finally we can bring it all together to ingest the files from 1968 until 2023:
+
+[source, sql]
+----
+CREATE OR REPLACE TABLE matches AS 
+SELECT * FROM read_csv_auto(
+    list_transform(
+      range(1968, 2023),
+      y ->  'https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_' || y || '.csv'
+    ), 
+    types={'winner_seed': 'VARCHAR', 'loser_seed': 'VARCHAR'}
+);
+----
+
+It'll take a few seconds, but once it's done we can do an exploratory query to make sure everything was ingested:
+
+
+[source, sql]
+----
+SELECT count(*)
+FROM matches;
+----
+
+[options="header"]
+.Output
+|===
+|count(*)
+|188191
+|===

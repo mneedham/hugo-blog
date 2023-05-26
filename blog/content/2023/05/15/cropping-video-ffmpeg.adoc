@@ -13,6 +13,8 @@ image="uploads/2023/05/ffmpeg-banner.png"
 I needed to crop a video that I used as part of a video on my YouTube channel, https://www.youtube.com/shorts/7950UzRDZBE[Learn Data With Mark^], and Camtasia kept rendering a black screen. 
 So I had to call for FFMPEG!
 
+== Cropping the bottom of a video
+
 My initial video was 2160 x 3840 but I didn't need the bottom 1920 pixels because I'm using that part of the screen for a video of me.
 If I was just rendering that video exactly as it is I wouldn't have bothered cropping it, but because I wanted to zoom into different sections I needed to crop out the bottom bit.
 
@@ -45,3 +47,24 @@ ffmpeg -i ConfigSegThresholdDemo.mp4 \
 ----
 
 I think it worked out pretty well, but https://youtube.com/shorts/7950UzRDZBE?feature=share[watch the video^] and let me know if you agree!
+
+== Cropping the top and bottom of a video
+
+For another video that started off 2160 x 3840, I wanted to take off the top 620 pixels and the bottom 370 pixels. 
+I did it by running the following command:
+
+[source, bash]
+----
+ffmpeg -i PivotDemo.mp4 \
+  -filter_complex "[0:v]crop=2160:2850:0:620[cropped]" \
+  -map "[cropped]" \
+  -qscale 0 \
+  PivotDemo-Cropped.mp4
+----
+
+Let's break down the crop parameters, `crop=2160:2850:0:620`
+
+* `2160` - That's the width of region that I want to crop (i.e. keep the width the same)
+* `2850` - The height of the region that I want to crop (`3840 - 620 (top crop) - 370 (bottom crop)`)
+* `0`- The `x` pixel from where the cropping should begin (i.e. 0 pixels from the left)
+* `620` - The `y` pixel from where the cropping should begin (i.e. 620 pixels from the top)
