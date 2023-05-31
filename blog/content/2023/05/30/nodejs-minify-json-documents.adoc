@@ -1,0 +1,133 @@
++++
+draft = false
+date="2023-05-30 02:44:37"
+title="Node.js: Minifying JSON documents"
+tag=['til', 'nodejs']
+category=['nodejs']
+description="In this post we'll learn how to minify JSON documents so that they don't take up so much space."
+image="uploads/2023/05/nodejs-banner.png"
++++
+
+I often need to minimise the schema and table config files that you use to configure Apache Pinot so that they don't take up so much space.
+After doing this manually for ages, I came across the https://www.npmjs.com/package/json-stringify-pretty-compact[json-stringify-pretty-compact^] library, which speeds up the process.
+
+We can install it like this:
+
+[source, bash]
+----
+npm install json-stringify-pretty-compact
+----
+
+And then I have the following script:
+
+.minify.mjs
+[source, javascript]
+----
+import pretty from 'json-stringify-pretty-compact';
+
+let inputData = '';
+
+process.stdin.on('data', (chunk) => {
+    inputData += chunk;
+});
+
+process.stdin.on('end', () => {
+    const value = JSON.parse(inputData);
+    console.log(pretty(value));
+});
+
+process.stdin.resume();
+----
+
+Imagine we then have the following file:
+
+.config/schema.json
+[source, json]
+----
+{
+    "schemaName": "parkrun",
+    "primaryKeyColumns": ["competitorId"],
+    "dimensionFieldSpecs": [
+      {
+        "name": "runId",
+        "dataType": "STRING"
+      },  
+      {
+        "name": "eventId",
+        "dataType": "STRING"
+      },     
+      {
+        "name": "competitorId",
+        "dataType": "LONG"
+      },      
+      {
+        "name": "rawTime",
+        "dataType": "INT"
+      },
+
+      {
+        "name": "lat",
+        "dataType": "DOUBLE"
+      },
+      {
+        "name": "lon",
+        "dataType": "DOUBLE"
+      },
+      {
+        "name": "location",
+        "dataType": "BYTES"
+      },
+      {
+        "name": "course",
+        "dataType": "STRING"
+      }
+    ],
+    "metricFieldSpecs": [
+      {
+        "name": "distance",
+        "dataType": "DOUBLE"
+      }
+    ],
+    "dateTimeFieldSpecs": [{
+      "name": "timestamp",
+      "dataType": "TIMESTAMP",
+      "format" : "1:MILLISECONDS:EPOCH",
+      "granularity": "1:MILLISECONDS"
+    }]
+  }
+----
+
+The field specs take up so much unnecessary space, so let's get our script to sort that out:
+
+[source, bash]
+----
+cat config/schema.json | node minify.mjs
+----
+
+.Output
+[source, json]
+----
+{
+  "schemaName": "parkrun",
+  "primaryKeyColumns": ["competitorId"],
+  "dimensionFieldSpecs": [
+    {"name": "runId", "dataType": "STRING"},
+    {"name": "eventId", "dataType": "STRING"},
+    {"name": "competitorId", "dataType": "LONG"},
+    {"name": "rawTime", "dataType": "INT"},
+    {"name": "lat", "dataType": "DOUBLE"},
+    {"name": "lon", "dataType": "DOUBLE"},
+    {"name": "location", "dataType": "BYTES"},
+    {"name": "course", "dataType": "STRING"}
+  ],
+  "metricFieldSpecs": [{"name": "distance", "dataType": "DOUBLE"}],
+  "dateTimeFieldSpecs": [
+    {
+      "name": "timestamp",
+      "dataType": "TIMESTAMP",
+      "format": "1:MILLISECONDS:EPOCH",
+      "granularity": "1:MILLISECONDS"
+    }
+  ]
+}
+----
