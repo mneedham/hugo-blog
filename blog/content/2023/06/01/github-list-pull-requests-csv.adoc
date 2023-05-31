@@ -1,6 +1,6 @@
 +++
 draft = true
-date="2023-05-16 02:44:37"
+date="2023-06-01 02:44:37"
 title="GitHub: Get a CSV containing my pull requests (PRs)"
 tag=['github', 'til']
 category=['TIL']
