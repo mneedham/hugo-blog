@@ -1,0 +1,147 @@
++++
+draft = false
+date="2023-06-02 02:44:37"
+title="DuckDB: Generate dummy data with user defined functions (UDFs)"
+tag=['duckdb', 'til']
+category=['DuckDB']
+description="In this post we'll learn how to create dummy data with DuckDB user defined functions (UDFs)."
+image="uploads/2023/02/dbz-banner.png"
++++
+
+In the 0.8 release of DuckDB, they added functionality that lets you add your own functions when using the Python package
+I wanted to see if I could use it to generate dummy data so that's what we're going to do in this blog post.
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/EVLDg-RNjoc" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+++++
+====
+
+We're going to do this using DuckDB's Python package. 
+We'll install that, along with the Faker library, by running the following:
+
+[source, bash]
+----
+pip install duckdb faker
+----
+
+I then created a function to generate a fake person:
+
+[source, python]
+----
+import faker
+fake = faker.Faker()
+
+def generate_person():
+    person = {
+        'name': fake.name(),
+        'city': fake.city(),
+        'state': fake.state(),
+        'zip_code': fake.zipcode(),
+        'country': fake.country(),
+        'email': fake.email(),
+        'job': fake.job(),
+        'company': fake.company(),
+        'ssn': fake.ssn(),
+        'birthdate': fake.date_of_birth(),
+        'phone_number': fake.phone_number()
+    }
+    return person
+----
+
+Now we need to create a DuckDB database and register the function, which we'll do with the following code:
+
+[source, python]
+----
+import duckdb
+from duckdb.typing import *
+
+con.create_function(
+    'generate_person',
+    generate_person,
+    [],
+    duckdb.struct_type({
+        'name': 'VARCHAR',
+        'city': 'VARCHAR',
+        'state': 'VARCHAR',
+        'zip_code': 'VARCHAR',
+        'country': 'VARCHAR',
+        'email': 'VARCHAR',
+        'job': 'VARCHAR',
+        'company': 'VARCHAR',
+        'ssn': 'VARCHAR',
+        'birthdate': 'DATE',
+        'phone_number': 'VARCHAR'
+    })
+)
+----
+
+A dictionary in Python maps to the `duckdb.struct_type` type in DuckDB.
+We can then pass in a map of the fields and their data types. 
+
+We can then use that function in a query like this:
+
+[source, python]
+----
+con.sql("""
+CREATE OR REPLACE TABLE people AS
+SELECT person.* FROM (
+    SELECT generate_person(random()) AS person
+    FROM generate_series(1,10000)
+)
+""")
+----
+
+When I ran this script it was returning the same person repeatedly, which makes me think the function was being cached.
+To work around that, I add a `seed` parameter to the function, resulting in the following code:
+
+[source, python]
+----
+def generate_person(seed):
+    person = {
+        'name': fake.name(),
+        'city': fake.city(),
+        'state': fake.state(),
+        'zip_code': fake.zipcode(),
+        'country': fake.country(),
+        'email': fake.email(),
+        'job': fake.job(),
+        'company': fake.company(),
+        'ssn': fake.ssn(),
+        'birthdate': fake.date_of_birth(),
+        'phone_number': fake.phone_number()
+    }
+    return person
+
+con.create_function(
+    'generate_person',
+    generate_person,
+    [DOUBLE],
+    duckdb.struct_type({
+        'name': 'VARCHAR',
+        'city': 'VARCHAR',
+        'state': 'VARCHAR',
+        'zip_code': 'VARCHAR',
+        'country': 'VARCHAR',
+        'email': 'VARCHAR',
+        'job': 'VARCHAR',
+        'company': 'VARCHAR',
+        'ssn': 'VARCHAR',
+        'birthdate': 'DATE',
+        'phone_number': 'VARCHAR'
+    })
+)
+
+con.sql("""
+CREATE OR REPLACE TABLE people AS
+SELECT person.* FROM (
+    SELECT generate_person(random()) AS person
+    FROM generate_series(1,10000)
+)
+""")
+----
+
+And now it works!
