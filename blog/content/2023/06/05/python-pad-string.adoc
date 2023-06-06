@@ -1,0 +1,100 @@
++++
+draft = false
+date="2023-06-05 02:44:37"
+title="Python: Padding a string"
+tag=['til', 'python']
+category=['TIL']
+description="In this post we'll learn how to pad the left and right of a string in Python."
+image="uploads/2023/06/python-padding-banner.png"
++++
+
+I've been writing some scripts to parse data from Apache Pinot's HTTP API and I wanted to format the values stored in a map to make them more readable.
+In this blog post, we'll look at some ways that I did that.
+
+I started with a map that looked a bit like this:
+
+[source, python]
+----
+segments = {
+    "events3__4__1__20230605T1335Z": "CONSUMED",
+    "events3__4__20__20230605T1335Z": "CONSUMING"
+}
+----
+
+And then I iterated over and printed each item like this:
+
+[source, python]
+----
+for segment_id, status in segments.items():
+  print(segment_id, status)
+----
+
+.Output
+[source, text]
+----
+events3__4__1__20230605T1335Z CONSUMED
+events3__4__20__20230605T1335Z CONSUMING
+----
+
+I wanted to have the `segment_id` be a fixed width so that the statuses would be aligned.
+One way that we can do this is with an f-string.
+If we want to add padding to the right with a fixed width of 35 columns, it'd be like this:
+
+[source, python]
+----
+for segment_id, status in segments.items():
+  print(f"{segment_id: <35}", status)
+----
+
+.Output
+[source, text]
+----
+events3__4__1__20230605T1335Z       CONSUMED
+events3__4__20__20230605T1335Z      CONSUMING
+----
+
+And if we want to add padding to the left:
+
+[source, python]
+----
+for segment_id, status in segments.items():
+  print(f"{segment_id: >35}", status)
+----
+
+.Output
+[source, text]
+----
+      events3__4__1__20230605T1335Z CONSUMED
+     events3__4__20__20230605T1335Z CONSUMING
+----
+
+That works well if we want to fill with spaces, but what if we want to specify a filler character? 
+In that case, we can use `ljust` and `rjust`:
+
+[source, python]
+----
+for segment_id, status in segments.items():
+  print(segment_id.ljust(35, "."), status)
+----
+
+.Output
+[source, text]
+----
+events3__4__1__20230605T1335Z...... CONSUMED
+events3__4__20__20230605T1335Z..... CONSUMING
+----
+
+And padding from the left:
+
+[source, python]
+----
+for segment_id, status in segments.items():
+  print(segment_id.rjust(35, "-"), status)
+----
+
+.Output
+[source, text]
+----
+------events3__4__1__20230605T1335Z CONSUMED
+-----events3__4__20__20230605T1335Z CONSUMING
+----
