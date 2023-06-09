@@ -1,12 +1,51 @@
 +++
-draft = true
-date="2023-06-07 02:44:37"
-title="DuckDB/SQL: Pivot - 0 if null"
-tag=['duckdb', 'sql', 'til']
+draft = false
+date="2023-06-08 02:44:37"
+title="Creating LinkedIn Carousel/Slides"
+tag=['linkedin', 'til']
 category=['TIL']
-description="In this post we'll learn how to replace null values when using the PIVOT function in DuckDB."
-image="uploads/2023/06/duckdb-pivot-nulls.png"
+description="In this post we'll learn how to create a LinkedIn carousel using Google Slides and canva.com"
+image="uploads/2023/06/linkedin-banner.png"
 +++
 
+If you've been using LinkedIn recently, you've likely seen those posts where people post slides in a kind of carousel that you can horizontally scroll.
+I wanted to create one to explain Apache Pinot's Upserts feature, but I wasn't sure how to create one.
 
-https://www.linkedin.com/feed/update/urn:li:activity:7072557848836100097/
+Since it's 2023, I started by asking ChatGPT:
+
+.ChatGPT doesn't know about LinkedIn Carousel
+image::{{<siteurl>}}/uploads/2023/06/chatgpt-carousel.png[]
+
+Unfortunately ChatGPT doesn't know how to do it, but https://www.linkedin.com/in/harrison-avisto-42996077/[Harrison Avisto^] does and was happy to teach me.
+
+The basic idea is that you need to upload a PDF when you're creating your post, as showing in the animation below:
+
+.Uploading a PDF
+image::{{<siteurl>}}/uploads/2023/06/linkedin-post.gif[]
+
+So the next question is, how do you go about creating those PDFs?
+I'm sure there are lots of ways to do this, but I've come across two that I think are pretty accessible.
+
+The first is to create a 'LinkedIn Carousel' using https://www.canva.com/[canva.com] and you can do this on a free account.
+
+.A LinkedIn Carousel on canva.com
+image::{{<siteurl>}}/uploads/2023/06/carousel-canvas.png[]
+
+You can then create a bunch of images and then download as PDF, as shown below:
+
+.Download as PDF on canva.com
+image::{{<siteurl>}}/uploads/2023/06/canva-pdf.png[]
+
+If you don't want to use canva, you can do a similar thing with Google Slides.
+Create a new slides document as normal and then go to `File > Page Setup` and change the dimensions of the slide/canvas:
+
+.Google Slides Canvas size
+image::{{<siteurl>}}/uploads/2023/06/google-slides.png[]
+
+Again, create slides like normal and export as PDF when you're done.
+
+And here's the one I made:
+
+++++
+<iframe src="https://www.linkedin.com/embed/feed/update/urn:li:ugcPost:7072557847632306176" height="640" width="504" frameborder="0" allowfullscreen="" title="Embedded post"></iframe>
+++++
