@@ -1,0 +1,11 @@
++++
+draft = true
+date="2023-06-07 02:44:37"
+title="DuckDB/SQL: Pivot - 0 if null"
+tag=['duckdb', 'sql', 'til']
+category=['TIL']
+description="In this post we'll learn how to replace null values when using the PIVOT function in DuckDB."
+image="uploads/2023/06/duckdb-pivot-nulls.png"
++++
+
+convert -density 1000 light-logo-me.svg light-logo-me.png

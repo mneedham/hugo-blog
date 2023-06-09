@@ -1,21 +1,12 @@
 +++
 draft = true
-date="2023-06-01 02:44:37"
+date="2023-06-07 02:44:37"
 title="DuckDB/SQL: Pivot - 0 if null"
 tag=['duckdb', 'sql', 'til']
 category=['TIL']
 description="In this post we'll learn how to replace null values when using the PIVOT function in DuckDB."
-image="uploads/2023/05/ffmpeg-banner.png"
+image="uploads/2023/06/duckdb-pivot-nulls.png"
 +++
 
-:icons: font
 
-[source, sql]
-----
-PIVOT top10Players 
-ON surface USING SUM(matches) 
-GROUP BY winner_name;
-----
-
-
-sql pivot sum 0 if null
+https://www.linkedin.com/feed/update/urn:li:activity:7072557848836100097/

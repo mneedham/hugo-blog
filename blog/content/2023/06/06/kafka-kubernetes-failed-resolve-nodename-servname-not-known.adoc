@@ -1,0 +1,53 @@
++++
+draft = false
+date="2023-06-06 02:44:37"
+title="Kafka/Kubernetes: Failed to resolve: nodename nor servname provided, or not known"
+tag=['til', 'python']
+category=['TIL']
+description="In this post we'll learn how to work around a problem when trying to write from the host OS to Kafka running inside Kubernetes."
+image="uploads/2023/06/k8s-kafka-banner.png"
++++
+
+I've been trying out the https://docs.pinot.apache.org/basics/getting-started/kubernetes-quickstart[Running Pinot in Kubernetes^] tutorial and ran into a problem trying to write data to Kafka.
+In this blog we'll explore how I got around that problem.
+
+I'm using Helm with Kubernetes and started a Kafka service by running the following:
+
+[source, bash]
+----
+helm repo add kafka https://charts.bitnami.com/bitnami
+helm install -n pinot-quickstart kafka kafka/kafka --set replicas=1,zookeeper.image.tag=latest
+----
+
+I waited until the service had started and then ran the following command to port forward the Kafka service's port 9092 to port 9092 on my host OS:
+
+[source, bash]
+----
+kubectl port-forward service/kafka-headless 9092:9092 -n pinot-quickstart
+----
+
+I then ran a script that attempted to write some data into Kafka:
+
+[source, bash]
+----
+python datagen.py --sleep 0.0001 2>/dev/null |
+jq -cr --arg sep ø '[.uuid, tostring] | join($sep)' |
+kcat -P -b localhost:9092 -t events -Kø
+----
+
+This hung for a few seconds before throwing the following error:
+
+.Output
+[source, text]
+----
+%3|1685969550.862|FAIL|rdkafka#producer-1| [thrd:kafka-0.kafka-headless.pinot-quickstart.svc.cluster.local:9092/]: kafka-0.kafka-headless.pinot-quickstart.svc.cluster.local:9092/0: Failed to resolve 'kafka-0.kafka-headless.pinot-quickstart.svc.cluster.local:9092': nodename nor servname provided, or not known (after 5002ms in state CONNECT)
+----
+
+I'd assumed that all I needed to do was map the port, but it seems like it tries to resolve the hostname, which isn't known by the host OS.
+A workaround for this issue is to https://github.com/bitnami/charts/issues/1021[update your `/etc/hosts`^] file:
+
+```
+127.0.0.1 kafka-0.kafka-headless.pinot-quickstart.svc.cluster.local
+```
+
+If your Kafka has a different host name, be sure to change the second argument appropriately.

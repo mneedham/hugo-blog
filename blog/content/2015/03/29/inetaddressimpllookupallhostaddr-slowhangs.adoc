@@ -81,13 +81,22 @@ Now if we run the program we see this output instead:
 
 [source,text]
 ----
-
 teetotal-2/127.0.0.1
 5011
 ----
 
-It's still taking 5 seconds to resolve which is much longer than I'd expect. After break pointing through the code it seems like it's trying to do an IPv6 resolution rather than IPv4 so I added an +++<cite>+++/etc/hosts+++</cite>+++ entry for that too: ~~~text ::1 teetotal-2 ~~~
+It's still taking 5 seconds to resolve which is much longer than I'd expect. After break pointing through the code it seems like it's trying to do an IPv6 resolution rather than IPv4 so I added an +++<cite>+++/etc/hosts+++</cite>+++ entry for that too: 
 
-Now resolution is much quicker: ~~~text teetotal-2/127.0.0.1 6 ~~~
+[source,text]
+----
+::1 teetotal-2 
+----
+
+Now resolution is much quicker: 
+
+[source,text]
+----
+teetotal-2/127.0.0.1 6
+----
 
 Happy days!

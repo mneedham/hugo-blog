@@ -1,0 +1,143 @@
++++
+draft = false
+date="2023-06-07 02:44:37"
+title="DuckDB/SQL: Pivot - 0 if null"
+tag=['duckdb', 'sql', 'til']
+category=['TIL']
+description="In this post we'll learn how to replace null values when using the PIVOT function in DuckDB."
+image="uploads/2023/06/duckdb-pivot-nulls.png"
++++
+
+:icons: font
+
+I've been learning all about the https://duckdb.org/docs/sql/statements/pivot.html[PIVOT function^] that was recently added in DuckDB and I ran into an issue where lots of the cells in my post PIVOT table were null values.
+In this blog post, we'll learn how to replace those nulls with 0s (or indeed any other value).
+
+== Setup
+
+I'm working with https://github.com/JeffSackmann/tennis_atp[Jeff Sackmann's tennis dataset^], which I loaded by running the following query:
+
+[source, sql]
+----
+CREATE OR REPLACE TABLE matches AS 
+SELECT * FROM read_csv_auto(
+    list_transform(
+      range(1968, 2023),
+      y ->  'https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_' || y || '.csv'
+    ), 
+    types={'winner_seed': 'VARCHAR', 'loser_seed': 'VARCHAR'}
+);
+----
+
+I then created a view on top of that table that contains matches played by top 10 ranked players in the last few years:
+
+[source, sql]
+----
+CREATE OR REPLACE VIEW top10Players AS 
+FROM matches
+SELECT winner_name AS player,
+    winner_ioc AS country,
+    surface,
+    datepart('year', tourney_date) AS matchYear,
+    round,
+    count(*) AS matches
+WHERE matchYear >= 2020
+AND tourney_level IN ('G')
+AND winner_name IN (
+    from matches 
+    select distinct winner_name 
+    where winner_rank <=10 AND datepart('year', tourney_date) >= 2020
+)
+GROUP BY ALL
+ORDER BY count(*) DESC;
+----
+
+Now that we've got that setup, it's time to pivot.
+
+== Every day I'm PIVOTing
+
+I wrote the following query to show the number of matches won by players from a particular country across a bunch of years.
+
+[source, sql]
+----
+PIVOT top10Players 
+ON matchYear 
+USING SUM(matches) 
+GROUP BY country 
+ORDER BY "2022" DESC; 
+----
+
+.Output
+[options="header"]
+|====================================
+| country | 2020 | 2021 | 2022 | 2023
+| ESP     | 17   | 23   | 41   | 4   
+| ITA     | 11   | 23   | 24   | 3   
+| RUS     | 19   | 29   | 22   | 6   
+| CAN     | 8    | 21   | 15   | 5   
+| NOR     | 4    | 6    | 13   | 1   
+| SRB     | 16   | 27   | 11   | 7   
+| GRE     | 9    | 13   | 10   | 6   
+| GBR     | 2    | 6    | 10   | 2   
+| USA     | 6    | 6    | 8    | 1   
+| GER     | 14   | 17   | 8    | 1   
+| ARG     | 8    | 11   | 7    | 1   
+| BEL     | 5    |      | 6    |     
+| DEN     |      |      | 6    | 3   
+| POL     | 2    | 6    | 5    | 3   
+| FRA     | 3    | 4    | 4    |     
+| AUT     | 17   | 3    |      |     
+| SUI     | 5    | 7    |      |     
+|====================================
+
+You can see that towards the end of the table we have empty cells.
+This is because players from those countries didn't win any matches in that time period.
+
+We'd usually replace null values using the `coalesce` function, which is exactly what we're going to do here.
+But what I really like about DuckDB is that it treats the whole PIVOT query as if it was any other sub query or Common Table Expression.
+i.e. we can include it in a `FROM` clause and then operate on the resulting columns.
+
+To make this even cleaner, I'm going to use the `FROM...SELECT` and `SELECT * REPLACE` clauses, described in the https://duckdb.org/2022/05/04/friendlier-sql.html[Friendlier SQL with DuckDB^] blog post.
+The query is shown below:
+
+[source, sql]
+----
+FROM (
+  PIVOT top10Players 
+  ON matchYear 
+  USING SUM(matches) 
+  GROUP BY country 
+  ORDER BY "2022" DESC
+)
+SELECT * REPLACE(
+  coalesce("2020", 0) AS "2020", 
+  coalesce("2021", 0) AS "2021",
+  coalesce("2022", 0) AS "2022",
+  coalesce("2023", 0) AS "2023"
+); 
+----
+
+.Output
+[options="header"]
+|====================================
+| country | 2020 | 2021 | 2022 | 2023
+| ESP     | 17   | 23   | 41   | 4   
+| ITA     | 11   | 23   | 24   | 3   
+| RUS     | 19   | 29   | 22   | 6   
+| CAN     | 8    | 21   | 15   | 5   
+| NOR     | 4    | 6    | 13   | 1   
+| SRB     | 16   | 27   | 11   | 7   
+| GRE     | 9    | 13   | 10   | 6   
+| GBR     | 2    | 6    | 10   | 2   
+| USA     | 6    | 6    | 8    | 1   
+| GER     | 14   | 17   | 8    | 1   
+| ARG     | 8    | 11   | 7    | 1   
+| BEL     | 5    | 0    | 6    | 0   
+| DEN     | 0    | 0    | 6    | 3   
+| POL     | 2    | 6    | 5    | 3   
+| FRA     | 3    | 4    | 4    | 0   
+| AUT     | 17   | 3    | 0    | 0   
+| SUI     | 5    | 7    | 0    | 0   
+|====================================
+
+Our table is now filled with 0s instead of nulls, you love to see it!

@@ -1,0 +1,110 @@
++++
+draft = false
+date="2023-06-06 02:44:37"
+title="Python: Working with tuples in lambda expressions"
+tag=['python', 'til']
+category=['TIL', 'python']
+description="In this post we'll learn how to work with tuples inside Python lambda expressions."
+image="uploads/2023/06/python-lambdas-banner.png"
++++
+
+I'm still playing around with data returned by Apache Pinot's HTTP API and I wanted to sort a dictionary of segment names by partition id and index. 
+In this blog post we're going to look into how to do that. 
+
+We'll start with the following dictionary:
+
+[source, python]
+----
+segments = {
+    "events3__4__1__20230605T1335Z": "CONSUMED",
+    "events3__4__13__20230605T1335Z": "CONSUMED",
+    "events3__4__20__20230605T1335Z": "CONSUMING"
+}
+----
+
+As I mentioned above, I want to sort the dictionary's items by partition id and index, which are embedded inside the key name.
+In the following key:
+
+[source, text]
+----
+events3__4__13__20230605T1335Z
+----
+
+The partition id is `4` and the index is `13`.
+To sort by these values, we need to split on `__` and then grab the 1st and 2nd indexes of the corresponding list, before calling the `int` function to have those values treated as numbers rather than strings.
+The code looks like this:
+
+[source, python]
+----
+sorted_segment_ids = sorted(
+    segments.items(), 
+    key=lambda item: (
+        int(item[0].split("__")[1]),
+        int(item[0].split("__")[2])
+    )
+)
+for segment_id, server_names in sorted_segment_ids: 
+    print(f'{segment_id: <35}', server_names)
+----
+
+.Output
+[source, text]
+----
+events3__4__1__20230605T1335Z       CONSUMED
+events3__4__13__20230605T1335Z      CONSUMED
+events3__4__20__20230605T1335Z      CONSUMING
+----
+
+That works, but we have some repetition in the code and it's not particularly readable.
+
+It would be slightly easier if we could destructure the `item` tuple, but you can't do that in lambdas in Python 3.
+Instead, we can use an assignment expression, which assigns a value to a variable name and also returns that value.
+The updated code looks like this:
+
+[source, python]
+----
+sorted_segment_ids = sorted(
+    segments.items(), 
+    key=lambda item: ((
+        seg_id := item[0],
+        seg_parts := seg_id.split("__"),
+        partition := int(seg_parts[1]),
+        index := int(seg_parts[2])        
+    )[2:])
+)
+for segment_id, server_names in sorted_segment_ids: 
+    print(f'{segment_id: <35}', server_names)
+----
+
+Our lambda function returns a 4 value tuple, but we don't need the first two, so we filter those out with the `[2:]` slice operator.
+We could also convert the `partition` and `index` expressions into one list comprehension, like this:
+
+[source, python]
+----
+sorted_segment_ids = sorted(
+    segments.items(), 
+    key=lambda item: ((
+        seg_id := item[0],
+        seg_parts := seg_id.split("__"),
+        [int(val) for val in seg_parts[1:3]]
+    )[2:])
+)
+for segment_id, server_names in sorted_segment_ids: 
+    print(f'{segment_id: <35}', server_names)
+----
+
+It's still kinda verbose though, although I think it is easier to understand what's going on.
+I still don't like having to use the slice operator though, so perhaps I should just bite the bullet and use a function instead!
+That would look like this:
+
+[source, python]
+----
+def sort_fn(item):
+    seg_id, *_ = item
+    seg_parts = seg_id.split("__"),
+    return [int(val) for val in seg_parts[1:3]]
+
+sorted_segment_ids = sorted(segments.items(), key=sort_fn)
+for segment_id, server_names in sorted_segment_ids:
+    print(f'{segment_id: <35}', server_names)
+----
