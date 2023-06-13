@@ -1,0 +1,201 @@
++++
+draft = false
+date="2023-06-13 02:44:37"
+title="DuckDB/SQL: Transpose columns to rows with UNPIVOT"
+tag=['duckdb', 'til']
+category=['TIL']
+description="In this post we'll learn how to transpose columns to rows using DuckDB's UNPIVOT function."
+image="uploads/2023/06/duckdb-transpose-banner.png"
++++
+
+:icons: font
+
+I've been playing around with the https://www.kaggle.com/datasets/hugomathien/soccer[Kaggle European Soccer dataset^], which contains, amongst other things, players and their stats in the FIFA video game.
+I wanted to compare the stats of Ronaldo and Messi, which is where this story begins.
+
+We will of course be using DuckDB and since the dataset is a SQLite database, we'll need to install the SQLite extension"
+
+[source, sql]
+----
+INSTALL sqlite;
+LOAD sqlite;
+----
+
+Next, let's create tables for `Player` and `Player_Attribute`:
+
+[source, sql]
+----
+CREATE OR REPLACE TABLE Player (
+    id BIGINT,
+    player_api_id BIGINT,
+    player_name VARCHAR,
+    player_fifa_api_id BIGINT,
+    birthday VARCHAR,
+    height float,
+    weight BIGINT
+);
+INSERT INTO Player
+FROM sqlite_scan('database.sqlite', 'Player');
+
+CREATE OR REPLACE TABLE Player_Attributes AS
+FROM sqlite_scan('database.sqlite', 'Player_Attributes');
+----
+
+I want to join these two tables together and get the latest stat for each player, which we can do by creating the following view that uses a window function:
+
+[source, sql]
+----
+CREATE OR REPLACE VIEW PlayerStats AS 
+FROM Player
+JOIN (
+    select *, 
+           ROW_NUMBER() 
+           OVER (partition by player_api_id ORDER BY date DESC) rn
+    FROM Player_Attributes
+) AS attrs ON attrs.player_api_id = Player.player_api_id AND rn = 1
+SELECT * EXCLUDE(rn, id, player_api_id, player_fifa_api_id);
+----
+
+If we want to find the stats for one player, we can write a query like this:
+
+[source, sql]
+----
+FROM PlayerStats WHERE player_name = 'Cristiano Ronaldo';
+----
+
+.Output
+[options="header"]
+|===
+|Player Name |Birthday |Height |Weight |... |GK Handling |GK Kicking |GK Positioning |GK Reflexes
+|Cristiano Ronaldo |1985-02-05 00:00:00 |185.42 |176 |... |11 |15 |14 |11
+|===
+
+We can see from the `...` that some of the columns have been truncated. 
+This table has only 9 columns, but there are more than 30 different stats for each player.
+We'd need a very wide monitor to be able to see all of those in one go.
+
+Alternatively, we could display the stats vertically, which is where the `UNPIVOT` function comes in.
+We can write the following query to see Ronaldo's stats as rows instead of columns:
+
+[source, sql]
+----
+UNPIVOT (FROM PlayerStats WHERE player_name = 'Cristiano Ronaldo')
+ON COLUMNS (*)
+INTO NAME stat1 VALUE "Cristiano Ronaldo";
+----
+
+.Output
+[options="header"]
+|==========================================
+| stat1               | Cristiano Ronaldo  
+| player_name         | Cristiano Ronaldo  
+| birthday            | 1985-02-05 00:00:00
+| height              | 185.42             
+| weight              | 176                
+| date                | 2015-10-16 00:00:00
+| overall_rating      | 93                 
+| potential           | 93                 
+| preferred_foot      | right              
+| attacking_work_rate | high               
+| defensive_work_rate | low                
+| crossing            | 82                 
+| finishing           | 95                 
+| heading_accuracy    | 86                 
+| short_passing       | 81                 
+| volleys             | 87                 
+| dribbling           | 93                 
+| curve               | 88                 
+| free_kick_accuracy  | 77                 
+| long_passing        | 72                 
+| ball_control        | 91                 
+| acceleration        | 91                 
+| sprint_speed        | 93                 
+| agility             | 90                 
+| reactions           | 92                 
+| balance             | 62                 
+| shot_power          | 94                 
+| jumping             | 94                 
+| stamina             | 90                 
+| strength            | 79                 
+| long_shots          | 93                 
+| aggression          | 62                 
+| interceptions       | 29                 
+| positioning         | 93                 
+| vision              | 81                 
+| penalties           | 85                 
+| marking             | 22                 
+| standing_tackle     | 31                 
+| sliding_tackle      | 23                 
+| gk_diving           | 7                  
+| gk_handling         | 11                 
+| gk_kicking          | 15                 
+| gk_positioning      | 14                 
+| gk_reflexes         | 11                 
+|==========================================
+
+That's much easier to read.
+And if we want to compare Ronaldo's stats against another play, say, Lionel Messi, we can JOIN `UNPIVOT` clauses together:
+
+[source, sql]
+----
+FROM (
+    UNPIVOT (FROM PlayerStats WHERE player_name = 'Cristiano Ronaldo')
+    ON COLUMNS (*)
+    INTO NAME stat1 VALUE "Cristiano Ronaldo"
+) p1
+JOIN (
+    UNPIVOT (FROM PlayerStats WHERE player_name = 'Lionel Messi')
+    ON COLUMNS (*)
+    INTO NAME stat2 VALUE "Lionel Messi"
+) p2 ON p1.stat1 = p2.stat2
+SELECT stat1 AS stat, * EXCLUDE(stat1, stat2);
+----
+
+.Output
+[options="header"]
+|================================================================
+| stat                | Cristiano Ronaldo   | Lionel Messi       
+| player_name         | Cristiano Ronaldo   | Lionel Messi       
+| birthday            | 1985-02-05 00:00:00 | 1987-06-24 00:00:00
+| height              | 185.42              | 170.18             
+| weight              | 176                 | 159                
+| date                | 2015-10-16 00:00:00 | 2015-12-17 00:00:00
+| overall_rating      | 93                  | 94                 
+| potential           | 93                  | 94                 
+| preferred_foot      | right               | left               
+| attacking_work_rate | high                | medium             
+| defensive_work_rate | low                 | low                
+| crossing            | 82                  | 80                 
+| finishing           | 95                  | 93                 
+| heading_accuracy    | 86                  | 71                 
+| short_passing       | 81                  | 88                 
+| volleys             | 87                  | 85                 
+| dribbling           | 93                  | 96                 
+| curve               | 88                  | 89                 
+| free_kick_accuracy  | 77                  | 90                 
+| ball_control        | 91                  | 96                 
+| acceleration        | 91                  | 95                 
+| sprint_speed        | 93                  | 90                 
+| agility             | 90                  | 92                 
+| reactions           | 92                  | 92                 
+| balance             | 62                  | 95                 
+| shot_power          | 94                  | 80                 
+| jumping             | 94                  | 68                 
+| stamina             | 90                  | 75                 
+| strength            | 79                  | 59                 
+| long_shots          | 93                  | 88                 
+| aggression          | 62                  | 48                 
+| interceptions       | 29                  | 22                 
+| positioning         | 93                  | 90                 
+| vision              | 81                  | 90                 
+| penalties           | 85                  | 74                 
+| marking             | 22                  | 13                 
+| standing_tackle     | 31                  | 23                 
+| sliding_tackle      | 23                  | 21                 
+| gk_diving           | 7                   | 6                  
+| gk_handling         | 11                  | 11                 
+| gk_kicking          | 15                  | 15                 
+| gk_positioning      | 14                  | 14                 
+| gk_reflexes         | 11                  | 8                  
+| long_passing        | 72                  | 79                 
+|================================================================

@@ -1,0 +1,145 @@
++++
+draft = false
+date="2023-06-12 02:44:37"
+title="GitHub: Get a CSV containing my pull requests (PRs)"
+tag=['github', 'til']
+category=['TIL']
+description="In this post we'll learn how to get a list of our latest PRs using the GitHub CLI tool."
+image="uploads/2023/05/git-prs-banner.png"
++++
+
+:icons: font
+
+I wanted to get a list of my GitHub pull requests (PRs) and commits, which was surprisingly difficult to figure out how to do.
+I'm sure it must be possible to get this data from the API, but it was a lot easier to figure out how to do so with the https://github.com/cli/cli[GitHub CLI^].
+
+So I installed that and it had be authorise via the GitHub website the first time.
+
+I could then get a list of my PRs by running the following command:
+
+[source, bash]
+----
+gh search prs  \
+--author=@me \
+--limit 10 \
+--json title,repository,closedAt,url | jq -c '.[]'
+----
+
+.Output
+[source, json]
+----
+{"closedAt":"2023-06-12T13:09:43Z","repository":{"name":"dev.startree.ai","nameWithOwner":"startreedata/dev.startree.ai"},"title":"RT data ingestion explanation","url":"https://github.com/startreedata/dev.startree.ai/pull/173"}
+{"closedAt":"0001-01-01T00:00:00Z","repository":{"name":"sourcegraph","nameWithOwner":"sourcegraph/sourcegraph"},"title":"Small typo","url":"https://github.com/sourcegraph/sourcegraph/pull/52604"}
+{"closedAt":"2023-05-13T16:40:59Z","repository":{"name":"venkat","nameWithOwner":"mneedham/venkat"},"title":"pull out language","url":"https://github.com/mneedham/venkat/pull/3"}
+{"closedAt":"2023-05-05T06:00:29Z","repository":{"name":"dev.startree.ai","nameWithOwner":"startreedata/dev.startree.ai"},"title":"Update README.md","url":"https://github.com/startreedata/dev.startree.ai/pull/149"}
+{"closedAt":"2023-05-10T01:22:35Z","repository":{"name":"risingwave-docs","nameWithOwner":"risingwavelabs/risingwave-docs"},"title":"Update risingwave-kubernetes.md","url":"https://github.com/risingwavelabs/risingwave-docs/pull/792"}
+{"closedAt":"2023-04-04T13:08:18Z","repository":{"name":"pinot-recipes","nameWithOwner":"startreedata/pinot-recipes"},"title":"Update README.md","url":"https://github.com/startreedata/pinot-recipes/pull/10"}
+{"closedAt":"2023-03-30T10:07:52Z","repository":{"name":"pinot-recipes","nameWithOwner":"startreedata/pinot-recipes"},"title":"Update README.md","url":"https://github.com/startreedata/pinot-recipes/pull/8"}
+{"closedAt":"2023-03-30T10:07:13Z","repository":{"name":"pinot-recipes","nameWithOwner":"startreedata/pinot-recipes"},"title":"Update README.md","url":"https://github.com/startreedata/pinot-recipes/pull/7"}
+{"closedAt":"0001-01-01T00:00:00Z","repository":{"name":"pinot","nameWithOwner":"apache/pinot"},"title":"Consumer lag unknown","url":"https://github.com/apache/pinot/pull/10310"}
+{"closedAt":"2023-02-13T23:30:29Z","repository":{"name":"pinot","nameWithOwner":"apache/pinot"},"title":"Bug with time based segment relocator on real-time segments","url":"https://github.com/apache/pinot/pull/10272"}
+----
+
+I want those in CSV format though, which we can do by putting all the values into an array and then calling `@csv`:
+
+[source, bash]
+----
+gh search prs  \
+--author=@me \
+--limit 10 \
+--json title,repository,closedAt,url | 
+jq -r '.[]| [.title, .url, .repository.nameWithOwner, .closedAt] | @csv'
+----
+
+.Output
+|===
+|RT data ingestion explanation |https://github.com/startreedata/dev.startree.ai/pull/173 |startreedata/dev.startree.ai |2023-06-12T13:09:43Z
+|Small typo |https://github.com/sourcegraph/sourcegraph/pull/52604 |sourcegraph/sourcegraph |0001-01-01T00:00:00Z
+|Pull out language |https://github.com/mneedham/venkat/pull/3 |mneedham/venkat |2023-05-13T16:40:59Z
+|Update README.md |https://github.com/startreedata/dev.startree.ai/pull/149 |startreedata/dev.startree.ai |2023-05-05T06:00:29Z
+|Update risingwave-kubernetes.md |https://github.com/risingwavelabs/risingwave-docs/pull/792 |risingwavelabs/risingwave-docs |2023-05-10T01:22:35Z
+|Update README.md |https://github.com/startreedata/pinot-recipes/pull/10 |startreedata/pinot-recipes |2023-04-04T13:08:18Z
+|Update README.md |https://github.com/startreedata/pinot-recipes/pull/8 |startreedata/pinot-recipes |2023-03-30T10:07:52Z
+|Update README.md |https://github.com/startreedata/pinot-recipes/pull/7 |startreedata/pinot-recipes |2023-03-30T10:07:13Z
+|Consumer lag unknown |https://github.com/apache/pinot/pull/10310 |apache/pinot |0001-01-01T00:00:00Z
+|Bug with time based segment relocator on real-time segments |https://github.com/apache/pinot/pull/10272 |apache/pinot |2023-02-13T23:30:29Z
+|===
+
+You can see that I don't actually create that many pull requests as I tend to commit things straight to main!
+As a bonus, let's have a look at my commits as well:
+
+[source, bash]
+----
+gh search commits  \
+--author=@me --limit 1 \
+--author-date=">2022-01-01" --order desc --sort author-date \
+--visibility public --json repository,sha,commit | 
+jq  '.[]'
+----
+
+
+.Output
+[source, json]
+----
+{
+  "commit": {
+    "author": {
+      "date": "2023-06-12T10:59:13+01:00",
+      "email": "m.h.needham@gmail.com",
+      "name": "Mark Needham"
+    },
+    "comment_count": 0,
+    "committer": {
+      "date": "2023-06-12T10:59:13+01:00",
+      "email": "m.h.needham@gmail.com",
+      "name": "Mark Needham"
+    },
+    "message": "Merge branch 'main' of github.com:startreedata/pinot-recipes",
+    "tree": {
+      "sha": "71da7e300e8ed035c6877422e8dd30266d7abc2c"
+    }
+  },
+  "repository": {
+    "description": "This repository contains recipes for Apache Pinot.",
+    "fullName": "startreedata/pinot-recipes",
+    "id": "R_kgDOGdrbcQ",
+    "isFork": false,
+    "isPrivate": false,
+    "name": "pinot-recipes",
+    "owner": {
+      "id": "MDEyOk9yZ2FuaXphdGlvbjc2NjAxMzMz",
+      "is_bot": false,
+      "login": "startreedata",
+      "type": "Organization",
+      "url": "https://github.com/startreedata"
+    },
+    "url": "https://github.com/startreedata/pinot-recipes"
+  },
+  "sha": "373dc891a04ecb9dba009394ce9266a07d8ac9c0"
+}
+----
+
+Let's pull out just the bits we want:
+
+[source, bash]
+----
+gh search commits  \
+--author=@me --limit 10 \
+--author-date=">2022-01-01" --order desc --sort author-date \
+--visibility public --json repository,sha,commit |
+jq -r '.[] | [.commit.author.date, .commit.message, .repository.fullName] | @csv'
+----
+
+.Output
+|===
+|2023-06-12T10:59:13+01:00 |Merge branch 'main' of github.com:startreedata/pinot-recipes |startreedata/pinot-recipes
+|2023-06-12T10:59:01+01:00 |fixed host |startreedata/pinot-recipes
+|2023-06-09T09:30:53+01:00 |update |mneedham/hugo-blog
+|2023-06-09T07:48:13+01:00 |updates |mneedham/mneedham.github.io
+|2023-06-09T07:40:23+01:00 |linkedin |mneedham/mneedham.github.io
+|2023-06-09T07:03:28+01:00 |updates |mneedham/hugo-blog
+|2023-06-09T06:56:00+01:00 |duckdb |mneedham/mneedham.github.io
+|2023-06-06T16:46:23+01:00 |Update README.md |startreedata/pinot-recipes
+|2023-06-06T16:45:41+01:00 |Update README.md |startreedata/pinot-recipes
+|2023-06-06T16:45:22+01:00 |Update README.md |startreedata/pinot-recipes
+|===
