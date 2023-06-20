@@ -16,10 +16,10 @@ Let's create a small table with a single column that represents date of births:
 [source, sql]
 ----
 create table players (dob VARCHAR);
-insert into players values('20080203');
+insert into players values('20080203'), ('20230708');
 ----
 
-We can write the following query to return the single row in the table:
+We can write the following query to return the rows in the table:
 
 [source, sql]
 ----
@@ -31,6 +31,7 @@ select * from players;
 |===
 dob
 20080203
+20230708
 |===
 
 At the moment the date of birth is a string, but we can use the `strptime` function to convert it to a timestamp:
@@ -46,6 +47,7 @@ FROM players;
 |===
 dob
 "2008-02-03 00:00:00"
+"2023-07-08 00:00:00"
 |===
 
 I don't really care about the time component though, so let's get rid of that by casting it to a `DATE`:
@@ -61,4 +63,5 @@ FROM players;
 |===
 dob
 2008-02-03
+2023-07-08
 |===
