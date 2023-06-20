@@ -13,6 +13,17 @@ image="uploads/2023/06/duckdb-transpose-banner.png"
 I've been playing around with the https://www.kaggle.com/datasets/hugomathien/soccer[Kaggle European Soccer dataset^], which contains, amongst other things, players and their stats in the FIFA video game.
 I wanted to compare the stats of Ronaldo and Messi, which is where this story begins.
 
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/zhVSXLzy8EY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+++++
+====
+
+
+
 We will of course be using DuckDB and since the dataset is a SQLite database, we'll need to install the SQLite extension"
 
 [source, sql]
