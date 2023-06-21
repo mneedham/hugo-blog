@@ -1,0 +1,100 @@
++++
+draft = false
+date="2023-06-21 02:44:37"
+title="Chroma/LangChain: Index not found, please create an instance before querying"
+tag=['chroma', 'langchain', 'til', 'generative-ai']
+category=['TIL']
+description="In this post we'll learn how to work around the index not found error when using the Chroma database to do similarity search."
+image="uploads/2023/06/langchain-chroma-banner.png"
++++
+
+Somewhat belatedly, I've been playing around with https://github.com/hwchase17/langchain[LangChain^] and https://huggingface.co/[HuggingFace^] to spike a tool that lets me ask question about Tim Berglund's new Real-Time Analytics podcast.
+I'm using the https://www.trychroma.com/[Chroma^] database to store vectors of chunks of the transcript so that I can find appropriate sections to feed to the Large Language Model to help with answering my questions.
+I ran into an initially perplexing error while building this out, which we're going to explore in this blog post.
+
+I have a script called `generate_embeddings.py` that I use to generate embeddings of 256 length chunks of each podcast episode:
+
+.generate_embeddings.py
+[source, python]
+----
+from langchain.document_loaders import (
+    YoutubeLoader
+)
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.vectorstores import Chroma
+
+splitter = CharacterTextSplitter(
+    chunk_size=256,
+    chunk_overlap=50,
+    separator=" "
+)
+
+# YouTube video IDs
+files = [
+    "nCLN15W_WOc",
+    "K14Kn0D-I4Y"
+]
+
+# Create chunks of text
+data = []
+for file in files:
+    yt_loader = YoutubeLoader(file)
+    yt_data = yt_loader.load()
+    data += splitter.split_documents(yt_data)
+
+# Create embeddings for those chunks and store them in Chroma
+hf_embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
+
+store = Chroma.from_documents(
+    data, hf_embeddings, 
+    [f"{item.metadata['source']}-{index}" for index, item in enumerate(data)],
+    collection_name="transcript", 
+    persist_directory='db',
+)
+store.persist()
+----
+
+This takes a couple of seconds to run and then I wanted to see which chunks it would return if I asked about Anna McDonald, who was the guest for the last two episodes:
+[source, python]
+----
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.vectorstores import Chroma
+
+hf_embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
+store = Chroma(persist_directory="db", embedding_function=hf_embeddings)
+
+print(
+    store.similarity_search("Who is Anna McDonald?", top_n=2)
+)
+----
+
+When I ran this, I got this error:
+
+.Error
+[source, text]
+----
+NoIndexException: Index not found, please create an instance before querying
+Exception ignored in: <function PersistentDuckDB.__del__ at 0x2acde7920>
+----
+
+There's a whole thread on different ways that this can happen on https://github.com/hwchase17/langchain/issues/3011[LangChain's GitHub repository^], but it turns out my problem was that I hadn't specified the collection name.
+Let's fix that: 
+
+[source, python]
+----
+hf_embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
+store = Chroma(collection_name="transcript", persist_directory="db", embedding_function=hf_embeddings)
+
+print(
+    store.similarity_search("Who is Anna McDonald?", top_n=2)
+)
+----
+
+And now if we run the script, we'll see the following output:
+
+.Output
+[source, text]
+----
+[Document(page_content="- Yeah, and you're great at explaining it. So, if you wanna know who Anna is, and you wanna know the\nbasics of Kafka Streams... Back to that episode. I'll just say you are a Customer\nSuccess Technical Architect at Confluent. - Almost got it this time.", metadata={'source': 'nCLN15W_WOc'}), Document(page_content='- Anna McDonald is a world-class,\nno universe-class expert in Kafka, and in\nparticular, Kafka Streams. Kafka Streams is an important\npart of the ecosystem and I wanted her to give us\nan introduction to the topic. Good, solid foundation in Kafka\nStreams on', metadata={'source': 'K14Kn0D-I4Y'}), Document(page_content="and I'm joined here today\nby my friend, Anna McDonald. Anna is a customer success\ntechnical architect at Confluent. - Bravo (clapping) - I got it. Better known as the Duchess of Siesta. Anna, welcome to the\nReal-Time Analytics Podcast. - Thank you very", metadata={'source': 'K14Kn0D-I4Y'}), Document(page_content="- What up? - My guest today- - I learned how to book a... Oh, sorry, I was just gonna say, I learned how to book a\nconference room sort of today, so I can do these. - So now we can do it more. - That's right. - My guest today has been Anna McDonald. Anna,", metadata={'source': 'nCLN15W_WOc'})]
+----
