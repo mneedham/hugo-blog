@@ -8,7 +8,8 @@ description="In this post we'll learn how to work around the index not found err
 image="uploads/2023/06/langchain-chroma-banner.png"
 +++
 
-Somewhat belatedly, I've been playing around with https://github.com/hwchase17/langchain[LangChain^] and https://huggingface.co/[HuggingFace^] to spike a tool that lets me ask question about Tim Berglund's new Real-Time Analytics podcast.
+Somewhat belatedly, I've been playing around with https://github.com/hwchase17/langchain[LangChain^] and https://huggingface.co/[HuggingFace^] to spike a tool that lets me ask question about https://podcasts.apple.com/gb/podcast/real-time-analytics-with-tim-berglund/id1680445905[Tim Berglund's Real-Time Analytics podcast^].
+
 I'm using the https://www.trychroma.com/[Chroma^] database to store vectors of chunks of the transcript so that I can find appropriate sections to feed to the Large Language Model to help with answering my questions.
 I ran into an initially perplexing error while building this out, which we're going to explore in this blog post.
 
@@ -86,9 +87,8 @@ Let's fix that:
 hf_embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
 store = Chroma(collection_name="transcript", persist_directory="db", embedding_function=hf_embeddings)
 
-print(
-    store.similarity_search("Who is Anna McDonald?", top_n=2)
-)
+for row in store.similarity_search("Who is Anna McDonald?", top_n=2):
+  print(row)
 ----
 
 And now if we run the script, we'll see the following output:
@@ -96,5 +96,11 @@ And now if we run the script, we'll see the following output:
 .Output
 [source, text]
 ----
-[Document(page_content="- Yeah, and you're great at explaining it. So, if you wanna know who Anna is, and you wanna know the\nbasics of Kafka Streams... Back to that episode. I'll just say you are a Customer\nSuccess Technical Architect at Confluent. - Almost got it this time.", metadata={'source': 'nCLN15W_WOc'}), Document(page_content='- Anna McDonald is a world-class,\nno universe-class expert in Kafka, and in\nparticular, Kafka Streams. Kafka Streams is an important\npart of the ecosystem and I wanted her to give us\nan introduction to the topic. Good, solid foundation in Kafka\nStreams on', metadata={'source': 'K14Kn0D-I4Y'}), Document(page_content="and I'm joined here today\nby my friend, Anna McDonald. Anna is a customer success\ntechnical architect at Confluent. - Bravo (clapping) - I got it. Better known as the Duchess of Siesta. Anna, welcome to the\nReal-Time Analytics Podcast. - Thank you very", metadata={'source': 'K14Kn0D-I4Y'}), Document(page_content="- What up? - My guest today- - I learned how to book a... Oh, sorry, I was just gonna say, I learned how to book a\nconference room sort of today, so I can do these. - So now we can do it more. - That's right. - My guest today has been Anna McDonald. Anna,", metadata={'source': 'nCLN15W_WOc'})]
+page_content="- Yeah, and you're great at explaining it. So, if you wanna know who Anna is, and you wanna know the\nbasics of Kafka Streams... Back to that episode. I'll just say you are a Customer\nSuccess Technical Architect at Confluent. - Almost got it this time." metadata={'source': 'nCLN15W_WOc'}
+
+page_content='- Anna McDonald is a world-class,\nno universe-class expert in Kafka, and in\nparticular, Kafka Streams. Kafka Streams is an important\npart of the ecosystem and I wanted her to give us\nan introduction to the topic. Good, solid foundation in Kafka\nStreams on' metadata={'source': 'K14Kn0D-I4Y'}
+
+page_content="and I'm joined here today\nby my friend, Anna McDonald. Anna is a customer success\ntechnical architect at Confluent. - Bravo (clapping) - I got it. Better known as the Duchess of Siesta. Anna, welcome to the\nReal-Time Analytics Podcast. - Thank you very" metadata={'source': 'K14Kn0D-I4Y'}
+
+page_content="- What up? - My guest today- - I learned how to book a... Oh, sorry, I was just gonna say, I learned how to book a\nconference room sort of today, so I can do these. - So now we can do it more. - That's right. - My guest today has been Anna McDonald. Anna," metadata={'source': 'nCLN15W_WOc'}
 ----

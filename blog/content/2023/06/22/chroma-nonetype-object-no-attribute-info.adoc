@@ -1,0 +1,83 @@
++++
+draft = false
+date="2023-06-22 02:44:37"
+title="Chroma/LangChain: 'NoneType' object has no attribute 'info'"
+tag=['chroma', 'langchain', 'til', 'generative-ai']
+category=['TIL']
+description="In this post we'll learn about an error message when using the Chroma database."
+image="uploads/2023/06/chroma-nonetype-banner.png"
++++
+
+Following on from https://www.markhneedham.com/blog/2023/06/21/chroma-index-not-found-create-instance-querying/[a blog post that I wrote yesterday^] about doing similarity search with ChromaDB, I noticed an odd error message being printed as the script was exiting.
+In this blog post, we'll explore what was going on.
+
+To recap, I have the following code to find chunks of YouTube transcripts that are most similar to an input query:
+
+.test_chroma.py
+[source, python]
+----
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.vectorstores import Chroma
+
+hf_embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
+store = Chroma(collection_name="transcript", persist_directory="db", embedding_function=hf_embeddings)
+
+result = store.similarity_search("Who is Tim Berglund?", top_n=2)
+for row in result:
+  print(row)
+----
+
+When I run this script by typing `python test_chroma.py`, after the similar documents are printed, I get the following exception:
+
+.Output
+[source, text]
+----
+Exception ignored in: <function PersistentDuckDB.__del__ at 0x2abfe39c0>
+Traceback (most recent call last):
+  File "/Users/markhneedham/projects/docs-bot/env/lib/python3.11/site-packages/chromadb/db/duckdb.py", line 445, in __del__
+AttributeError: 'NoneType' object has no attribute 'info'
+----
+
+I came across the following https://github.com/chroma-core/chroma/issues/364[GitHub thread^] that was discussing the issue and one suggested fix was to set `store = None` at the end of the script:
+
+[source, python]
+----
+store = None
+----
+
+This did indeed work, but further down the thread it was suggested that the bug is fixed in the latest version of Chroma.
+I checked my version:
+
+[source, bash]
+----
+pip freeze | grep chroma
+----
+
+.Output
+[source, text]
+----
+chromadb==0.3.21
+----
+
+A https://pypi.org/project/chromadb/[quick check on PyPi^] revealed that the latest version is actually 0.3.26, so let's update our version:
+
+
+[source, bash]
+----
+pip install --upgrade chromadb
+----
+
+Let's check our version:
+
+[source, bash]
+----
+pip freeze | grep chroma
+----
+
+.Output
+[source, text]
+----
+chromadb==0.3.26
+----
+
+If I delete the `store = None` line and re-un the script again, the issue has been fixed and I don't get an error message.
