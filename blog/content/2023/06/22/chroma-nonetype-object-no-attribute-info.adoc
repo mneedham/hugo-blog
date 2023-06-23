@@ -80,4 +80,4 @@ pip freeze | grep chroma
 chromadb==0.3.26
 ----
 
-If I delete the `store = None` line and re-un the script again, the issue has been fixed and I don't get an error message.
+If I delete the `store = None` line and re-run the script again, the issue has been fixed and I don't get an error message.

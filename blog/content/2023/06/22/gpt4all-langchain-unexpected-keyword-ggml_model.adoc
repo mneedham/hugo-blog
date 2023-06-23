@@ -1,0 +1,94 @@
++++
+draft = false
+date="2023-06-22 04:44:37"
+title="GPT4All/LangChain: Model.__init__() got an unexpected keyword argument 'ggml_model' (type=type_error)"
+tag=['gpt4all', 'langchain', 'til', 'generative-ai']
+category=['TIL']
+description="In this post we'll learn about an error message when using GPT4All with LangChain."
+image="uploads/2023/06/gpt4all-langchain-banner.png"
++++
+
+I'm starting to realise that things move insanely fast in the world of LLMs (Large Language Models) and you will run into issues because you aren't using the latest version of libraries.
+I say this because I've been following Sami Maameri's blog post which explains how to run an https://betterprogramming.pub/private-llms-on-local-and-in-the-cloud-with-langchain-gpt4all-and-cerebrium-6dade79f45f6[LLM on your own machine^] and ran into an error, which we'll explore in this blog post.
+
+Sami's post is based around a library called GPT4All, but he also uses LangChain to glue things together.
+I first installed the following libraries:
+
+[source, bash]
+----
+pip install gpt4all langchain pyllamacpp
+----
+
+And then launched a Python REPL, into which I pasted the following code:
+
+[source, python]
+----
+from langchain.llms import GPT4All
+llm = GPT4All(model='/Users/markhneedham/Library/Application Support/nomic.ai/GPT4All/ggml-gpt4all-j-v1.3-groovy.bin')
+----
+
+The model path that I've used is the location where the GPT4All app downloaded the model, but you can choose to put it elsewhere.
+When that second line of code ran, I got the following exception:
+
+[source, output]
+----
+Exception ignored in: <function Model.__del__ at 0x10ab2b7e0>
+Traceback (most recent call last):
+  File "/Users/markhneedham/projects/docs-bot/env/lib/python3.11/site-packages/pyllamacpp/model.py", line 402, in __del__
+    if self._ctx:
+       ^^^^^^^^^
+AttributeError: 'Model' object has no attribute '_ctx'
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "pydantic/main.py", line 341, in pydantic.main.BaseModel.__init__
+pydantic.error_wrappers.ValidationError: 1 validation error for GPT4All
+__root__
+  Model.__init__() got an unexpected keyword argument 'ggml_model' (type=type_error)
+----
+
+After a bit of exploration, I came across https://github.com/hwchase17/langchain/issues/3839[this GitHub thread^], which suggests that the GPT4All code had changed and LangChain was passing in the wrong parameters. 
+I also learnt that it's been fixed for https://github.com/hwchase17/langchain/pull/4567[about a month^], so my version of LangChain was clearly lagging.
+Let's check my version:
+
+
+[source, bash]
+----
+pip freeze | grep langchain
+----
+
+.Output
+[source, text]
+----
+langchain==0.0.142
+----
+
+From searching the ttps://pypi.org/project/langchain/#history[release history of LangChain^], I discovered that I installed it on 17th April, since when there have been more than 60 releases!
+I updated by running `pip install langchain -U` and now I'm up to date (at least for now!):
+
+.Output
+[source, text]
+----
+pip freeze | grep langchain
+langchain==0.0.208
+langchainplus-sdk==0.0.16
+----
+
+I'm also able to run the example from Sami's blog post:
+
+[source, python]
+----
+llm("""
+You are a friendly chatbot assistant that responds in a conversational
+manner to users questions. Keep the answers short, unless specifically
+asked by the user to elaborate on something.
+
+Question: Where is Paris?
+
+Answer:""")
+----
+
+.Output
+[source, text]
+----
+' The capital city of France and Europe located at 47°23′N 8°54″W'
+----
