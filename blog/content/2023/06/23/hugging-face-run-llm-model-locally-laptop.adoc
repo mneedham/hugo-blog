@@ -1,0 +1,182 @@
++++
+draft = false
+date="2023-06-23 02:44:37"
+title="Running a Hugging Face Large Language Model (LLM) locally on my laptop"
+tag=['hugging-face', 'langchain', 'til', 'generative-ai']
+category=['TIL']
+description="In this post, we'll learn how to download a Hugging Face Large Language Model (LLM) and run it locally."
+image="uploads/2023/06/huggingface-local-llm-banner.png"
++++
+
+I've been playing around with a bunch of Large Language Models (LLMs) on Hugging Face and while the free inference API is cool, it can sometimes be busy, so I wanted to learn how to run the models locally.
+That's what we'll be doing in this blog post.
+
+You'll need to install the following libraries if you want to follow along:
+
+[source, bash]
+----
+pip install huggingface-hub langchain 
+----
+
+The first step is to choose a model that you want to download.
+I quite like https://huggingface.co/lmsys/fastchat-t5-3b-v1.0[lmsys/fastchat-t5-3b-v1.06] so we're gonna use that one for the rest of the post.
+
+We can https://stackoverflow.com/questions/67595500/how-to-download-model-from-huggingface[download a model^] by running the following code:
+
+[source, python]
+----
+from huggingface_hub import hf_hub_download
+
+HUGGING_FACE_API_KEY = "<hugging-face-api-key-goes-here>"
+
+# Replace this if you want to use a different model
+model_id, filename = ("lmsys/fastchat-t5-3b-v1.0", "pytorch_model.bin") # <1>
+
+downloaded_model_path = hf_hub_download(
+    repo_id=model_id,
+    filename=filename,
+    token=HUGGING_FACE_API_KEY
+)
+
+print(downloaded_model_path)
+----
+<.> I worked out the filename by browsing https://huggingface.co/lmsys/fastchat-t5-3b-v1.0/tree/main[Files and versions^] on the Hugging Face UI.
+
+This model is almost 7GB in size, so you probably want to connect your computer to an ethernet cable to get maximum download speed!
+As well as downloading the model, the script prints out the location of the model.
+In my case it's the following:
+
+.Output
+[source, text]
+----
+/Users/markhneedham/.cache/huggingface/hub/models--lmsys--fastchat-t5-3b-v1.0/snapshots/932c4c303f368c4b58489f35aaf62eff9aff2207/pytorch_model.bin
+----
+
+We're now going to use the model locally with LangChain so that we can create a repeatable structure around the prompt:
+
+[source, python]
+----
+from langchain.llms import HuggingFacePipeline
+from langchain import PromptTemplate, LLMChain
+
+model_id = "lmsys/fastchat-t5-3b-v1.0"
+llm = HuggingFacePipeline.from_model_id(
+    model_id=model_id,
+    task="text2text-generation",
+    model_kwargs={"temperature": 0, "max_length": 1000},
+)
+
+template = """
+You are a friendly chatbot assistant that responds conversationally to users' questions. 
+Keep the answers short, unless specifically asked by the user to elaborate on something.
+
+Question: {question}
+
+Answer:"""
+
+prompt = PromptTemplate(template=template, input_variables=["question"])
+
+llm_chain = LLMChain(prompt=prompt, llm=llm)
+----
+
+Next, let's create a little function that asks a question and prints the response:
+
+[source, python]
+----
+def ask_question(question):
+    result = llm_chain(question)
+    print(result['question'])
+    print("")
+    print(result['text'])
+----
+
+We'll also create a (ChatGPT generated) Timer context manager to make it easier to see how long it takes to answer each question:
+
+[source, python]
+----
+import time
+
+class TimerError(Exception):
+    """A custom exception used to report errors in use of Timer class"""
+
+class Timer:
+    def __init__(self):
+        self._start_time = None
+
+    def __enter__(self):
+        if self._start_time is not None:
+            raise TimerError(f"Timer is running. Use .stop() to stop it")
+        self._start_time = time.perf_counter()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._start_time is None:
+            raise TimerError(f"Timer is not running. Use .start() to start it")
+        elapsed_time = time.perf_counter() - self._start_time
+        self._start_time = None
+        print(f"Elapsed time: {elapsed_time:0.4f} seconds")
+----
+
+Now let's see how well the model knows London:
+
+[source, python]
+----
+with Timer():
+    ask_question("Describe some famous landmarks in London")
+----
+
+.Output
+[source, text]
+----
+Describe some famous landmarks in London
+
+<pad> Some  famous  landmarks  in  London  include:
+ *  Buckingham  Palace
+ *  St.  Paul's  Cathedral
+ *  The  Tower  of  London
+ *  The  London  Eye
+ *  The  London  Eye  is  a  giant  wheel  that  flies  over  London.
+
+ Elapsed time: 17.7592 seconds
+----
+
+I'm not sure about that last bullet, but I do like the idea of a giant wheel flying over the city!
+Let's try something else:
+
+[source, python]
+----
+with Timer():
+    ask_question("Tell me about Apache Kafka in a few sentences.")
+----
+
+.Output
+[source, text]
+----
+Tell me about Apache Kafka in a few sentences.
+
+<pad> Apache  Kafka  is  a  distributed  streaming  platform  that  allows  for  the  real-time  processing  of  large  amounts  of  data.  It  is  designed  to  be  scalable,  fault-tolerant,  and  easy  to  use.
+
+Elapsed time: 15.7795 seconds
+----
+
+Not too bad.
+It doesn't do so well if I ask about Apache Pinot though!
+
+[source, python]
+----
+with Timer():
+    ask_question("Tell me about Apache Pinot in a few sentences.")
+----
+
+.Output
+[source, text]
+----
+Tell me about Apache Pinot in a few sentences.
+
+<pad> Apache  Pinot  is  a  Java  framework  for  building  web  applications  that  can  handle  a  wide  range  of  tasks,  including  web  development,  database  management,  and  web  application  testing.
+
+Elapsed time: 13.6518 seconds
+----
+
+It's also nowhere near as fast as ChatGPT, but my computer isn't as good as the ones that they use!
+
+Having said that, it is pretty cool to be able to run this type of thing on your own machine and I think it could certainly be useful if you want to ask questions about your own documents that you don't want to send over the internet.

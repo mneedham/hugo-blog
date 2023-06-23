@@ -2,9 +2,9 @@
 draft = false
 date="2023-06-19 02:44:37"
 title="Hugging Face: Using `max_length`'s default (20) to control the generation length. This behaviour is deprecated"
-tag=['duckdb', 'til', 'generative-ai']
+tag=['duckdb', 'til', 'generative-ai', 'hugging-face']
 category=['TIL']
-description="In this post we'll learn how to set the maximum token length when using the google/flan-t5-large model in Hugging Face."
+description="In this post, we'll learn how to set the maximum token length when using the google/flan-t5-large model in Hugging Face."
 image="uploads/2023/06/huggingface-maxlength.png"
 +++
 

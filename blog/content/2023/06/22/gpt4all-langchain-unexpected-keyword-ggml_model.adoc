@@ -68,7 +68,6 @@ I updated by running `pip install langchain -U` and now I'm up to date (at least
 .Output
 [source, text]
 ----
-pip freeze | grep langchain
 langchain==0.0.208
 langchainplus-sdk==0.0.16
 ----
