@@ -1,0 +1,88 @@
++++
+draft = false
+date="2023-06-28 04:44:37"
+title="Python: All about the next function"
+tag=['python', 'til']
+category=['TIL']
+description="In this post, we're going to learn about the Python next function, which can be used to extract values from an iterator."
+image="uploads/2023/06/python-next-banner.png"
++++
+
+Yesterday I wrote a blog post about some different ways to https://www.markhneedham.com/blog/2023/06/27/python-get-first-item-collection-ignore-rest/[take the first element from a Python list^]. 
+Afterward I was chatting to my new rubber duck, ChatGPT, which suggested the `next` function on an iterator as an alternative approach.
+And so that's what we're going to explore in this blog post.
+
+The `next` function gets the first value from an iterator and optionally returns a provided default value if the iterator is empty.
+Let's try it out on our example:
+
+[source, python]
+----
+values = ["Michael", "Ryan", "Karin", "Mark", "Jennifer", "Will"]
+print(next(iter(values)))
+----
+
+.Output
+[source, text]
+----
+Michael
+----
+
+That works well.
+We could extract the other values as well if we wanted:
+
+[source, python]
+----
+values = iter(["Michael", "Ryan", "Karin", "Mark", "Jennifer", "Will"])
+print(next(values))
+print(next(values))
+print(next(values))
+----
+
+.Output
+[source, text]
+----
+Michael
+Ryan
+Karin
+----
+
+And the empty case?
+
+[source, python]
+----
+values = []
+print(next(iter(values)))
+----
+
+.Output
+[source, text]
+----
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+StopIteration
+----
+
+The `StopIteration` exception gets thrown if you try to read from an iterator that's been exhausted.
+We created an empty iterator, so that was to be expected.
+
+Let's instead pass in a default value:
+
+[source, python]
+----
+values = []
+print(next(iter(values), None))
+----
+
+.Output
+[source, text]
+----
+None
+----
+
+This time it returns the default value instead of throwing the exception and I think this is probably a nicer solution than the one we ended up with in the last blog post, which was as follows:
+
+[source, python]
+----
+values = []
+first, *_ = values if len(values) > 0 else [None]
+----

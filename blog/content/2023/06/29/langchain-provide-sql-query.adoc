@@ -1,0 +1,15 @@
++++
+draft = true
+date="2023-06-23 04:44:37"
+title="Python: Get the first item from a collection, ignore the rest"
+tag=['python', 'til']
+category=['TIL']
+description="In this post, we're going to explore some ways that we can get the first item from a collection while throwing away the other values."
+image="uploads/2023/06/huggingface-local-llm-banner.png"
++++
+
+You can provide your own input documents
+
+https://llama-hub-ui.vercel.app/l/database
+https://github.com/emptycrown/llama-hub/tree/main
+

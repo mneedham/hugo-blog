@@ -2,7 +2,7 @@
 draft = false
 date="2023-06-06 02:44:37"
 title="Kafka/Kubernetes: Failed to resolve: nodename nor servname provided, or not known"
-tag=['til', 'python']
+tag=['til', 'kubernetes', 'kafka']
 category=['TIL']
 description="In this post we'll learn how to work around a problem when trying to write from the host OS to Kafka running inside Kubernetes."
 image="uploads/2023/06/k8s-kafka-banner.png"

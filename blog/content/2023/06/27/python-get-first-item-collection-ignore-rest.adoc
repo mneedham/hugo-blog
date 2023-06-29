@@ -1,0 +1,107 @@
++++
+draft = false
+date="2023-06-27 04:44:37"
+title="Python: Get the first item from a collection, ignore the rest"
+tag=['python', 'til']
+category=['TIL']
+description="In this post, we're going to explore some ways that we can get the first item from a collection while throwing away the other values."
+image="uploads/2023/06/python-first-item-banner.png"
++++
+
+:icons: font
+
+When writing Python scripts, I often find myself wanting to take the first item from a collection and ignore the rest of the values.
+I usually use something like `values[0]` to take the first value from the list, but I was curious whether I could do better by using https://blog.teclado.com/destructuring-in-python/[destructuring^].
+That's what we're going to explore in this blog post.
+
+We'll start with a list that contains some names:
+
+[source, python]
+----
+values = ["Michael", "Ryan", "Karin", "Mark", "Jennifer", "Will"]
+----
+
+We can destructure this list to get the first item and assign the rest to another variable like this:
+
+[source, python]
+----
+first, *rest = values
+print(first)
+print(rest)
+----
+
+.Output
+[source, text]
+----
+Michael
+['Ryan', 'Karin', 'Mark', 'Jennifer', 'Will']
+----
+
+If we don't care about the other values, we could use `_` instead of `rest`:
+
+[source, python]
+----
+first, *_ = values
+----
+
+The other values will still be assigned to a variable named `_`, but this seems to be a convention for throwing away data in Python.
+
+What about if we try to get the first item when the list is empty?
+
+[source, python]
+----
+values = []
+first, *_ = values
+----
+
+.Output
+[source, text]
+----
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+ValueError: not enough values to unpack (expected at least 1, got 0)
+----
+
+One way around this would be to check that the collection contains some values first:
+
+[source, python]
+----
+values = []
+if len(values) > 0:
+    first, *_ = values
+else:
+    print("values is empty")
+----
+
+.Output
+[source, text]
+----
+values is empty
+----
+
+Hmmm, a bit verbose.
+We could convert that into a one-liner if we aren't worried about printing the message when it's empty:
+
+[source, python]
+----
+values = []
+first, *_ = values if len(values) > 0 else [None]
+print(first)
+print(rest)
+----
+
+.Output
+[source, text]
+----
+None
+[]
+----
+
+Not bad, but probably not better than my usual technique, which would read like this:
+
+[source, python]
+----
+values = []
+first = values[0] if len(values) > 0 else None
+print(first)
+----
