@@ -45,3 +45,31 @@ When I ran this query against a Pinot cluster that contained a controller, broke
 
 My mistake here was that I **didn't have a minion** in the cluster.
 The ingestion job is run by the minion component, so without one of those this feature doesn't work!
+
+== An update (30th June 2023)
+
+Today I learned that you can get this error even if you do have a minion configured.
+The scenario that results in this error is if no files are found for ingestion. 
+
+This might happen if you have an invalid glob expression in the `includeFileNamePattern`:
+For example, the following throws the exception:
+
+[source, sql]
+----
+SET taskName = 'events-task7';
+SET input.fs.className = 'org.apache.pinot.spi.filesystem.LocalPinotFS';
+SET includeFileNamePattern='glob:customers.csv';
+INSERT INTO customers
+FROM FILE 'file:///input/';
+----
+
+We can fix the query by adding `**/` at the beginning:
+
+[source, sql]
+----
+SET taskName = 'events-task7';
+SET input.fs.className = 'org.apache.pinot.spi.filesystem.LocalPinotFS';
+SET includeFileNamePattern='glob:**/customers.csv';
+INSERT INTO customers
+FROM FILE 'file:///input/';
+----

@@ -1,0 +1,237 @@
++++
+draft = false
+date="2023-06-30 04:44:37"
+title="Detecting and splitting scenes in a video"
+tag=['video-editing', 'til']
+category=['TIL']
+description="In this post, we're going to learn how to split a video into scenes using the scenedetect library."
+image="uploads/2023/06/detect-split-scenes.png"
++++
+
+When editing videos for my YouTube channel, https://www.youtube.com/@learndatawithmark[Learn Data with Mark^], I spend a bunch of time each week chopping up a screencast into scenes that I then line up with a separately recorded voice-over.
+I was curious whether I could automate the chopping-up process and that's what we're going to explore in this blog post.
+
+I started out by asking ChatGPT the following question:
+
+.ChatGPT Prompt
+[source, text]
+----
+I want to chop up a demo for a YouTube video into smaller segments. 
+Ideally, I want to do the cuts when the screen is cleared. 
+Is there a Python library that will let me iterate over a video file and detect changes between frames?
+----
+
+ChatGPT pointed me to a library called https://www.scenedetect.com/cli[PySceneDetect^] and that's where our adventure begins.
+If you want to try this out yourself, I've created the following Poetry file containing all the dependencies that I used:
+
+.pyproject.toml
+[source, yml]
+----
+[tool.poetry]
+name = "scene-detection"
+version = "0.1.0"
+description = ""
+authors = ["Mark Needham <m.h.needham@gmail.com>"]
+readme = "README.md"
+packages = [{include = "scene_detection"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+opencv-python-headless = "^4.7.0.72"
+scikit-image = "^0.21.0"
+scenedetect = "^0.6.1"
+pandas = "^2.0.3"
+matplotlib = "^3.7.1"
+plotly = "^5.15.0"
+kaleido = "0.2.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+----
+
+If you create that file in a directory locally, you can install everything by running this command:
+
+[source, bash]
+----
+poetry install
+----
+
+You should now have a command line tool called `scenedetect`.
+After trying a few command that didn't seem to do anything, I came across an example that computes the difference between adjacent frames (`detect-content`):
+
+[source, bash]
+----
+scenedetect --input BetterSQL-Demo.mp4 \
+  -s better-sql.stats-detectcontent.csv \
+  detect-content \
+  list-scenes
+----
+
+It writes those differences to `better-sql.stats-detectcontent.csv` and then I use the `list-scenes` command to output the detected scenes.
+The output is shown below:
+
+.Truncated Output
+[source, text]
+----
+[PySceneDetect] Scene List:
+-----------------------------------------------------------------------
+ | Scene # | Start Frame |  Start Time  |  End Frame  |   End Time   |
+-----------------------------------------------------------------------
+ |      1  |           1 | 00:00:00.000 |        7101 | 00:01:58.350 |
+-----------------------------------------------------------------------
+----
+
+It's only detected one scene, which isn't quite right.
+There are quite a few transitions in the video where I got from one code example to a blank screen and I want each of those to be a new scene.
+Let's have a look at the first few lines of the CSV file:
+
+[source, bash]
+----
+head -n5 better-sql.stats-detectcontent.csv
+----
+
+.The first few lines of `better-sql.stats-detectcontent.csv`
+[%header,format=csv]
+|===
+Frame Number,Timecode,content_val,delta_edges,delta_hue,delta_lum,delta_sat
+2,00:00:00.017,4.5211226851851856e-05,0.0,0.0,0.00013563368055555556,0.0
+3,00:00:00.033,0.0,0.0,0.0,0.0,0.0
+4,00:00:00.050,0.0,0.0,0.0,0.0,0.0
+5,00:00:00.067,0.0,0.0,0.0,0.0,0.0
+|===
+
+I don't know what most of these values mean, but the documentation suggested that we create a chart plotting the `Frame Number` against the `content_val`.
+We can do that using plot.ly:
+
+.visual.py
+[source, python]
+----
+import pandas as pd
+import plotly.graph_objects as go
+import plotly.io as pio
+
+data = pd.read_csv('better-sql.stats-detectcontent.csv')
+
+fig = go.Figure(data=go.Scatter(x=data['Timecode'], y=data['content_val'], mode='lines'))
+
+fig.update_layout(
+    title='Line Chart of Content Value', 
+    xaxis_title='Frame Number', 
+    yaxis_title='Content Value',
+    autosize=True
+)
+
+pio.write_image(fig, 'figure.svg', width=1000, height=600)
+----
+
+The resulting image is shown below:
+
+.A plot of Frame Number vs Content Value
+image::{{<siteurl>}}/uploads/2023/06/scenedetect-plot.svg[]
+
+We can see that most of the time there are minimal changes between pairs of frames, but on around 15 occasions there is a change bigger than 1.
+Let's try running `scenedetect` again, but this time with the threshold set to `1`:
+
+[source, bash]
+----
+scenedetect --input BetterSQL-Demo.mp4 \
+  -s better-sql.stats-detectcontent.csv \
+  detect-content -t 1 \
+  list-scenes
+----
+
+Running it with this threshold tells `scenedetect` to create a new scene whenever the threshold is exceeded. 
+The output of running the command is shown below:
+
+.Truncated Output
+[source, text]
+----
+[PySceneDetect] Scene List:
+-----------------------------------------------------------------------
+ | Scene # | Start Frame |  Start Time  |  End Frame  |   End Time   |
+-----------------------------------------------------------------------
+ |      1  |           1 | 00:00:00.000 |         509 | 00:00:08.483 |
+ |      2  |         510 | 00:00:08.483 |         967 | 00:00:16.117 |
+ |      3  |         968 | 00:00:16.117 |        1394 | 00:00:23.233 |
+ |      4  |        1395 | 00:00:23.233 |        1763 | 00:00:29.383 |
+ |      5  |        1764 | 00:00:29.383 |        2319 | 00:00:38.650 |
+ |      6  |        2320 | 00:00:38.650 |        2808 | 00:00:46.800 |
+ |      7  |        2809 | 00:00:46.800 |        2887 | 00:00:48.117 |
+ |      8  |        2888 | 00:00:48.117 |        4057 | 00:01:07.617 |
+ |      9  |        4058 | 00:01:07.617 |        5308 | 00:01:28.467 |
+ |     10  |        5309 | 00:01:28.467 |        5368 | 00:01:29.467 |
+ |     11  |        5369 | 00:01:29.467 |        5449 | 00:01:30.817 |
+ |     12  |        5450 | 00:01:30.817 |        6819 | 00:01:53.650 |
+ |     13  |        6820 | 00:01:53.650 |        6879 | 00:01:54.650 |
+ |     14  |        6880 | 00:01:54.650 |        7101 | 00:01:58.350 |
+-----------------------------------------------------------------------
+----
+
+It detected 14 different scenes, which sounds promising. 
+Let's now run it one more time, but this time with the `split-video` command appended so that it will split the video up into segments:
+
+[source, bash]
+----
+scenedetect --input BetterSQL-Demo.mp4 \
+  -s better-sql.stats-detectcontent.csv \
+  detect-content -t 1 \
+  list-scenes split-video
+----
+
+Let's check the resulting file listing:
+
+[source, bash]
+----
+du -h BetterSQL-Demo-Scene*.mp4
+----
+
+.Output
+[source, text]
+----
+284K	BetterSQL-Demo-Scene-001.mp4
+324K	BetterSQL-Demo-Scene-002.mp4
+224K	BetterSQL-Demo-Scene-003.mp4
+216K	BetterSQL-Demo-Scene-004.mp4
+276K	BetterSQL-Demo-Scene-005.mp4
+388K	BetterSQL-Demo-Scene-006.mp4
+144K	BetterSQL-Demo-Scene-007.mp4
+576K	BetterSQL-Demo-Scene-008.mp4
+2.0M	BetterSQL-Demo-Scene-009.mp4
+176K	BetterSQL-Demo-Scene-010.mp4
+276K	BetterSQL-Demo-Scene-011.mp4
+816K	BetterSQL-Demo-Scene-012.mp4
+116K	BetterSQL-Demo-Scene-013.mp4
+196K	BetterSQL-Demo-Scene-014.mp4
+----
+
+We can have a look at some of the frames in the extracted scenes by calling the `save-images` command like this:
+
+[source, bash]
+----
+scenedetect --input BetterSQL-Demo.mp4 \
+  -s better-sql.stats-detectcontent.csv \
+  detect-content -t 1 \
+  list-scenes split-video
+----
+
+Let's have a look at a couple of examples:
+
+.Last frame of scene 1
+image::{{<siteurl>}}/uploads/2023/06/BetterSQL-Demo-Scene-001-03.jpg[]
+
+.First frame of scene 2
+image::{{<siteurl>}}/uploads/2023/06/BetterSQL-Demo-Scene-002-01.jpg[]
+
+That looks good, that's exactly the cut that I would have made.
+And it does seem to pick up all the switches to a completely blank screen as new scenes.
+An interesting cut that it found that is quite clever is the following one:
+
+.Last frame of scene 6
+image::{{<siteurl>}}/uploads/2023/06/BetterSQL-Demo-Scene-006-03.jpg[]
+
+.First frame of scene 7
+image::{{<siteurl>}}/uploads/2023/06/BetterSQL-Demo-Scene-007-01.jpg[]
+
+Pretty cool, I'd say it's done a great job.
+I'm gonna give this a go on my next video to see if it saves me time, but here's hoping!
