@@ -1,0 +1,42 @@
++++
+draft = true
+date="2023-06-23 04:44:37"
+title="ClickHouse: How to unpack or unnest an array"
+tag=['clickhouse', 'clickhouse-local', 'til']
+category=['TIL']
+description="In this post, we're going to explore some ways that we can get the first item from a collection while throwing away the other values."
+image="uploads/2023/06/huggingface-local-llm-banner.png"
++++
+
+I recently came across clickhouse-local via https://www.vantage.sh/blog/clickhouse-local-vs-duckdb[this article^] in the https://motherduck.com/blog/duckdb-ecosystem-newsletter-seven/[MotherDuck monthly newsletter^] and I wanted to give it a try on my https://github.com/mneedham/xg[expected goals dataset^]. 
+
+
+clickhouse Table engine is not specified in CREATE query.
+
+CREATE TABLE shots AS (
+    SELECT h AS shot
+    FROM (
+        SELECT * FROM file('data/*.json', 'JSONEachRow') LIMIT 1
+    ) shots
+    ARRAY JOIN h
+    UNION ALL
+    SELECT a AS shot
+    FROM (
+        SELECT * FROM file('data/*.json', 'JSONEachRow') LIMIT 1
+    ) shots
+    ARRAY JOIN a
+);
+
+CREATE  TABLE shots ENGINE = MergeTree ORDER BY tuple() AS (
+    SELECT h AS shot
+    FROM (
+        SELECT * FROM file('data/*.json', 'JSONEachRow') LIMIT 1
+    ) shots
+    ARRAY JOIN h
+    UNION ALL
+    SELECT a AS shot
+    FROM (
+        SELECT * FROM file('data/*.json', 'JSONEachRow') LIMIT 1
+    ) shots
+    ARRAY JOIN a
+);

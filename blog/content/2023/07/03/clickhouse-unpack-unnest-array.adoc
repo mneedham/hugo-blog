@@ -1,0 +1,149 @@
++++
+draft = false
+date="2023-07-03 04:44:37"
+title="ClickHouse: How to unpack or unnest an array"
+tag=['clickhouse', 'clickhouse-local', 'til']
+category=['TIL']
+description="In this post, we're going to learn how to unnest an array when using clickhouse-local."
+image="uploads/2023/07/clickhouse-unnest-banner.png"
++++
+
+
+:icons: font
+
+I recently came across https://clickhouse.com/docs/en/operations/utilities/clickhouse-local[clickhouse-local^] via https://www.vantage.sh/blog/clickhouse-local-vs-duckdb[this article^] in the https://motherduck.com/blog/duckdb-ecosystem-newsletter-seven/[MotherDuck monthly newsletter^] and I wanted to give it a try on my https://github.com/mneedham/xg[expected goals dataset^]. 
+One of the first things that I wanted to do was unpack an array and in this blog post, we'll learn how to do that.
+
+I installed Clickhouse by running the following command:
+
+[source, bash]
+----
+curl https://clickhouse.com/ | sh
+----
+
+And then launched the clickhouse-local CLI like this:
+
+[source, bash]
+----
+./clickhouse local -m # <1>
+----
+<1> I'm passing in the `-m` flag to enable multi-line queries, otherwise queries are executed when you press enter.
+
+This dataset consists of a bunch of JSON files that live in the `data` directory.
+Let's start by having a look at one row of one of them, which I initially tried to do like this:
+
+[source, sql]
+----
+SELECT *
+FROM file('data/*.json')
+LIMIT 1
+FORMAT Vertical
+----
+
+But that didn't work so well:
+
+.Output
+[source, text]
+----
+Query id: 6b1ed5fa-4e7a-4844-87f5-6c89169e63ea
+
+
+0 rows in set. Elapsed: 0.411 sec.
+
+Received exception:
+Code: 117. DB::Exception: Expected field "meta" with columns names and types, found field h: Cannot extract table structure from JSON format file. You can specify the structure manually. (INCORRECT_DATA)
+----
+
+We need to tell it how to process the files.
+There are a series of options that you can pass in, one of which is `JSONEachRow`, so let's try that:
+
+[source, sql]
+----
+select * 
+from file('data/*.json', 'JSONEachRow')
+LIMIT 1
+FORMAT Vertical;
+----
+
+Note that I'm using `FORMAT Verticall` as the structure of the data messes up the column view.
+The result of running this query is shown below:
+
+.Output
+[source, text]
+----
+Query id: 33b54e04-c73e-4fde-a0fb-5fb9b00fba99
+
+Row 1:
+──────
+h: ['{"id": "54521", "minute": "43", "result": "MissedShots", "X": "0.9419999694824219", "Y": "0.52", "xG": "0.07078909873962402", "player": "Chancel Mbemba", "h_a": "h", "player_id": "849", "situation": "FromCorner", "season": "2015", "shotType": "Head", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": "Papiss Demba Ciss\\u00e9", "lastAction": "Pass"}','{"id": "54522", "minute": "44", "result": "MissedShots", "X": "0.6940000152587891", "Y": "0.3840000152587891", "xG": "0.033031001687049866", "player": "Georginio Wijnaldum", "h_a": "h", "player_id": "771", "situation": "DirectFreekick", "season": "2015", "shotType": "RightFoot", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": null, "lastAction": "Standard"}','{"id": "54525", "minute": "50", "result": "MissedShots", "X": "0.9319999694824219", "Y": "0.39", "xG": "0.12170200049877167", "player": "Georginio Wijnaldum", "h_a": "h", "player_id": "771", "situation": "OpenPlay", "season": "2015", "shotType": "RightFoot", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": "Moussa Sissoko", "lastAction": "Pass"}','{"id": "54527", "minute": "54", "result": "BlockedShot", "X": "0.785", "Y": "0.4809999847412109", "xG": "0.03719690069556236", "player": "Georginio Wijnaldum", "h_a": "h", "player_id": "771", "situation": "OpenPlay", "season": "2015", "shotType": "RightFoot", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": "Jack Colback", "lastAction": "Pass"}','{"id": "54528", "minute": "68", "result": "MissedShots", "X": "0.925", "Y": "0.31799999237060544", "xG": "0.027039799839258194", "player": "Georginio Wijnaldum", "h_a": "h", "player_id": "771", "situation": "OpenPlay", "season": "2015", "shotType": "RightFoot", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": "Moussa Sissoko", "lastAction": "Cross"}','{"id": "54534", "minute": "92", "result": "Goal", "X": "0.889000015258789", "Y": "0.5609999847412109", "xG": "0.3565869927406311", "player": "Georginio Wijnaldum", "h_a": "h", "player_id": "771", "situation": "OpenPlay", "season": "2015", "shotType": "RightFoot", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": "Moussa Sissoko", "lastAction": "Throughball"}']
+a: ['{"id": "54518", "minute": "1", "result": "BlockedShot", "X": "0.8109999847412109", "Y": "0.500999984741211", "xG": "0.03640669956803322", "player": "Martin Skrtel", "h_a": "a", "player_id": "607", "situation": "FromCorner", "season": "2015", "shotType": "RightFoot", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": null, "lastAction": "None"}','{"id": "54519", "minute": "20", "result": "MissedShots", "X": "0.9669999694824218", "Y": "0.48200000762939454", "xG": "0.5759689807891846", "player": "Christian Benteke", "h_a": "a", "player_id": "606", "situation": "FromCorner", "season": "2015", "shotType": "RightFoot", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": "Joe Allen", "lastAction": "HeadPass"}','{"id": "54520", "minute": "30", "result": "BlockedShot", "X": "0.7480000305175781", "Y": "0.28899999618530275", "xG": "0.014502700418233871", "player": "Nathaniel Clyne", "h_a": "a", "player_id": "603", "situation": "OpenPlay", "season": "2015", "shotType": "RightFoot", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": "Christian Benteke", "lastAction": "Pass"}','{"id": "54523", "minute": "45", "result": "MissedShots", "X": "0.8069999694824219", "Y": "0.7290000152587891", "xG": "0.023353099822998047", "player": "Jordon Ibe", "h_a": "a", "player_id": "481", "situation": "OpenPlay", "season": "2015", "shotType": "RightFoot", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": "Christian Benteke", "lastAction": "Pass"}','{"id": "54524", "minute": "45", "result": "MissedShots", "X": "0.8580000305175781", "Y": "0.764000015258789", "xG": "0.024165699258446693", "player": "Roberto Firmino", "h_a": "a", "player_id": "482", "situation": "OpenPlay", "season": "2015", "shotType": "RightFoot", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": "James Milner", "lastAction": "Pass"}','{"id": "54526", "minute": "52", "result": "MissedShots", "X": "0.7930000305175782", "Y": "0.49700000762939456", "xG": "0.04398920014500618", "player": "Joe Allen", "h_a": "a", "player_id": "480", "situation": "OpenPlay", "season": "2015", "shotType": "RightFoot", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": "Roberto Firmino", "lastAction": "Pass"}','{"id": "54529", "minute": "68", "result": "OwnGoal", "X": "0.03200000047683716", "Y": "0.5520000076293945", "xG": "0", "player": "Martin Skrtel", "h_a": "a", "player_id": "607", "situation": "OpenPlay", "season": "2015", "shotType": "RightFoot", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": null, "lastAction": "None"}','{"id": "54530", "minute": "73", "result": "MissedShots", "X": "0.7030000305175781", "Y": "0.51", "xG": "0.014298499561846256", "player": "Daniel Sturridge", "h_a": "a", "player_id": "483", "situation": "OpenPlay", "season": "2015", "shotType": "LeftFoot", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": "Jordon Ibe", "lastAction": "Pass"}','{"id": "54531", "minute": "74", "result": "MissedShots", "X": "0.899000015258789", "Y": "0.345", "xG": "0.09887190163135529", "player": "Daniel Sturridge", "h_a": "a", "player_id": "483", "situation": "OpenPlay", "season": "2015", "shotType": "RightFoot", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": "Adam Lallana", "lastAction": "Throughball"}','{"id": "54532", "minute": "85", "result": "MissedShots", "X": "0.9540000152587891", "Y": "0.46599998474121096", "xG": "0.12833499908447266", "player": "Dejan Lovren", "h_a": "a", "player_id": "602", "situation": "FromCorner", "season": "2015", "shotType": "Head", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": "James Milner", "lastAction": "Cross"}','{"id": "54533", "minute": "88", "result": "SavedShot", "X": "0.8930000305175781", "Y": "0.5720000076293945", "xG": "0.039151400327682495", "player": "Dejan Lovren", "h_a": "a", "player_id": "602", "situation": "FromCorner", "season": "2015", "shotType": "Head", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": "Alberto Moreno", "lastAction": "Cross"}']
+
+1 row in set. Elapsed: 0.011 sec.
+----
+
+We have two properties, `h` and `a`, which both contain arrays of objects. 
+When I analysed this dataset with DuckDB, I was able to unpack the arrays using the `unnest` function:
+
+.DuckDB
+[source, sql]
+----
+FROM 'data/shots_*.json'
+SELECT unnest(h) AS row
+LIMIT 1;
+----
+
+The equivalent function in ClickHouse is https://clickhouse.com/docs/en/sql-reference/functions/array-join[`arrayJoin`^], so let's give that a try:
+
+[source, sql]
+----
+SELECT arrayJoin(h)
+FROM file('data/*.json', 'JSONEachRow')
+LIMIT 1
+FORMAT Vertical;
+----
+
+.Output
+[source, text]
+----
+Query id: ac00a1d1-3109-4d9b-997f-e7daaf277f70
+
+Row 1:
+──────
+arrayJoin(h): {"id": "54521", "minute": "43", "result": "MissedShots", "X": "0.9419999694824219", "Y": "0.52", "xG": "0.07078909873962402", "player": "Chancel Mbemba", "h_a": "h", "player_id": "849", "situation": "FromCorner", "season": "2015", "shotType": "Head", "match_id": "229", "h_team": "Newcastle United", "a_team": "Liverpool", "h_goals": "2", "a_goals": "0", "date": "2015-12-06 20:00:00", "player_assisted": "Papiss Demba Ciss\u00e9", "lastAction": "Pass"}
+
+1 row in set. Elapsed: 0.004 sec.
+----
+
+Not bad! 
+Alternatively, we can use the https://clickhouse.com/docs/en/sql-reference/statements/select/array-join[`ARRAY JOIN`^] clause:
+
+[source, sql]
+----
+SELECT h
+FROM file('data/shots_*.json', 'JSONEachRow')
+ARRAY JOIN h
+LIMIT 1
+FORMAT Vertical;
+----
+
+This clause lets us do more things than `arrayJoin`, but for this use case, either option will do.
+To unpack all the shot events, we end up with the following query:
+
+[source, sql]
+----
+SELECT h AS shot
+FROM file('data/shots_*.json', 'JSONEachRow')
+ARRAY JOIN h
+UNION ALL
+SELECT a AS shot
+FROM file('data/shots_*.json', 'JSONEachRow')
+ARRAY JOIN a;
+----
+
+.Truncated Output
+[source, text]
+----
+  Showed first 10000.
+
+81860 rows in set. Elapsed: 0.260 sec. Processed 1.43 thousand rows, 8.41 MB (5.49 thousand rows/s., 32.38 MB/s.)
+----

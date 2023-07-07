@@ -1,0 +1,142 @@
++++
+draft = false
+date="2023-07-07 04:44:37"
+title="Python: Re-import module"
+tag=['python', 'til']
+category=['TIL']
+description="In this post, we're going to learn how to re-import a local Python module"
+image="uploads/2023/07/python-reimport-module.png"
++++
+
+:icons: font
+
+I often write little Python scripts that import code from other local modules and a common problem I have when using the Python REPL is that I update the code in the other modules and then can't use the new functionality without restarting the REPL and re-importing everything.
+At least so I thought!
+It turns out there is a way to refresh those modules and that's what we'll be exploring in this blog post.
+
+Let's say that we have the file `person.py` that contains the code shown below:
+
+.person.py
+[source, python]
+----
+class Person:
+  def __init__(self, name):
+    self.name = name
+
+  def say_hello(self):
+    print(f"Hello {self.name}")
+----
+
+Launch the Python REPL by typing `python` and then import the class and run the `say_hello` function:
+
+[source, python]
+----
+from person import Person
+
+Person(name="Mark").say_hello()
+----
+
+.Output
+[source, text]
+----
+Hello Mark
+----
+
+Now let's say that we add a `say_goodbye` function to the class so that it now looks like this:
+
+.person.py
+[source, python]
+----
+class Person:
+  def __init__(self, name):
+    self.name = name
+
+  def say_hello(self):
+    print(f"Hello {self.name}")
+
+  def say_goodbye(self):
+    print(f"Good Bye {self.name}")
+----
+
+If we try to use that function, it's not available:
+
+[source, python]
+----
+from person import Person
+
+Person(name="Mark").say_goodbye()
+----
+
+.Output
+[source, text]
+----
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+AttributeError: 'Person' object has no attribute 'say_goodbye'
+----
+
+Even running `from person import Person` again doesn't help.
+Help does come, however, from the https://docs.python.org/3/library/importlib.html[importlib^] library, which we can use to re-import the module.
+I initially tried doing this:
+
+[source, python]
+----
+import importlib
+
+importlib.reload(person)
+----
+
+And then I ran the `say_goodbye` function again, to no avail:
+
+.Output
+[source, text]
+----
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'person' is not defined. Did you mean: 'Person'?
+----
+
+To solve that problem, I had to first import `person` and then reload:
+
+[source, python]
+----
+import person
+importlib.reload(person)
+----
+
+I ran the goodbye command again, but still got the same error:
+
+[source, python]
+----
+Person(name="Mark").say_goodbye()
+----
+
+.Output
+[source, text]
+----
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+AttributeError: 'Person' object has no attribute 'say_goodbye'
+----
+
+It turns out that we need to re-run the import of the `Person` class again, after the reload of `person`, meaning that the full re-importing code looks like this:
+
+[source, python]
+----
+import person
+importlib.reload(person)
+from person import Person
+----
+
+And now let's call goodbye:
+
+[source, python]
+----
+Person(name="Mark").say_goodbye()
+----
+
+.Output
+[source, text]
+----
+Good Bye Mark
+----

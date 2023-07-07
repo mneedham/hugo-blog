@@ -1,0 +1,87 @@
++++
+draft = true
+date="2023-07-07 04:44:37"
+title="Python: Re-import module"
+tag=['python', 'til']
+category=['TIL']
+description="In this post, we're going to learn how to re-import a local Python module"
+image="uploads/2023/07/python-reimport-module.png"
++++
+
+poetry add langchain
+poetry add transformers
+poetry add torch
+poetry add sentencepiece
+
+Traceback (most recent call last):
+  File "/Users/markhneedham/projects/local-llms/llms.py", line 26, in <module>
+    llm = HuggingFacePipeline.from_model_id(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/langchain/llms/huggingface_pipeline.py", line 89, in from_model_id
+    tokenizer = AutoTokenizer.from_pretrained(model_id, **_model_kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/transformers/models/auto/tokenization_auto.py", line 691, in from_pretrained
+    return tokenizer_class.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/transformers/tokenization_utils_base.py", line 1825, in from_pretrained
+    return cls._from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/transformers/tokenization_utils_base.py", line 1988, in _from_pretrained
+    tokenizer = cls(*init_inputs, **init_kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/transformers/models/t5/tokenization_t5_fast.py", line 133, in __init__
+    super().__init__(
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/transformers/tokenization_utils_fast.py", line 114, in __init__
+    fast_tokenizer = convert_slow_tokenizer(slow_tokenizer)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/transformers/convert_slow_tokenizer.py", line 1307, in convert_slow_tokenizer
+    return converter_class(transformer_tokenizer).converted()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/transformers/convert_slow_tokenizer.py", line 441, in __init__
+    requires_backends(self, "protobuf")
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/transformers/utils/import_utils.py", line 1014, in requires_backends
+    raise ImportError("".join(failed))
+ImportError:
+T5Converter requires the protobuf library but it was not found in your environment. Checkout the instructions on the
+installation page of its repo: https://github.com/protocolbuffers/protobuf/tree/master/python#installation and follow the ones
+that match your environment. Please note that you may need to restart your runtime after installation.
+
+pip install protobuf
+
+Traceback (most recent call last):
+  File "/Users/markhneedham/projects/local-llms/llms.py", line 26, in <module>
+    llm = HuggingFacePipeline.from_model_id(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/langchain/llms/huggingface_pipeline.py", line 89, in from_model_id
+    tokenizer = AutoTokenizer.from_pretrained(model_id, **_model_kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/transformers/models/auto/tokenization_auto.py", line 691, in from_pretrained
+    return tokenizer_class.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/transformers/tokenization_utils_base.py", line 1825, in from_pretrained
+    return cls._from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/transformers/tokenization_utils_base.py", line 1988, in _from_pretrained
+    tokenizer = cls(*init_inputs, **init_kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/transformers/models/t5/tokenization_t5_fast.py", line 133, in __init__
+    super().__init__(
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/transformers/tokenization_utils_fast.py", line 114, in __init__
+    fast_tokenizer = convert_slow_tokenizer(slow_tokenizer)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/transformers/convert_slow_tokenizer.py", line 1307, in convert_slow_tokenizer
+    return converter_class(transformer_tokenizer).converted()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/transformers/convert_slow_tokenizer.py", line 445, in __init__
+    from .utils import sentencepiece_model_pb2 as model_pb2
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/transformers/utils/sentencepiece_model_pb2.py", line 91, in <module>
+    _descriptor.EnumValueDescriptor(
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/local-llms-ZsejU0TS-py3.11/lib/python3.11/site-packages/google/protobuf/descriptor.py", line 796, in __new__
+    _message.Message._CheckCalledFromGeneratedFile()
+TypeError: Descriptors cannot not be created directly.
+If this call came from a _pb2.py file, your generated code is out of date and must be regenerated with protoc >= 3.19.0.
+If you cannot immediately regenerate your protos, some other possible workarounds are:
+ 1. Downgrade the protobuf package to 3.20.x or lower.
+ 2. Set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python (but this will use pure-Python parsing and will be much slower).
+
+ https://stackoverflow.com/questions/72441758/typeerror-descriptors-cannot-not-be-created-directly
