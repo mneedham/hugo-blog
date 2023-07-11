@@ -17,7 +17,7 @@ You'll need to install the following libraries if you want to follow along:
 
 [source, bash]
 ----
-pip install huggingface-hub langchain transformers
+pip install langchain[all] huggingface-hub langchain transformers
 ----
 
 The first step is to choose a model that you want to download.

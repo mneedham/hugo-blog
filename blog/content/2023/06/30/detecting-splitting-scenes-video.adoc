@@ -212,7 +212,7 @@ We can have a look at some of the frames in the extracted scenes by calling the 
 scenedetect --input BetterSQL-Demo.mp4 \
   -s better-sql.stats-detectcontent.csv \
   detect-content -t 1 \
-  list-scenes split-video
+  list-scenes save-images
 ----
 
 Let's have a look at a couple of examples:

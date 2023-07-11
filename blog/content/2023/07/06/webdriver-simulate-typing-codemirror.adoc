@@ -1,0 +1,14 @@
++++
+draft = true
+date="2023-07-06 04:44:37"
+title="WebDriver/Python: Simulative typing CodeMirror"
+tag=['python', 'til']
+category=['TIL']
+description="In this post, we're going to learn how to simulate typing into CodeMirror when using Python WebDriver."
+image="uploads/2023/07/python-reimport-module.png"
++++
+
+[source, python]
+----
+
+----

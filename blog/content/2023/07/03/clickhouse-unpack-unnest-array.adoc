@@ -137,12 +137,25 @@ ARRAY JOIN h
 UNION ALL
 SELECT a AS shot
 FROM file('data/shots_*.json', 'JSONEachRow')
-ARRAY JOIN a;
+ARRAY JOIN a
+FORMAT Vertical;
 ----
 
 .Truncated Output
 [source, text]
 ----
+Query id: 21c865f6-6130-4fb1-8b6e-8fb948415ec7
+
+Row 1:
+──────
+shot: {"id": "186307", "minute": "28", "result": "MissedShots", "X": "0.91", "Y": "0.34200000762939453", "xG": "0.013558999635279179", "player": "Harry Maguire", "h_a": "h", "player_id": "1687", "situation": "OpenPlay", "season": "2017", "shotType": "Head", "match_id": "7334", "h_team": "Leicester", "a_team": "Huddersfield", "h_goals": "3", "a_goals": "0", "date": "2018-01-01 15:00:00", "player_assisted": "Christian Fuchs", "lastAction": "Aerial"}
+
+...
+
+Row 10000:
+──────────
+shot: {"id": "14564", "minute": "42", "result": "BlockedShot", "X": "0.8819999694824219", "Y": "0.655", "xG": "0.06507989764213562", "player": "Charlie Austin", "h_a": "h", "player_id": "848", "situation": "OpenPlay", "season": "2014", "shotType": "LeftFoot", "match_id": "4751", "h_team": "Queens Park Rangers", "a_team": "Hull", "h_goals": "0", "a_goals": "1", "date": "2014-08-16 15:00:00", "player_assisted": null, "lastAction": "BallRecovery"}
+
   Showed first 10000.
 
 81860 rows in set. Elapsed: 0.260 sec. Processed 1.43 thousand rows, 8.41 MB (5.49 thousand rows/s., 32.38 MB/s.)
