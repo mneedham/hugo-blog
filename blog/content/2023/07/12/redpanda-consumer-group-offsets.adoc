@@ -1,0 +1,157 @@
++++
+draft = false
+date="2023-07-12 04:44:37"
+title="Redpanda: Viewing consumer group offsets from __consumer_offsets"
+tag=['redpanda', 'til']
+category=['TIL']
+description="In this post, we're going to learn how to find the latest offset for a consumer group when using Redpanda."
+image="uploads/2023/07/redpanda-banner.png"
++++
+
+https://docs.redpanda.com/docs/home[Redpanda^] supports consumer groups, which are sets of consumers that cooperate to consume data from topics.
+The consumers in a group are assigned a partition and they keep track of the last consumed offset in the https://docs.redpanda.com/docs/develop/consume-data/consumer-offsets/[`__consumer_offsets` topic].
+I wanted to see how many messages had been consumed by a consumer group and that's what we'll explore in this post.
+
+My first thought was to query the `__consumer_offsets` topic using `rpk topic consume`.
+The following code gets three messages from this topic:
+
+[source, bash]
+----
+rpk topic consume __consumer_offsets --brokers localhost:9092 -n 3
+----
+
+.Output
+[source, json]
+----
+{
+  "topic": "__consumer_offsets",
+  "key": "\u0000\u0002\u0000\u0019massaged-delays-consumer2",
+  "value": "\u0000\u0003\u0000\u0008consumer\u0000\u0000\u0000\u0001\u0000\u0005range\u0000,rdkafka-5f35e588-5e24-42a0-b2e3-7913d85ac9c8\u0000\u0000\u0001\ufffd@s\ufffd\ufffd\u0000\u0000\u0000\u0001\u0000\u0003\u0000,rdkafka-5f35e588-5e24-42a0-b2e3-7913d85ac9c8\ufffd\ufffd\u0000\u0007rdkafka\u0000\u000c192.168.96.1\u0000\u0004\ufffd\ufffd\u0000\u0000\ufffd\ufffd\u0000\u0000\u0000\u001f\u0000\u0001\u0000\u0000\u0000\u0001\u0000\u000fmassaged-delays\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000#\u0000\u0000\u0000\u0000\u0000\u0001\u0000\u000fmassaged-delays\u0000\u0000\u0000\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+  "timestamp": 1689003484597,
+  "partition": 0,
+  "offset": 0
+}
+{
+  "topic": "__consumer_offsets",
+  "key": "\u0000\u0001\u0000\u0019massaged-delays-consumer2\u0000\u000fmassaged-delays\u0000\u0000\u0000\u0000",
+  "value": "\u0000\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0001Z\ufffd\ufffd\ufffd\ufffd\u0000\u0000\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd",
+  "timestamp": 1689003486581,
+  "partition": 0,
+  "offset": 1
+}
+{
+  "topic": "__consumer_offsets",
+  "key": "\u0000\u0002\u0000\u0019massaged-delays-consumer2",
+  "value": "\u0000\u0003\u0000\u0008consumer\u0000\u0000\u0000\u0002\ufffd\ufffd\ufffd\ufffd\u0000\u0000\u0001\ufffd@t\ufffdF\u0000\u0000\u0000\u0000",
+  "timestamp": 1689003547718,
+  "partition": 0,
+  "offset": 2
+}
+----
+
+I wanted to filter these messages to find the latest offset for the consumer group with the name `massaged-delays-consumer2`, but I couldn't for the life of me get that to work.
+My next thought was to use kcat, but that was even less successful:
+
+[source, bash]
+----
+kcat -C -b localhost:9092 -t __consumer_offsets -p 0 -e -q
+----
+
+.Output
+[source, bash]
+----
+consumerrange,rdkafka-5f35e588-5e24-42a0-b2e3-7913d85ac9c8�@s�,rdkafka-5f35e588-5e24-42a0-b2e3-7913d85ac9c8��rdkafka
+                                                                                                                    192.168.96.1����massaged-delays#massaged-delays
+Z������������
+consumer�����@t�F
+consumerrange,rdkafka-a7ffba78-1b21-4f34-bdd5-fe70fd5d43cf�@w0�,rdkafka-a7ffba78-1b21-4f34-bdd5-fe70fd5d43cf��rdkafka
+                                                                                                                     192.168.96.1����massaged-delays#massaged-delays
+consumer�����@w�
+consumerrange7kafka-python-2.0.2-637f42b6-95f0-47e0-abe6-d4b27c02f1e3�E�̭7kafka-python-2.0.2-637f42b6-95f0-47e0-abe6-d4b27c02f1e3��kafka-python-2.0.2
+notifications!                                                                                                                                      192.168.96.1��'
+consumer�����E��
+consumerrange7kafka-python-2.0.2-d0841fce-363c-4683-b285-7e46d73b5a32�E���7kafka-python-2.0.2-d0841fce-363c-4683-b285-7e46d73b5a32��kafka-python-2.0.2
+notifications!                                                                                                                                        192.168.96.1��'
+consumer�����E�6�
+consumerrange7kafka-python-2.0.2-d1101589-bd3e-4270-8b70-f1fe8ca88595�E�Y�7kafka-python-2.0.2-d1101589-bd3e-4270-8b70-f1fe8ca88595��kafka-python-2.0.2
+notifications!                                                                                                                                        192.168.96.1��'
+consumer�����E�
+consumerrange7kafka-python-2.0.2-f709bfa7-d592-4ebb-9c87-9cea6ff43c91�E�o�7kafka-python-2.0.2-f709bfa7-d592-4ebb-9c87-9cea6ff43c91��kafka-python-2.0.2
+notifications!                                                                                                                                        192.168.96.1��'
+consumerrange7kafka-python-2.0.2-72b0f695-03b0-461f-885b-d2f37efaea0e�E���7kafka-python-2.0.2-72b0f695-03b0-461f-885b-d2f37efaea0e��kafka-python-2.0.2
+notifications!                                                                                                                                        192.168.96.1��'
+consumerrange7kafka-python-2.0.2-e3a53b7d-c0a2-4db7-b8d7-f9b58d2bfba5�F�@�7kafka-python-2.0.2-e3a53b7d-c0a2-4db7-b8d7-f9b58d2bfba5��kafka-python-2.0.2
+notifications!                                                                                                                                        192.168.96.1��'
+consumer�����F��
+consumerrange7kafka-python-2.0.2-2f06ad87-2ddd-4733-9be6-ba43370d26ec�I<7kafka-python-2.0.2-2f06ad87-2ddd-4733-9be6-ba43370d26ec��kafka-python-2.0.2
+notifications!                                                                                                                                      192.168.96.1��'
+consume�����IE��
+consumer        range7kafka-python-2.0.2-8f74599d-8e57-4836-beef-318b23752144�IG�7kafka-python-2.0.2-8f74599d-8e57-4836-beef-318b23752144��kafka-python-2.0.2
+notifications!                                                                                                                                               192.168.96.1��'
+consumer
+        �����IJ�)
+consumer
+        range7kafka-python-2.0.2-f01cf447-0066-437b-8654-c0be65b00a57�IK�7kafka-python-2.0.2-f01cf447-0066-437b-8654-c0be65b00a57��kafka-python-2.0.2
+notifications!   
+----
+
+I called upon ChatGPT, which pointed me to the `rpk group command`, which is exactly what we need.
+
+[NOTE]
+====
+ChatGPT made up some completely random parameters for `rpk group`, but hopefully this post will be used for the training of future models!
+====
+
+We can list the consumer groups by running the following command:
+
+[source, bash]
+----
+rpk group list
+----
+
+.Output
+[source, text]
+----
+BROKER  GROUP
+0       demo-group
+0       demo-group2
+0       demo-group4
+0       demo-group5
+0       demo-group6
+0       demo-group7
+0       demo-group8
+0       demo-group9
+0       demo-group91
+0       demo-group92
+0       demo-group93
+0       demo-group94
+0       demo-group95
+0       events-consumer-group
+0       massaged-delays-consumer
+0       massaged-delays-consumer2
+0       massaged-delays-consumer3
+0       massaged-delays-consumer4
+----
+
+I hope you like my excellent consumer group naming convention!
+Next, let's check what's happening with `massaged-delays-consumer4`:
+
+[source, bash]
+----
+rpk group describe massaged-delays-consumer4 
+----
+
+.Output
+[source, text]
+----
+GROUP        massaged-delays-consumer4
+COORDINATOR  0
+STATE        Empty
+BALANCER     
+MEMBERS      0
+TOPIC            PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG   MEMBER-ID  CLIENT-ID  HOST
+massaged-delays  0          165             1384            1219           
+----
+
+From this output, we learn that there are 1,384 messages in this topic and only 165 have been consumed by the consumer group.
+We better get on it!

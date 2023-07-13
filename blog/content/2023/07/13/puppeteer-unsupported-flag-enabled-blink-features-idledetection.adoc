@@ -1,0 +1,106 @@
++++
+draft = false
+date="2023-07-13 04:44:37"
+title="Puppeteer: Unsupported command-line flag: --enabled-blink-features=IdleDetection."
+tag=['puppeteer', 'javascript', 'til']
+category=['TIL']
+description="In this post, we're going to learn how to work around a Chrome browser warning when using Puppeteer."
+image="uploads/2023/07/puppeteer-banner.png"
++++
+
+:icons: font
+
+
+In many of the https://www.youtube.com/watch?v=6Ck1d5iswm4&list=PLihIrF0tCXdc35Lq865Z0jsnwaMol9Zn7[StarTree recipe videos^] that I've worked on, I show how to write queries in the Pinot UI.
+If I wrote these queries manually there'd be way too many typos, so I drive the UI using a script.
+I've recently been exploring whether I can do this using a Node.js library called https://pptr.dev/[Puppeteer^] and wanted to share a warning message that I ran into early doors.
+
+I installed Puppeteer using the following command:
+
+[source, bash]
+----
+npm i puppeteer-core
+----
+
+I then created the file `drive_pinot.mjs` and added the following code, which opens the Pinot query console on the first tab:
+
+.drive_pinot.mjs
+[source, javascript]
+----
+import puppeteer from 'puppeteer-core';
+
+async function run() {
+    const browser = await puppeteer.launch({
+        headless: false,
+        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        ignoreDefaultArgs: ['--enable-automation'], 
+        defaultViewport: null, 
+        args: [
+            '--window-size=1920,1080',
+            '--disable-infobars',
+        ],
+    });
+
+    const [page] = await browser.pages(); // <1> 
+    await page.goto('http://localhost:9000/#/query'); // <2>
+
+    await page.waitForSelector('.CodeMirror');
+    // await browser.close();
+}
+
+run();
+----
+<.> Get the first tab
+<.> Open the Pinot query console
+
+We can run that script like this:
+
+[source, bash]
+----
+node drive_pinot.mjs
+----
+
+The script launched fine, but the Chrome browser had the following warning underneath the URL bar:
+
+[source, text]
+----
+You are using an unsupported command-line flag: --enabled-blink-features=IdleDetection. Stability and security will suffer.
+----
+
+I didn't set any blink features, so I have no idea where this error came from.
+By trial and error, I did work out that I could get rid of it by opening the Pinot query console on a new tab and then closing the initial tab.
+Our code therefore looks like this:
+
+.drive_pinot.mjs
+[source, javascript]
+----
+import puppeteer from 'puppeteer-core';
+
+async function run() {
+    const browser = await puppeteer.launch({
+        headless: false,
+        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',  // Add your path here
+        ignoreDefaultArgs: ['--enable-automation'], // exclude this switch
+        defaultViewport: null, // required for --window-size
+        args: [
+            '--window-size=1920,1080', // set the window size
+            '--disable-infobars',
+        ],
+    });
+
+    const page = await browser.newPage(); // <1> 
+    await page.goto('http://localhost:9000/#/query');
+
+    const [initPage] = await browser.pages();
+    initPage.close() // <2> 
+
+    await page.waitForSelector('.CodeMirror');
+    // await browser.close();
+}
+
+run();
+----
+<.> Open a new browser tab
+<.> Close the initial one
+
+And now the error message has miraculously gone!

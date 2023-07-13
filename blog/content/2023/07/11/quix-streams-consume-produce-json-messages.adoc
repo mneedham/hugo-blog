@@ -1,6 +1,6 @@
 +++
 draft = false
-date="2023-07-07 04:44:37"
+date="2023-07-11 04:44:37"
 title="Quix Streams: Consuming and Producing JSON messages"
 tag=['python', 'quixstreams', 'til']
 category=['TIL']
@@ -77,7 +77,7 @@ jq -cr --arg sep 😊 '[.uuid, tostring] | join($sep)' |
 kcat -P -b localhost:9092 -t events -K😊
 ----
 
-Let's check the messages have been ingested:
+Let's check the messages have been ingested using the https://docs.redpanda.com/docs/reference/rpk/[rpk^] tool:
 
 [source, bash]
 ----
@@ -159,7 +159,7 @@ We can then check if any events have made it into the `big-events` topic:
 
 [source, bash]
 ----
-rpk topic consume events --brokers localhost:9092 | 
+rpk topic consume big-events --brokers localhost:9092 | 
 jq -Cc '.value | fromjson' | 
 head -n5
 ----
