@@ -1,0 +1,146 @@
++++
+draft = false
+date="2023-07-13 04:44:37"
+title="Puppeteer: Button click doesn't work when zoomed in"
+tag=['puppeteer', 'javascript', 'til']
+category=['TIL']
+description="In this post, we're going to learn how to solve the problem of clicking a button when the browser is zoomed using Puppeteer."
+image="uploads/2023/07/puppeteer-button-click-banner.png"
++++
+
+:icons: font
+
+
+I'm still playing around with https://pptr.dev/[Puppeteer^], a Nodejs library that provides an API to control Chrome/Chromium.
+I want to load the Pinot UI zoomed to 250% and then write and run some queries.
+
+We can install Puppeteer by running the following command:
+
+[source, bash]
+----
+npm i puppeteer-core
+----
+
+
+I then created the file `drive_pinot.mjs` and added the following code, which opens the Pinot query console and then clicks on the 'Run Query' button:
+
+.drive_pinot.mjs
+[source, javascript]
+----
+import puppeteer from 'puppeteer-core';
+
+async function run() {
+    const browser = await puppeteer.launch({
+        headless: false,
+        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',  // Add your path here
+        ignoreDefaultArgs: ['--enable-automation'], // exclude this switch
+        defaultViewport: null, // required for --window-size
+        args: [
+            '--start-maximized', // set the window size
+            '--disable-infobars',
+        ],
+    });
+
+    const page = await browser.newPage();
+    await page.goto('http://localhost:9000/#/query');
+
+    const [initPage] = await browser.pages();
+    initPage.close()
+
+    await page.waitForSelector('.CodeMirror');
+
+    const runQueryButton = await page.$x("//button[contains(., 'Run Query')]");
+    await runQueryButton[0].click() // <1>
+
+    await new Promise(r => setTimeout(r, 1000)); 
+    await browser.close();
+}
+
+run();
+----
+<1> Click on the run query button
+
+This works completely fine although there isn't a useful result as we haven't written a query yet.
+Next, I tried zooming the page to 250% after navigating to the Pinot query console:
+
+[source, javascript]
+----
+import puppeteer from 'puppeteer-core';
+
+async function run() {
+    const browser = await puppeteer.launch({
+        headless: false,
+        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',  // Add your path here
+        ignoreDefaultArgs: ['--enable-automation'], // exclude this switch
+        defaultViewport: null, // required for --window-size
+        args: [
+            '--start-maximized', // set the window size
+            '--disable-infobars',
+        ],
+    });
+
+    const page = await browser.newPage();
+    await page.goto('http://localhost:9000/#/query');
+    await page.evaluate(() => document.body.style.zoom = "250%" ); // <1>
+
+    const [initPage] = await browser.pages();
+    initPage.close()
+
+    await page.waitForSelector('.CodeMirror');
+
+
+    const runQueryButton = await page.$x("//button[contains(., 'Run Query')]");
+    await runQueryButton[0].click()
+
+    await new Promise(r => setTimeout(r, 1000)); 
+    await browser.close();
+}
+
+run();
+----
+<.> Zoom the page several times
+
+
+But this time when it clicked the 'Run Query' button nothing happened.
+I came across a https://stackoverflow.com/questions/49979069/puppeteer-element-click-not-working-and-not-throwing-an-error/50032302#50032302[StackOverflow thread^] that suggested the issue might be that the location of the button had moved because of the zoom.
+I'm not entirely sure that would be the case when I selected the button after zooming the page, but I thought I'd give the solution a try:
+
+[source, javascript]
+----
+import puppeteer from 'puppeteer-core';
+
+async function run() {
+    const browser = await puppeteer.launch({
+        headless: false,
+        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',  // Add your path here
+        ignoreDefaultArgs: ['--enable-automation'], // exclude this switch
+        defaultViewport: null, // required for --window-size
+        args: [
+            '--start-maximized', // set the window size
+            '--disable-infobars',
+        ],
+    });
+
+    const page = await browser.newPage();
+    await page.goto('http://localhost:9000/#/query');
+    await page.evaluate(() => document.body.style.zoom = "250%" );
+
+    const [initPage] = await browser.pages();
+    initPage.close()
+
+    await page.waitForSelector('.CodeMirror');
+
+    const runQueryButton = await page.$x("//button[contains(., 'Run Query')]");
+    await page.evaluate((el) => { // <1>
+        el.click();
+    }, runQueryButton[0]);
+
+    await new Promise(r => setTimeout(r, 1000)); 
+    await browser.close();
+}
+
+run();
+----
+<.> Click the button inside `page.evaluate`
+
+And now the button happily clicks at 250% zoom!
