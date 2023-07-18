@@ -1,0 +1,268 @@
++++
+draft = false
+date="2023-07-18 04:44:37"
+title="Redpanda: Configure pruning/retention of data"
+tag=['redpanda', 'til']
+category=['TIL']
+description="In this post, we're going to learn how to prune data in Redpanda."
+image="uploads/2023/07/redpanda-pruning-banner.png"
++++
+
+:icons: font
+
+I wanted to test how Apache Pinot deals with data being truncated from the underlying stream from which it's consuming, so I've been trying to work out how to prune data in Redpanda.
+In this blog post, I'll share what I've learnt so far.
+
+We're going to spin up a Redpanda cluster using the following Docker Compose file:
+
+.docker-compose.yml
+[source, yaml]
+----
+version: '3.7'
+services:
+  redpanda:
+    container_name: "redpanda-pruning"
+    image: docker.redpanda.com/vectorized/redpanda:v22.2.2
+    command:
+      - redpanda start
+      - --smp 1
+      - --overprovisioned
+      - --node-id 0
+      - --kafka-addr PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+      - --pandaproxy-addr 0.0.0.0:8082
+      - --advertise-pandaproxy-addr localhost:8082
+    ports:
+      - 8081:8081
+      - 8082:8082
+      - 9092:9092
+      - 9644:9644
+      - 29092:29092
+----
+
+We can launch Redpanda by running `docker compose up`.
+Next, we're going to ingest some data using the following script:
+
+.datagen.py
+[source, python]
+----
+import datetime, uuid, random, json
+
+def generate(sleep):
+    while True:
+        ts = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        id = str(uuid.uuid4())
+        count = random.randint(0, 1000)
+        print(json.dumps({"tsString": ts, "uuid": id, "count": count}))
+
+if __name__ == '__main__':
+    generate()
+----
+
+We'll pipe the output of that script into a combination of jq and kcat, as shown below:
+
+[source, bash]
+----
+python datagen.py --sleep 0.0001 2>/dev/null |
+jq -cr --arg sep 😊 '[.uuid, tostring] | join($sep)' |
+kcat -P -b localhost:9092 -t events -K😊
+----
+
+The data will now be ingested into the `events` topic. 
+We can then get an overview of the `events` topic by running the following command
+
+[source, bash]
+----
+rpk topic describe events -a
+----
+
+.Output
+[source, text]
+----
+SUMMARY
+=======
+NAME        events
+PARTITIONS  1
+REPLICAS    1
+
+CONFIGS
+=======
+KEY                     VALUE                          SOURCE
+cleanup.policy          delete                         DEFAULT_CONFIG
+compression.type        producer                       DEFAULT_CONFIG
+message.timestamp.type  CreateTime                     DEFAULT_CONFIG
+partition_count         1                              DYNAMIC_TOPIC_CONFIG
+redpanda.datapolicy     function_name:  script_name:   DEFAULT_CONFIG
+redpanda.remote.read    false                          DEFAULT_CONFIG
+redpanda.remote.write   false                          DEFAULT_CONFIG
+replication_factor      1                              DYNAMIC_TOPIC_CONFIG
+retention.bytes         -1                             DEFAULT_CONFIG
+retention.ms            604800000                      DEFAULT_CONFIG
+segment.bytes           1073741824                     DEFAULT_CONFIG
+
+PARTITIONS
+==========
+PARTITION  LEADER  EPOCH  REPLICAS  LOG-START-OFFSET  HIGH-WATERMARK
+0          0       1      [0]       0                 55585
+----
+
+Redpanda stores data in segment files, which have a default size of 1GB.
+All log rotation and truncation happen https://docs.redpanda.com/docs/manage/cluster-maintenance/disk-utilization/[when we reach a segment rotation^], so if we want to increase the frequency or size of rotation, we need to first reduce segment size.
+The segment size is controlled at the topic level by the `segment.bytes` property (or `log_segment_size` globally).
+
+We can run the following command using the rpk command line tool to set the segment size to 100MB:
+
+[source, bash]
+----
+rpk topic alter-config events --set segment.bytes=10000000
+----
+
+We can check the size of the segment files by running the following commmand:
+
+[source, bash]
+----
+docker exec -it redpanda-pruning sh -c \
+  "ls -alh --full-time /var/lib/redpanda/data/kafka/events/**/*.log | 
+   cut --d ' ' -f5-"
+----
+
+.Output
+[source, text]
+----
+153M 2023-07-18 14:08:47.463652007 +0000 /var/lib/redpanda/data/kafka/events/0_15/0-1-v1.log
+----
+
+We'll need to wait for this file to get to 1GB before the updated segment size config gets picked up.
+We can check that the config has been picked up by re-running `rpk topic describe events -a`:
+
+.Output
+[source, text]
+----
+SUMMARY
+=======
+NAME        events
+PARTITIONS  1
+REPLICAS    1
+
+CONFIGS
+=======
+KEY                     VALUE                          SOURCE
+cleanup.policy          delete                         DEFAULT_CONFIG
+compression.type        producer                       DEFAULT_CONFIG
+message.timestamp.type  CreateTime                     DEFAULT_CONFIG
+partition_count         1                              DYNAMIC_TOPIC_CONFIG
+redpanda.datapolicy     function_name:  script_name:   DEFAULT_CONFIG
+redpanda.remote.read    false                          DEFAULT_CONFIG
+redpanda.remote.write   false                          DEFAULT_CONFIG
+replication_factor      1                              DYNAMIC_TOPIC_CONFIG
+retention.bytes         -1                             DEFAULT_CONFIG
+retention.ms            604800000                      DEFAULT_CONFIG
+segment.bytes           10000000                       DYNAMIC_TOPIC_CONFIG
+
+PARTITIONS
+==========
+PARTITION  LEADER  EPOCH  REPLICAS  LOG-START-OFFSET  HIGH-WATERMARK
+0          0       1      [0]       0                 1824800
+----
+
+While we're waiting, we're also going to reduce the retention time for the topic so old data gets purged sooner.
+We can do that with a couple of properties, `retention.ms` (`delete_retention_ms` globally) and `retention.bytes` (`retention_bytes` globally):
+
+[source, bash]
+----
+rpk topic alter-config events --set retention.ms=60000 # <1>
+rpk topic alter-config events --set retention.bytes=100000000 # <2>
+----
+<.> Delete segments that are older than 60 seconds.
+<.> Default 100 million bytes per partition on disk before triggering deletion of the oldest messages.
+
+We're setting the retention time to 60 seconds and the retention size to 100,000,000 bytes.
+These parameters will be applied straight away, but they won't have any impact until we have a segment rotation.
+If we re-run `rpk topic describe events -a` again, we'll see that the following output:
+
+.Output
+[source, text]
+----
+SUMMARY
+=======
+NAME        events
+PARTITIONS  1
+REPLICAS    1
+
+CONFIGS
+=======
+KEY                     VALUE                          SOURCE
+cleanup.policy          delete                         DEFAULT_CONFIG
+compression.type        producer                       DEFAULT_CONFIG
+message.timestamp.type  CreateTime                     DEFAULT_CONFIG
+partition_count         1                              DYNAMIC_TOPIC_CONFIG
+redpanda.datapolicy     function_name:  script_name:   DEFAULT_CONFIG
+redpanda.remote.read    false                          DEFAULT_CONFIG
+redpanda.remote.write   false                          DEFAULT_CONFIG
+replication_factor      1                              DYNAMIC_TOPIC_CONFIG
+retention.bytes         100000000                      DYNAMIC_TOPIC_CONFIG
+retention.ms            60000                          DYNAMIC_TOPIC_CONFIG
+segment.bytes           10000000                       DYNAMIC_TOPIC_CONFIG
+
+PARTITIONS
+==========
+PARTITION  LEADER  EPOCH  REPLICAS  LOG-START-OFFSET  HIGH-WATERMARK
+0          0       1      [0]       0                 4437102
+----
+
+If we wait a little bit longer, the segment file will have reached 1GB and our settings will kick into action.
+We'll see something like the following entry in the Docker logs:
+
+.Output
+[source, text]
+----
+redpanda-pruning          | INFO  2023-07-18 14:24:43,377 [shard 0] storage - segment.cc:623 - Creating new segment /var/lib/redpanda/data/kafka/events/0_15/7589093-1-v1.log
+redpanda-pruning          | INFO  2023-07-18 14:24:44,272 [shard 0] storage - disk_log_impl.cc:997 - remove_prefix_full_segments - tombstone & delete segment: {offset_tracker:{term:1, base_offset:0, committed_offset:7589092, dirty_offset:7589092}, compacted_segment=0, finished_self_compaction=0, generation={98553}, reader={/var/lib/redpanda/data/kafka/events/0_15/0-1-v1.log, (1107034409 bytes)}, writer=nullptr, cache={cache_size=49276}, compaction_index:nullopt, closed=0, tombstone=0, index={file:/var/lib/redpanda/data/kafka/events/0_15/0-1-v1.base_index, offsets:{0}, index:{header_bitflags:0, base_offset:{0}, max_offset:{7589092}, base_timestamp:{timestamp: 1689689163391}, max_timestamp:{timestamp: 1689690283332}, index(31961,31961,31961)}, step:32768, needs_persistence:0}}
+----
+
+And the output of the Docker command that tails the log directory will look like this:
+
+.Output
+[source, text]
+----
+9.9M 2023-07-18 14:24:53.697925010 +0000 /var/lib/redpanda/data/kafka/events/0_15/7589093-1-v1.log
+9.9M 2023-07-18 14:25:04.066882001 +0000 /var/lib/redpanda/data/kafka/events/0_15/7659797-1-v1.log
+9.9M 2023-07-18 14:25:14.705882006 +0000 /var/lib/redpanda/data/kafka/events/0_15/7730618-1-v1.log
+9.9M 2023-07-18 14:25:25.243882011 +0000 /var/lib/redpanda/data/kafka/events/0_15/7801321-1-v1.log
+9.9M 2023-07-18 14:25:35.684553002 +0000 /var/lib/redpanda/data/kafka/events/0_15/7872140-1-v1.log
+300K 2023-07-18 14:25:35.989553002 +0000 /var/lib/redpanda/data/kafka/events/0_15/7942843-1-v1.log
+----
+
+And for old time's sake, let's describe the topic again:
+
+.Output
+[source, text]
+----
+SUMMARY
+=======
+NAME        events
+PARTITIONS  1
+REPLICAS    1
+
+CONFIGS
+=======
+KEY                     VALUE                          SOURCE
+cleanup.policy          delete                         DEFAULT_CONFIG
+compression.type        producer                       DEFAULT_CONFIG
+message.timestamp.type  CreateTime                     DEFAULT_CONFIG
+partition_count         1                              DYNAMIC_TOPIC_CONFIG
+redpanda.datapolicy     function_name:  script_name:   DEFAULT_CONFIG
+redpanda.remote.read    false                          DEFAULT_CONFIG
+redpanda.remote.write   false                          DEFAULT_CONFIG
+replication_factor      1                              DYNAMIC_TOPIC_CONFIG
+retention.bytes         100000000                      DYNAMIC_TOPIC_CONFIG
+retention.ms            60000                          DYNAMIC_TOPIC_CONFIG
+segment.bytes           10000000                       DYNAMIC_TOPIC_CONFIG
+
+PARTITIONS
+==========
+PARTITION  LEADER  EPOCH  REPLICAS  LOG-START-OFFSET  HIGH-WATERMARK
+0          0       1      [0]       7730617           8227515
+----
+
+7 million messages have been truncated, just like that!

@@ -13,7 +13,14 @@ image="uploads/2023/05/git-prs-banner.png"
 I wanted to get a list of my GitHub pull requests (PRs) and commits, which was surprisingly difficult to figure out how to do.
 I'm sure it must be possible to get this data from the API, but it was a lot easier to figure out how to do so with the https://github.com/cli/cli[GitHub CLI^].
 
-So I installed that and it had be authorise via the GitHub website the first time.
+
+[NOTE]
+====
+This blog post explains how to use the GitHub CLI on the Mac OS terminal. 
+If you're trying to do this on Windows, see https://reshmeeauckloo.com/posts/github_retrieve_all_prs_githubcli/[Get a CSV of all my pull requests from Github using Github CLI and PowerShell^].
+====
+
+So I installed that and it had to be authorised via the GitHub website the first time.
 
 I could then get a list of my PRs by running the following command:
 

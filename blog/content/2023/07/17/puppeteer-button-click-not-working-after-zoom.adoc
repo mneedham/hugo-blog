@@ -1,6 +1,6 @@
 +++
 draft = false
-date="2023-07-13 04:44:37"
+date="2023-07-17 04:44:37"
 title="Puppeteer: Button click doesn't work when zoomed in"
 tag=['puppeteer', 'javascript', 'til']
 category=['TIL']
@@ -32,13 +32,10 @@ import puppeteer from 'puppeteer-core';
 async function run() {
     const browser = await puppeteer.launch({
         headless: false,
-        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',  // Add your path here
-        ignoreDefaultArgs: ['--enable-automation'], // exclude this switch
-        defaultViewport: null, // required for --window-size
-        args: [
-            '--start-maximized', // set the window size
-            '--disable-infobars',
-        ],
+        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        ignoreDefaultArgs: ['--enable-automation'],
+        defaultViewport: null, 
+        args: ['--start-maximized', '--disable-infobars',],
     });
 
     const page = await browser.newPage();
@@ -46,8 +43,6 @@ async function run() {
 
     const [initPage] = await browser.pages();
     initPage.close()
-
-    await page.waitForSelector('.CodeMirror');
 
     const runQueryButton = await page.$x("//button[contains(., 'Run Query')]");
     await runQueryButton[0].click() // <1>
@@ -70,13 +65,10 @@ import puppeteer from 'puppeteer-core';
 async function run() {
     const browser = await puppeteer.launch({
         headless: false,
-        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',  // Add your path here
-        ignoreDefaultArgs: ['--enable-automation'], // exclude this switch
-        defaultViewport: null, // required for --window-size
-        args: [
-            '--start-maximized', // set the window size
-            '--disable-infobars',
-        ],
+        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        ignoreDefaultArgs: ['--enable-automation'], 
+        defaultViewport: null, 
+        args: ['--start-maximized', '--disable-infobars',],
     });
 
     const page = await browser.newPage();
@@ -85,9 +77,6 @@ async function run() {
 
     const [initPage] = await browser.pages();
     initPage.close()
-
-    await page.waitForSelector('.CodeMirror');
-
 
     const runQueryButton = await page.$x("//button[contains(., 'Run Query')]");
     await runQueryButton[0].click()
@@ -112,13 +101,10 @@ import puppeteer from 'puppeteer-core';
 async function run() {
     const browser = await puppeteer.launch({
         headless: false,
-        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',  // Add your path here
-        ignoreDefaultArgs: ['--enable-automation'], // exclude this switch
-        defaultViewport: null, // required for --window-size
-        args: [
-            '--start-maximized', // set the window size
-            '--disable-infobars',
-        ],
+        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        ignoreDefaultArgs: ['--enable-automation'],
+        defaultViewport: null, 
+        args: ['--start-maximized', '--disable-infobars',],
     });
 
     const page = await browser.newPage();
@@ -127,8 +113,6 @@ async function run() {
 
     const [initPage] = await browser.pages();
     initPage.close()
-
-    await page.waitForSelector('.CodeMirror');
 
     const runQueryButton = await page.$x("//button[contains(., 'Run Query')]");
     await page.evaluate((el) => { // <1>
