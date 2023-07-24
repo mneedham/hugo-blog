@@ -132,7 +132,7 @@ docker exec -it redpanda-pruning sh -c \
 153M 2023-07-18 14:08:47.463652007 +0000 /var/lib/redpanda/data/kafka/events/0_15/0-1-v1.log
 ----
 
-We'll need to wait for this file to get to 1GB before the updated segment size config gets picked up.
+We'll need to wait for this file to get to 1GB before the updated segment size config gets used.
 We can check that the config has been picked up by re-running `rpk topic describe events -a`:
 
 .Output
