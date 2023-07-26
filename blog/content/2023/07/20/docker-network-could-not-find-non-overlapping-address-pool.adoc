@@ -1,0 +1,118 @@
++++
+draft = false
+date="2023-07-20 04:44:37"
+title="Docker: Failed to create network: Error response from daemon: could not find an available, non-overlapping IPv4 address pool among the defaults to assign to the network"
+tag=['docker', 'til']
+category=['TIL']
+description="In this post, we're going to learn how to deal with a Docker error when we've run out of IP addresses."
+image="uploads/2023/07/docker-network-banner.png"
++++
+
+:icons: font
+
+I use Docker for pretty much every demo I create and this sometimes results in me running out of IP addresses to serve all those networks.
+In this blog post, we'll learn how to diagnose and solve this issue.
+
+Our story starts with the following command on a new project:
+
+[source, bash]
+----
+docker compose up
+----
+
+Usually this purs along nicely and all our components spin up just fine, but today is not our lucky day and we get the following error:
+
+
+[source, bash]
+----
+[+] Building 0.0s (0/0)
+[+] Running 1/0
+ ✘ Network avro-ingestion  Error                  0.0s 
+failed to create network avro-ingestion: Error response from daemon: could not find an available, non-overlapping IPv4 address pool among the defaults to assign to the network
+----
+
+Hmmm, we're out of IPv4 addresses, that doesn't sound too good!
+We can run the following command to check how many networks we have:
+
+[source, bash]
+----
+docker network ls
+----
+
+I get the following results when running it right now:
+
+.Output
+[source, bash]
+----
+NETWORK ID     NAME              DRIVER    SCOPE
+49a68a4670a5   avro-ingestion    bridge    local
+286c2a9ed537   bridge            bridge    local
+e3d97260204b   filtering         bridge    local
+...
+8ef1a57d8df2   stock-upserts     bridge    local
+a86781534e85   traffic-upserts   bridge    local
+----
+
+If you see a lot of results then it's probably the case that, like me, you've run out of local IP addresses to assign to new networks.
+You can also run the following script to check which of these networks are in use by running containers:
+
+[source, bash]
+----
+for network in $(docker network ls --format "{{.Name}}"); do 
+    container_names=$(docker network inspect $network | 
+        jq -r '.[] | .Containers[] | .Name'
+    )
+
+    echo "$network:"
+    if [ -z "$container_names" ]; then
+        echo -e "\tNo containers"
+    else
+        while IFS= read -r line
+        do
+            echo -e "\t$line"
+        done <<< "$container_names"
+    fi
+done
+----
+
+If I run this, I see the following (truncated) output:
+
+.Output
+[source, text]
+----
+avro-ingestion:
+	No containers
+bridge:
+	No containers
+filtering:
+	No containers
+...
+traffic-upserts:
+	zookeeper-traffic-upserts
+	pinot-controller-traffic-upserts
+	pinot-broker-traffic-upserts
+	pinot-server-traffic-upserts
+	kafka-traffic-upserts
+
+----
+
+It's very likely that nearly all our your networks won't have any running containers, in which case you can prune them using the following command:
+
+[source, bash]
+----
+docker network prune
+----
+
+You'll see the following output as it iterates through all the networks that aren't currently in use:
+
+[source, text]
+----
+Deleted Networks:
+avro-ingestion
+filtering
+...
+traffic-upserts
+----
+
+And now you should be able to create a new network.
+If this doesn't solve the problem, check out this https://stackoverflow.com/questions/43720339/docker-error-could-not-find-an-available-non-overlapping-ipv4-address-pool-am[StackOverflow^] thread for some other things to try.

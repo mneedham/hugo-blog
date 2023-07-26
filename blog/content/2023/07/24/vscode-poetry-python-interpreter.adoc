@@ -1,0 +1,77 @@
++++
+draft = false
+date="2023-07-24 04:44:37"
+title="VSCode: Adding Poetry Python Interpreter"
+tag=['poetry', 'python', 'til']
+category=['TIL']
+description="In this post, we're going to learn how to configure Poetry as a Python interpreter in VSCode."
+image="uploads/2023/07/vscode-poetry-interpreter.png"
++++
+
+:icons: font
+
+I've been trying out Python's https://python-poetry.org/[Poetry^] dependency management tool recently and I really like it, but couldn't figure out how to get it setup as VSCode's Python interpreter.
+In this blog post, we'll learn how to do that.
+
+One way to add the Python interpreter in VSCode is to press `Cmd+Shift+p` and then type `Python Interpreter`. 
+If you select the first result, you'll see something like the following:
+
+.The Python interpreter modal window in VSCode
+image::{{<siteurl>}}/uploads/2023/07/python-interpreter.png[]
+
+When I create a virtual environment directly it'll usually appear on the list, but Poetry wasn't.
+I went a-searching and came across https://stackoverflow.com/questions/59882884/vscode-doesnt-show-poetry-virtualenvs-in-select-interpreter-option[a StackOverflow thread where people were experiencing the same problem^].
+
+I tried some of the suggestions, but they mostly didn't work for me.
+I did, however, realise that I'd be able to add the interpreter manually if I knew its path, which led me to https://github.com/python-poetry/poetry/pull/731[this PR^].
+
+This led me to the following command which gives us that answer:
+
+[source, bash]
+----
+poetry env info 
+----
+
+.Output
+[source, text]
+----
+
+Virtualenv
+Python:         3.11.4
+Implementation: CPython
+Path:           /Users/markhneedham/projects/duckdb-0.8/sentiment-analysis/.venv
+Executable:     /Users/markhneedham/projects/duckdb-0.8/sentiment-analysis/.venv/bin/python
+Valid:          True
+
+System
+Platform:   darwin
+OS:         posix
+Python:     3.11.4
+Path:       /opt/homebrew/opt/python@3.11/Frameworks/Python.framework/Versions/3.11
+Executable: /opt/homebrew/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/bin/python3.11
+----
+
+If we want to only get the path, we can pass in `--path`:
+
+[source, bash]
+----
+poetry env info --path
+----
+
+.Output
+[source, text]
+----
+/Users/markhneedham/projects/duckdb-0.8/sentiment-analysis/.venv
+----
+
+We can then pipe that to our clipboard:
+
+
+[source, bash]
+----
+poetry env info --path | pbcopy
+----
+
+And now we can go back to the Python interpreter window and paste in the result.
+
+Job done!
