@@ -1,0 +1,88 @@
++++
+draft = false
+date="2023-07-27 11:44:37"
+title="Python/Poetry: Library not loaded: no such file, not in dyld cache"
+tag=['poetry', 'python', 'til']
+category=['TIL']
+description="In this post, we'll learn how to work around an error when using Python's Poetry library."
+image="uploads/2023/07/poetry-python-reinstall-banner.png"
++++
+
+As I https://www.markhneedham.com/blog/2023/07/24/vscode-poetry-python-interpreter/[mentioned in a previous blog post^], I've been using Python's Poetry library, but today it stopped working!
+In this blog post, I'll explain what happened and how I got it working again.
+
+It started off innocent enough, with me trying to create a new project:
+
+[source, bash]
+----
+poetry init
+----
+
+But instead of seeing the usual interactive wizard, I got the following error:
+
+.Output
+[source, text]
+----
+dyld[20269]: Library not loaded: /opt/homebrew/Cellar/python@3.11/3.11.3/Frameworks/Python.framework/Versions/3.11/Python
+  Referenced from: <1B2377F9-2187-39A9-AA98-20E438024DE2> /Users/markhneedham/Library/Application Support/pypoetry/venv/bin/python
+  Reason: tried: '/opt/homebrew/Cellar/python@3.11/3.11.3/Frameworks/Python.framework/Versions/3.11/Python' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/opt/homebrew/Cellar/python@3.11/3.11.3/Frameworks/Python.framework/Versions/3.11/Python' (no such file), '/opt/homebrew/Cellar/python@3.11/3.11.3/Frameworks/Python.framework/Versions/3.11/Python' (no such file), '/Library/Frameworks/Python.framework/Versions/3.11/Python' (no such file), '/System/Library/Frameworks/Python.framework/Versions/3.11/Python' (no such file, not in dyld cache)
+----
+
+It seems to be looking for Python version 3.11.3 in a variety of different places.
+I installed Python using brew, so let's check what's in that directory:
+
+[source, bash]
+----
+ls -lh /opt/homebrew/Cellar/python@3.11
+----
+
+.Output
+[source, text]
+----
+total 0
+drwxr-xr-x@ 13 markhneedham  admin   416B 30 Jun 12:50 3.11.4_1
+----
+
+There isn't a Python 3.11.3 and I don't recall moving it, but it is possible that a `brew update` might have updated the Python version.
+It also mentions that the Python version was referenced from `/Users/markhneedham/Library/Application Support/pypoetry/venv/bin/python`, which I thought might be a symbolic link that I could update.
+Unfortunately, it's a binary file so we can't do that.
+
+[source, bash]
+----
+file "/Users/markhneedham/Library/Application Support/pypoetry/venv/bin/python"
+----
+
+.Output
+[source, text]
+----
+/Users/markhneedham/Library/Application Support/pypoetry/venv/bin/python: Mach-O 64-bit executable arm64
+----
+
+
+Luckily https://stackoverflow.com/questions/70920378/poetry-returns-dyld-library-not-loaded-image-not-found-following-brew-ins[StackOverflow came to the rescue^] with some classic turn it off and on again advice.
+So let's first uninstall Poetry:
+
+[source, bash]
+----
+curl -sSL https://install.python-poetry.org | python - --uninstall
+----
+
+And then reinstall it:
+
+[source, bash]
+----
+curl -sSL https://install.python-poetry.org | python -
+----
+
+It works for me after doing this and Poetry's `python` executable now uses brew's version of Python:
+
+[source, bash]
+----
+"/Users/markhneedham/Library/Application Support/pypoetry/venv/bin/python" --version
+----
+
+.Output
+[source, text]
+----
+Python 3.11.4
+----

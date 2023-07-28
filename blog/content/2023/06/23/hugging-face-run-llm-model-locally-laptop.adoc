@@ -23,6 +23,8 @@ pip install 'langchain[llms]' huggingface-hub langchain transformers
 The first step is to choose a model that you want to download.
 I quite like https://huggingface.co/lmsys/fastchat-t5-3b-v1.0[lmsys/fastchat-t5-3b-v1.06] so we're gonna use that one for the rest of the post.
 
+## Downloading the LLM
+
 We can https://stackoverflow.com/questions/67595500/how-to-download-model-from-huggingface[download a model^] by running the following code:
 
 [source, python]
@@ -73,20 +75,40 @@ Any files that you don't explicitly download like this will be downloaded the fi
 I'm downloading everything separately so that I don't have to unexpectedly have to wait for things later on!
 ====
 
-We're now going to use the model locally with LangChain so that we can create a repeatable structure around the prompt:
+## Running the LLM
+
+We're now going to use the model locally with LangChain so that we can create a repeatable structure around the prompt.
+Let's first import some libraries:
 
 [source, python]
 ----
 from langchain.llms import HuggingFacePipeline
 from langchain import PromptTemplate, LLMChain
+----
 
+And now we're going to create an instance of our model:
+
+[source, python]
+----
 model_id = "lmsys/fastchat-t5-3b-v1.0"
 llm = HuggingFacePipeline.from_model_id(
     model_id=model_id,
     task="text2text-generation",
     model_kwargs={"temperature": 0, "max_length": 1000},
 )
+----
 
+[NOTE]
+====
+The value that we use for `task` needs to match the label of the model that's just underneath the model name on the Hugging Face UI.
+
+image::{{<siteurl>}}/uploads/2023/07/task-type.png[title='The task type for this model']
+====
+
+Now let's create a template for what we want the LLM to do when we send it a prompt:
+
+[source, python]
+----
 template = """
 You are a friendly chatbot assistant that responds conversationally to users' questions. 
 Keep the answers short, unless specifically asked by the user to elaborate on something.

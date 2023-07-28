@@ -1,0 +1,254 @@
++++
+draft = false
+date="2023-07-26 04:44:37"
+title="How to delete a Kafka topic"
+tag=['kafka', 'redpanda', 'til', 'docker']
+category=['TIL']
+description="In this post, we're going to learn how to delete a Kafka with the Redpanda Keeper CLI tool."
+image="uploads/2023/07/kafka-delete-topic-banner.png"
++++
+
+A few years ago I wrote a blog post showing https://www.markhneedham.com/blog/2019/05/23/deleting-kafka-topics-on-docker/[how to delete a Kafka topic when running on Docker^] and while that approach still works, I think I've now got a better way.
+And that's what we're going to learn about in this blog post.
+
+== Spin up Kafka Cluster
+
+We're going to spin up Kafka using the following Docker Compose file:
+
+.docker-compose.yml
+[source]
+----
+version: "3"
+services:
+  zookeeper:
+    image: zookeeper:3.8.0
+    hostname: zookeeper
+    container_name: zookeeper-delete
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+  kafka:
+    image: wurstmeister/kafka:latest
+    restart: unless-stopped
+    container_name: "kafka-delete"
+    ports:
+      - "9092:9092"
+    expose:
+      - "9093"
+    depends_on:
+     - zookeeper
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-delete:2181/kafka
+      KAFKA_BROKER_ID: 0
+      KAFKA_ADVERTISED_HOST_NAME: kafka-delete
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-delete:9093,OUTSIDE://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9093,OUTSIDE://0.0.0.0:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,OUTSIDE:PLAINTEXT
+----
+
+A `docker compose up` later and we're ready to go.
+
+== Installing Redpanda Keeper
+
+As with the other post, we want to create a topic called `blog-dummy`, but this time we're going to use a command line tool called https://docs.redpanda.com/docs/reference/rpk/[Redpanda Keeper^] or `rpk` for short.
+The name of the tool might imply that it only works with https://redpanda.com/[Redpanda^], but I was pleased to learn that it also works with Kafka as well.
+
+`rpk` can be https://docs.redpanda.com/docs/get-started/rpk-install/[installed in a variety of ways^] depending on your operating system, but I'm going to use brew since I'm using a Mac.
+The following command does the trick:
+
+[source, bash]
+----
+brew install redpanda-data/tap/redpanda
+----
+
+We can then check the version that we've installed:
+
+[source, bash]
+----
+rpk version
+----
+
+When I ran this initially I got the following version:
+
+.Output
+[source, text]
+----
+v23.1.8 (rev e8cf768bd)
+----
+
+Which is a little bit behind, but we can just re-run the installation command and it will update to the latest version:
+
+.Output
+[source, text]
+----
+v23.2.2 (rev 3aae933c6)
+----
+
+== Creating a topic
+
+Now that we've done that, let's create the topic:
+
+[source, bash]
+----
+rpk topic create blog-dummy -p5
+----
+
+This creates a topic with 5 partitions and if we run the command, we'll see the following output:
+
+.Output
+[source, text]
+----
+TOPIC       STATUS
+blog-dummy  OK
+----
+
+We can list all the topics in Kafka using the following command:
+
+[source, bash]
+----
+rpk topic list
+----
+
+.Output
+[source, text]
+----
+NAME        PARTITIONS  REPLICAS
+blog-dummy  5           1
+----
+
+There's our topic!
+
+== Describing a topic
+
+We can also describe the topic:
+
+[source, bash]
+----
+rpk topic describe blog-dummy
+----
+
+.Output
+[source, text]
+----
+SUMMARY
+=======
+NAME        blog-dummy
+PARTITIONS  5
+REPLICAS    1
+
+CONFIGS
+=======
+KEY                                      VALUE                SOURCE
+cleanup.policy                           delete               DEFAULT_CONFIG
+compression.type                         producer             DEFAULT_CONFIG
+delete.retention.ms                      86400000             DEFAULT_CONFIG
+file.delete.delay.ms                     60000                DEFAULT_CONFIG
+flush.messages                           9223372036854775807  DEFAULT_CONFIG
+flush.ms                                 9223372036854775807  DEFAULT_CONFIG
+follower.replication.throttled.replicas                       DEFAULT_CONFIG
+index.interval.bytes                     4096                 DEFAULT_CONFIG
+leader.replication.throttled.replicas                         DEFAULT_CONFIG
+max.compaction.lag.ms                    9223372036854775807  DEFAULT_CONFIG
+max.message.bytes                        1048588              DEFAULT_CONFIG
+message.downconversion.enable            true                 DEFAULT_CONFIG
+message.format.version                   2.8-IV1              DEFAULT_CONFIG
+message.timestamp.difference.max.ms      9223372036854775807  DEFAULT_CONFIG
+message.timestamp.type                   CreateTime           DEFAULT_CONFIG
+min.cleanable.dirty.ratio                0.5                  DEFAULT_CONFIG
+min.compaction.lag.ms                    0                    DEFAULT_CONFIG
+min.insync.replicas                      1                    DEFAULT_CONFIG
+preallocate                              false                DEFAULT_CONFIG
+retention.bytes                          -1                   DEFAULT_CONFIG
+retention.ms                             604800000            DEFAULT_CONFIG
+segment.bytes                            1073741824           STATIC_BROKER_CONFIG
+segment.index.bytes                      10485760             DEFAULT_CONFIG
+segment.jitter.ms                        0                    DEFAULT_CONFIG
+segment.ms                               604800000            DEFAULT_CONFIG
+unclean.leader.election.enable           false                DEFAULT_CONFIG
+----
+
+There's a lot of information going on here, but I'm mostly interested in the offsets for each of our partitions.
+We can return that data by passing in the `-p` flag:
+
+[source, bash]
+----
+rpk topic describe blog-dummy -p
+----
+
+.Output
+[source, text]
+----
+PARTITION  LEADER  EPOCH  REPLICAS  LOG-START-OFFSET  HIGH-WATERMARK
+0          0       0      [0]       0                 0
+1          0       0      [0]       0                 0
+2          0       0      [0]       0                 0
+3          0       0      [0]       0                 0
+4          0       0      [0]       0                 0
+----
+
+We have no data, which is pretty much what we'd expect.
+
+== Ingesting some records
+
+Let's put some dummy data in, just for fun:
+
+[source, bash]
+----
+for ((i=1; i<=10; i++))
+do
+   echo '{"name": "Mark"}' | kcat -P -b localhost:9092 -t blog-dummy
+done
+----
+
+Let's check on the partition offsets again:
+
+[source, bash]
+----
+rpk topic describe blog-dummy -p
+----
+
+.Output
+[source, text]
+----
+PARTITION  LEADER  EPOCH  REPLICAS  LOG-START-OFFSET  HIGH-WATERMARK
+0          0       0      [0]       0                 0
+1          0       0      [0]       0                 4
+2          0       0      [0]       0                 1
+3          0       0      [0]       0                 2
+4          0       0      [0]       0                 3
+----
+
+We have data!
+
+== Deleting a topic
+
+It's time to delete that topic, which we can do with the following command:
+
+[source, bash]
+----
+rpk topic delete blog-dummy
+----
+
+.Output
+[source, text]
+----
+TOPIC       STATUS
+blog-dummy  OK
+----
+
+And now if we list all topics:
+
+[source, bash]
+----
+rpk topic list blog-dummy
+----
+
+.Output
+[source, text]
+----
+NAME  PARTITIONS  REPLICAS
+----
+
+It's gone!
