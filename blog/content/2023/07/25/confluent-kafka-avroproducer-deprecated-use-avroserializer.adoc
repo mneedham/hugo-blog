@@ -2,7 +2,7 @@
 draft = false
 date="2023-07-25 04:44:37"
 title="Confluent Kafka: DeprecationWarning: AvroProducer has been deprecated. Use AvroSerializer instead."
-tag=['python', 'til']
+tag=['python', 'kafka', 'avro', 'til']
 category=['TIL']
 description="In this post, we're going to learn how to fix a deprecation warning when using the Confluent Kafka Python library."
 image="uploads/2023/07/kafka-deprecation-banner.png"

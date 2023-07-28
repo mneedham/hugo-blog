@@ -9,6 +9,15 @@ description="Learning how to delete a Kafka Topic when running a Kafka Broker on
 
 In this post we're going to learn how to delete a Kafka Topic when running a Kafka Broker on Docker.
 
+[NOTE]
+====
+**Update: 26th July 2023**
+
+While the approach described in this blog post still works, I think I've now got an even easier way using a command line tool called `rpk`.
+If you're interested in seeing an alternative approach https://www.markhneedham.com/blog/2023/07/26/how-to-delete-kafka-topic/[check out my other blog post].
+If not, as you were!
+====
+
 We'll spin up a local Kafka environment using the Docker Compose template from the https://markhneedham.com/blog/2019/05/16/kafka-basic-tutorial/[Kafka Basic Tutorial blog post^] that I wrote last week. Let's open a terminal window and run the following commands to set up our environment:
 
 [source, bash]
@@ -36,7 +45,17 @@ Let's start by creating a dummy topic, which we can do with the following comman
 
 [source, bash]
 ----
-$ docker exec broker-tutorial kafka-topics --create --zookeeper zookeeper:2181 --replication-factor 1 --partitions 1 --topic blog-dummy
+docker exec broker-tutorial kafka-topics \
+  --create \
+  --zookeeper zookeeper:2181 \
+  --replication-factor 1 \
+  --partitions 1 \
+  --topic blog-dummy
+----
+
+.Output
+[source, text]
+----
 Created topic "blog-dummy".
 ----
 
@@ -56,14 +75,20 @@ The `zookeeper:2181` value is derived from the `hostname:ZOOKEEPER_CLIENT_PORT` 
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-----      
-
+----
 
 We can list all the topics available on this broker by running the following command:
 
 [source, bash]
 ----
-$ docker exec broker-tutorial kafka-topics --list --zookeeper zookeeper:2181
+docker exec broker-tutorial kafka-topics \
+  --list \
+  --zookeeper zookeeper:2181
+----
+
+.Output
+[source, text]
+----
 __confluent.support.metrics
 _confluent-metrics
 blog-dummy
@@ -75,10 +100,19 @@ Now let's delete it by running the following command:
 
 [source, bash]
 ----
-$ docker exec broker-tutorial kafka-topics --delete --zookeeper zookeeper:2181 --topic blog-dummy
+docker exec broker-tutorial kafka-topics \
+  --delete \
+  --zookeeper zookeeper:2181 \
+  --topic blog-dummy
+----
+
+.Output
+[source, text]
+----
 Topic blog-dummy is marked for deletion.
 Note: This will have no impact if delete.topic.enable is not set to true.
 ----
+
 
 We didn't actually set the `delete.topic.enable` parameter, so maybe our topic isn't actually going to be deleted.
 If we look back at the other terminal window, however, we'll see the following output:
@@ -110,7 +144,14 @@ We can list the topics one more time just to be sure:
 
 [source, bash]
 ----
-$ docker exec broker-tutorial kafka-topics --list --zookeeper zookeeper:2181
+docker exec broker-tutorial kafka-topics \
+  --list \
+  --zookeeper zookeeper:2181
+----
+
+.Output
+[source, text]
+----
 __confluent.support.metrics
 _confluent-metrics
 ----

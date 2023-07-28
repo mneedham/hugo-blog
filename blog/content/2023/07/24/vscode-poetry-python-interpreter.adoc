@@ -2,7 +2,7 @@
 draft = false
 date="2023-07-24 04:44:37"
 title="VSCode: Adding Poetry Python Interpreter"
-tag=['poetry', 'python', 'til']
+tag=['poetry', 'vscode', 'python', 'til']
 category=['TIL']
 description="In this post, we're going to learn how to configure Poetry as a Python interpreter in VSCode."
 image="uploads/2023/07/vscode-poetry-interpreter.png"

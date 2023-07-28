@@ -17,7 +17,7 @@ You'll need to install the following libraries if you want to follow along:
 
 [source, bash]
 ----
-pip install langchain[all] huggingface-hub langchain transformers
+pip install 'langchain[llms]' huggingface-hub langchain transformers
 ----
 
 The first step is to choose a model that you want to download.
@@ -32,17 +32,24 @@ from huggingface_hub import hf_hub_download
 HUGGING_FACE_API_KEY = "<hugging-face-api-key-goes-here>"
 
 # Replace this if you want to use a different model
-model_id, filename = ("lmsys/fastchat-t5-3b-v1.0", "pytorch_model.bin") # <1>
+model_id = "lmsys/fastchat-t5-3b-v1.0"
+filenames = [ <1>
+    "pytorch_model.bin", "added_tokens.json", "config.json", "generation_config.json", 
+    "special_tokens_map.json", "spiece.model", "tokenizer_config.json"
+]
 
-downloaded_model_path = hf_hub_download(
-    repo_id=model_id,
-    filename=filename,
-    token=HUGGING_FACE_API_KEY
-)
+for filename in filenames:
+    downloaded_model_path = hf_hub_download(
+        repo_id=model_id,
+        filename=filename,
+        token=HUGGING_FACE_API_KEY
+    )
+
+    print(downloaded_model_path)
 
 print(downloaded_model_path)
 ----
-<.> I worked out the filename by browsing https://huggingface.co/lmsys/fastchat-t5-3b-v1.0/tree/main[Files and versions^] on the Hugging Face UI.
+<.> I worked out the filenames by browsing https://huggingface.co/lmsys/fastchat-t5-3b-v1.0/tree/main[Files and versions^] on the Hugging Face UI.
 
 This model is almost 7GB in size, so you probably want to connect your computer to an ethernet cable to get maximum download speed!
 As well as downloading the model, the script prints out the location of the model.
@@ -51,8 +58,20 @@ In my case it's the following:
 .Output
 [source, text]
 ----
-/Users/markhneedham/.cache/huggingface/hub/models--lmsys--fastchat-t5-3b-v1.0/snapshots/932c4c303f368c4b58489f35aaf62eff9aff2207/pytorch_model.bin
+/Users/markhneedham/.cache/huggingface/hub/models--lmsys--fastchat-t5-3b-v1.0/snapshots/0b1da230a891854102d749b93f7ddf1f18a81024/pytorch_model.bin
+/Users/markhneedham/.cache/huggingface/hub/models--lmsys--fastchat-t5-3b-v1.0/snapshots/0b1da230a891854102d749b93f7ddf1f18a81024/added_tokens.json
+/Users/markhneedham/.cache/huggingface/hub/models--lmsys--fastchat-t5-3b-v1.0/snapshots/0b1da230a891854102d749b93f7ddf1f18a81024/config.json
+/Users/markhneedham/.cache/huggingface/hub/models--lmsys--fastchat-t5-3b-v1.0/snapshots/0b1da230a891854102d749b93f7ddf1f18a81024/generation_config.json
+/Users/markhneedham/.cache/huggingface/hub/models--lmsys--fastchat-t5-3b-v1.0/snapshots/0b1da230a891854102d749b93f7ddf1f18a81024/special_tokens_map.json
+/Users/markhneedham/.cache/huggingface/hub/models--lmsys--fastchat-t5-3b-v1.0/snapshots/0b1da230a891854102d749b93f7ddf1f18a81024/spiece.model
+/Users/markhneedham/.cache/huggingface/hub/models--lmsys--fastchat-t5-3b-v1.0/snapshots/0b1da230a891854102d749b93f7ddf1f18a81024/tokenizer_config.json
 ----
+
+[WARNING]
+====
+Any files that you don't explicitly download like this will be downloaded the first time that you use the model.
+I'm downloading everything separately so that I don't have to unexpectedly have to wait for things later on!
+====
 
 We're now going to use the model locally with LangChain so that we can create a repeatable structure around the prompt:
 
