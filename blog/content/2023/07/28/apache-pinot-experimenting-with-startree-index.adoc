@@ -92,7 +92,7 @@ We're going to create several tables in Apache Pinot to explore this dataset:
 No indexes
 
 `webtraffic_inverted`::
-Inverted index on `country`, `browserType`, and `deviceBrand`
+Inverted index on `country`, `browserType`, and `deviceBrand`.
 The config looks like this:
 
 [source, yml]
@@ -107,7 +107,7 @@ The config looks like this:
 ----
 
 `webtraffic_stree`::
-StarTree index splitting on `country`, `browserType`, and `deviceBrand`, aggregating `COUNT(*)`, `SUM(timeSpent)`, and `AVG(timeSpent)`
+StarTree index splitting on `country`, `browserType`, and `deviceBrand`, aggregating `COUNT(*)`, `SUM(timeSpent)`, and `AVG(timeSpent)`.
 The config looks like this:
 
 [source, yml]
