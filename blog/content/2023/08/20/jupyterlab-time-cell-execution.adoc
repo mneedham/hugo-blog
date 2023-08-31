@@ -1,0 +1,51 @@
++++
+draft = false
+date="2023-08-20 00:44:37"
+title="JupyterLab 4.0.5: Adding execution time to cell"
+tag=['jupyterlab', 'til']
+category=['TIL']
+description="In this post, we'll learn how to add execution time to cells in JupyterLab."
+image="uploads/2023/07/jupyterlab-banner.png"
++++
+
+:icons: font
+
+I've been using Jupyter Lab notebooks in some of my recent videos on https://www.youtube.com/@learndatawithmark/videos[Learn Data with Mark^] and I wanted to show cell execution timings so that viewers would have an idea of how long things were taking.
+I thought I'd need to use a custom timer, but it turns out there's quite a nice plug-in, which we'll learn about in this blog post.
+
+The plug-in is called https://github.com/deshaw/jupyterlab-execute-time[`jupyterlab-execute-time`^] and it shows a live view of the time that a cell takes to execute, as well as showing the execution time afterward.
+
+.The jupyterlab-execute-time plugin-in in action
+image::{{<siteurl>}}/uploads/2023/08/cell-execution-time.gif[]
+
+We can install the library directly using pip:
+
+[source, bash]
+----
+pip install jupyterlab_execute_time
+----
+
+Or Poetry, if that's your thing:
+
+[source, bash]
+----
+poetry add jupyterlab_execute_time
+----
+
+Alternatively, we can use the extension manager inside Jupyter Lab, which you can launch by typing `Cmd + Shift + X` on a Mac.
+Once it pops up, search for `jupyterlab-execute-time`, as shown below:
+
+.Searching for the jupyterlab-execute-time plug-in
+image::{{<siteurl>}}/uploads/2023/08/time-extension-manual-search.png[]
+
+And then click on 'Install'.
+
+Regardless of the installation option used, you should then see the plugin under the 'Installed' section:
+
+.jupyterlab-execute-time plug-in installed
+image::{{<siteurl>}}/uploads/2023/08/time-extension-installed.png[]
+
+And here's a screenshot showing the timings for a few cells in a notebook that I'm currently working on:
+
+.Multiple cell timings
+image::{{<siteurl>}}/uploads/2023/08/jupyterlab-time-execution-cell.png[]

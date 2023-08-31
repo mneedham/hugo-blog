@@ -1,0 +1,44 @@
++++
+draft = true
+date="2023-08-16 00:44:37"
+title="OpenAI/LangChain: openai.error.InvalidRequestError: This is a chat model and not supported in the v1/completions endpoint. Did you mean to use v1/chat/completions?"
+tag=['openai', 'langchain', 'til']
+category=['TIL']
+description="In this post, we'll learn how to use OpenAI with LangChain's RetrievalQA."
+image="uploads/2023/07/pinot-startree-banner.png"
++++
+
+:icons: font
+
+
+https://stackoverflow.com/questions/59025144/how-do-i-set-a-shortcut-to-enable-scrolling-for-outputs-in-jupyter-lab
+
+Settings > Settings Editor
+
+JSON Settings Editor
+
+Keyboard Shortcuts
+
+And then paste this into the `shortcuts` array:
+
+[source, json]
+----
+        {
+            "command": "notebook:enable-output-scrolling",
+            "keys": [
+                "S"
+            ],
+            "selector": ".jp-Notebook:focus",
+            "args": {}
+        },
+        {
+            "command": "notebook:disable-output-scrolling",
+            "keys": [
+                "Alt S"
+            ],
+            "selector": ".jp-Notebook:focus",
+            "args": {}
+        },
+---
+
+You can then add a scrollbar to an output cell by pressing `s` or remove the scrollbar by pressing `Alt + s`.
