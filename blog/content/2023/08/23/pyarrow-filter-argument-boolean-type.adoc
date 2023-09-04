@@ -1,0 +1,95 @@
++++
+draft = false
+date="2023-08-23 00:44:37"
+title="pyarrow: pyarrow.lib.ArrowNotImplementedError: Filter argument must be boolean type"
+tag=['python', 'pyarrow', 'til']
+category=['TIL']
+description="In this post, we'll learn how to filter columns using Apache Arrow in Python."
+image="uploads/2023/08/arrow-filter-banner.png"
++++
+
+:icons: font
+
+I wanted to filter a table in pyarrow table recently and ran into troubles when trying to use the filter syntax that I'm used to from DuckDB.
+In this blog post I'll explain my mistake and how to fix it.
+
+First, let's install `pyarrow`:
+
+[source, bash]
+----
+pip install pyarrow
+----
+
+And now we're going to create a table that has a few countries and their corresponding continents:
+
+[source, python]
+----
+import pyarrow as pa
+
+countries = pa.Table.from_arrays(
+    [
+      pa.array(['India', 'Pakistan', 'Belgium', 'Finland'], pa.string()),
+      pa.array(['Asia', 'Asia', 'Europe', 'Europe'], pa.string())
+    ],
+    names=['Country', 'Continent']
+)
+----
+
+Let's say we want to find just the rows where the continent is Europe. 
+I initially tried to do that using the following syntax:
+
+[source, python]
+----
+countries.filter("Continent = 'Europe'")
+----
+
+.Output
+[source, text]
+----
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "pyarrow/table.pxi", line 3154, in pyarrow.lib.Table.filter
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/ch07-YVG4Qrie-py3.11/lib/python3.11/site-packages/pyarrow/compute.py", line 259, in wrapper
+    return func.call(args, options, memory_pool)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "pyarrow/_compute.pyx", line 367, in pyarrow._compute.Function.call
+  File "pyarrow/error.pxi", line 144, in pyarrow.lib.pyarrow_internal_check_status
+  File "pyarrow/error.pxi", line 121, in pyarrow.lib.check_status
+pyarrow.lib.ArrowNotImplementedError: Filter argument must be boolean type
+----
+
+Hmmm, that didn't work so well.
+Instead we need to construct a filter predicate using some functions from the `pyarrow.compute` module, so let's import that:
+
+[source, python]
+----
+import pyarrow.compute as pc
+----
+
+And now we have (at least) two ways to write the filtering statement. 
+We could use `pc.equal` like this:
+
+[source, python]
+----
+countries.filter(pc.equal(countries["Continent"], "Europe"))
+----
+
+Or `pc.field` like this:
+
+[source, python]
+----
+countries.filter(pc.field("Continent") == "Europe")
+----
+
+Either way we get the same result:
+
+.Output
+[source, text]
+-----
+pyarrow.Table
+Country: string
+Continent: string
+----
+Country: [["Belgium","Finland"]]
+Continent: [["Europe","Europe"]]
+-----
