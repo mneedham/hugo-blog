@@ -1,0 +1,80 @@
++++
+draft = false
+date="2023-09-07 00:44:37"
+title="How to run a Kotlin script"
+tag=['kotlin', 'til']
+category=['TIL']
+description="In this post, we'll learn how to run a Kotlin script."
+image="uploads/2023/09/kotlin-banner.png"
++++
+
+:icons: font
+
+I was recently helping Tim get a https://github.com/tlberglund/pinot-movie-ratings[Pinot data-loading Kotlin script^] working and it took me a while to figure out the best way to run it.
+In this blog post, I'll share the solution we came up with.
+
+But first things first, we need to install Kotlin if it's not already installed.
+I used a library called https://sdkman.io/[SDKMAN6] for all things JVM, so I'm gonna run the following command:
+
+[source, bash]
+----
+sdk install kotlin
+----
+
+And now for the Kotlin script.
+Our script prints out a JSON document representing a person:
+
+
+.script.kts
+[source, kotlin]
+----
+@file:DependsOn("com.google.code.gson:gson:2.8.6") // <.>
+
+import com.google.gson.Gson
+
+data class Person(val name: String)
+class Blog {
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            println(
+                Gson().toJson(Person("Mark Needham"))
+            )
+        }
+    }
+}
+
+println("Script started")
+println("Before main function call")
+Blog.main(arrayOf()) // <.>
+println("After main function call")
+----
+<.> Install GSON as a dependency
+<.> Run the `Blog` main class
+
+After trying a few different approaches, I came https://github.com/kscripting/kscript[kscript^], a wrapper around `kotlinc` that takes care of compilation and dependency management for us.
+We can install it like this:
+
+[source, bash]
+----
+sdk install kscript
+----
+
+And then run our script:
+
+[source, bash]
+----
+kscript script.kts
+----
+
+.Output
+[source, text]
+----
+[kscript] Resolving com.google.code.gson:gson:2.8.6...
+Script started
+Before main function call
+{"name":"Mark Needham"}
+After main function call
+----
+
+And that's it!

@@ -1,0 +1,59 @@
++++
+draft = false
+date="2023-09-03 00:44:37"
+title="JupyterLab 4.0.5: Scroll output with keyboard shortcut"
+tag=['jupyterlab', 'til']
+category=['TIL']
+description="In this post, we'll learn how to make the output of a Jupyterlab cell scrollable with a keyboard shortcut."
+image="uploads/2023/09/jupyter-scroll.png"
++++
+
+:icons: font
+
+In the latest version of Jupyter Notebook/Lab (at least), the output of each cell is shown in full, regardless of how long it is.
+I wanted to limit the height of the output and then scroll through it within that inner window, ideally by triggering a keyboard shortcut.
+
+I learnt how to do this with the help of https://stackoverflow.com/questions/59025144/how-do-i-set-a-shortcut-to-enable-scrolling-for-outputs-in-jupyter-lab[Stack Overflow].
+First, you need to open the settings editor by typing `Cmd + ,` on a Mac or by clicking on that screen from the top menu:
+
+.Settings > Settings Editor
+image::{{<siteurl>}}/uploads/2023/09/settings-editor.png[]
+
+Next, click on `JSON Settings Editor` in the top right-hand corner:
+
+.JSON Settings Editor
+image::{{<siteurl>}}/uploads/2023/09/json-settings-editor.png[]
+
+And then paste the following JSON into the `shortcuts` array:
+
+[source, json]
+----
+        {
+            "command": "notebook:enable-output-scrolling",
+            "keys": [
+                "S"
+            ],
+            "selector": ".jp-Notebook:focus",
+            "args": {}
+        },
+        {
+            "command": "notebook:disable-output-scrolling",
+            "keys": [
+                "Alt S"
+            ],
+            "selector": ".jp-Notebook:focus",
+            "args": {}
+        },
+----
+
+This is how it should look like once you've done that:
+
+.Keyboard shortcuts added
+image::{{<siteurl>}}/uploads/2023/09/json-edited.png[]
+
+You can then add a scrollbar to an output cell by pressing `s` or remove the scrollbar by pressing `Alt + s`.
+Below is an example of what happens when you toggle output scrolling:
+
+
+.No scrollbar vs Scrollbar 
+image::{{<siteurl>}}/uploads/2023/09/scrollbar-noscrollbar.png[]

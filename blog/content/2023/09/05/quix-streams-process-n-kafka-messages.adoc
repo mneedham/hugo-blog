@@ -1,0 +1,279 @@
++++
+draft = false
+date="2023-09-05 00:44:37"
+title="Quix Streams: Process certain number of Kafka messages"
+tag=['quixstreams', 'python', 'til']
+category=['TIL']
+description="In this post, we'll learn how to process a specified number of messages in a Kafka topic using Quix Streams."
+image="uploads/2023/09/quix-messages-kafka-banner.png"
++++
+
+:icons: font
+
+In a recent demo, I wanted to use Quix Streams to process a specified number of messages from a Kafka topic, write a message to another stream, and then exit the Quix app.
+This is an unusual use of Quix Streams, so it took me a while to figure out how to do it.
+
+Let's assume we have a Kafka broker running.
+We'll create a couple of topics using the `rpk` tool:
+
+[source, bash]
+----
+rpk topic create events -p1
+rpk topic create massaged-events -p1
+----
+
+Now, we're going to start by installing Quix Streams and Click, a library for processing command line arguments:
+
+[source, bash]
+----
+pip install quixstreams click
+----
+
+We're going to start by creating a version of the application that processes all messages. 
+Create a file called `massage.py` and add the following imports
+
+[source, python]
+----
+import quixstreams as qx
+from quixstreams import StreamConsumer, EventData, CommitMode
+import json
+import click
+----
+
+Next, let's create a 'main' method that's going to bootstrap the app:
+
+[source, python]
+----
+@click.command()
+def run_app():
+    global client, topic_consumer, producer
+
+    client = qx.KafkaStreamingClient('127.0.0.1:9092') # <.>
+
+    topic_consumer = client.get_topic_consumer( # <.>
+        topic="events",
+        auto_offset_reset=qx.AutoOffsetReset.Earliest,
+        consumer_group="events-consumer",
+        commit_settings=CommitMode.Manual
+    )
+    producer = client.get_raw_topic_producer("massaged-events") # <.>
+
+    print("Listening to streams. Press CTRL-C to exit.")
+
+    topic_consumer.on_stream_received = on_stream_received_handler
+    topic_consumer.subscribe()
+
+    qx.App.run(before_shutdown=before_shutdown)
+----
+<.> Create Kafka client
+<.> Create consumer for the `events` topic
+<.> Create producer for the `massaged-events` topic
+
+We then need to add the following functions to process each message and handle the shutdown of the app:
+
+[source, python]
+----
+def on_event_data_received_handler(stream: StreamConsumer, data: EventData):
+    with data:
+        payload = json.loads(data.value)
+        payload["count"] *= 2 # <.>
+        
+        message = qx.RawMessage(json.dumps(payload, indent=2).encode('utf-8')) # <.>
+        message.key = str(payload["id"]).encode('utf-8')
+        producer.publish(message) #<.>
+
+        topic_consumer.commit()
+
+
+def on_stream_received_handler(stream_received: StreamConsumer):
+    stream_received.events.on_data_received = on_event_data_received_handler
+
+
+def before_shutdown():
+    print('before shutdown')    
+    topic_consumer.dispose()
+    producer.dispose()
+----
+<.> Multiply the `count` property by 2
+<.> Create a new message
+<.> Publish the message to the `massaged-events` topic
+
+Finally, let's call the 'main' function:
+
+[source, python]
+----
+if __name__ == "__main__":
+    run_app()
+----
+
+If we run this script, it will process any messages received by the `events` topic and write a new message to `massaged-events` with the `count` property doubled.
+
+Let's ingest a message into Kafka to see if it works:
+
+[source, bash]
+----
+echo '{"id": 1, "count": 4}' |
+jq -cr --arg sep ø '[.id, tostring] | join($sep)' |
+kcat -P -b localhost:9092 -t events -Kø
+----
+
+And now we'll check the contents of the `events` and `massaged-events` topics:
+
+[source, bash]
+----
+kcat -C -b localhost:9092 -t events -e | jq -c
+----
+
+.Output
+[source, json]
+----
+{"id":1,"count":4}
+----
+
+[source, bash]
+----
+kcat -C -b localhost:9092 -t massaged-events -e | jq -c
+----
+
+.Output
+[source, json]
+----
+{"id":1,"count":8}
+----
+
+So far, so good.
+If we write any more messages to the `events` topic they will automatically be processed as well.
+
+But now we want to update our script so that we can specify how many messages to consume before stopping. 
+If we then run the script again, it will continue from where we left off because our topic consumer was created with a consumer group that's keeping track of the last read offset.
+We can return that offset by running the following command:
+
+[source, bash]
+----
+rpk group describe events-consumer
+----
+
+.Output
+[source, text]
+----
+GROUP        events-consumer
+COORDINATOR  0
+STATE        Empty
+BALANCER     
+MEMBERS      0
+TOPIC   PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG   MEMBER-ID  CLIENT-ID  HOST
+events  0          1               1               0                           
+----
+
+Let's update our imports:
+
+[source, python]
+----
+from quixstreams import StreamConsumer, EventData, CancellationTokenSource, CommitMode
+import threading
+----
+
+And now we'll update the `run_app` function to look like this:
+
+[source, python]
+----
+@click.command()
+@click.option('--number-events', default=1)
+def run_app(number_events):
+    global client, topic_consumer, producer
+    global events_to_consume, events_consumed, thread_lock, cancellation_thread
+    
+    client = qx.KafkaStreamingClient('127.0.0.1:9092')
+
+    topic_consumer = client.get_topic_consumer(
+        topic="events",
+        auto_offset_reset=qx.AutoOffsetReset.Earliest,
+        consumer_group="events-consumer",
+        commit_settings=CommitMode.Manual
+    )
+    producer = client.get_raw_topic_producer("massaged-events")
+
+    thread_lock = threading.Lock()
+    cts = CancellationTokenSource() # <.>
+    cancellation_thread = threading.Thread(target=lambda: cts.cancel()) # <.>
+
+    events_to_consume = number_events
+    events_consumed = 0
+
+    print("Listening to streams. Press CTRL-C to exit.")
+
+    topic_consumer.on_stream_received = on_stream_received_handler
+    topic_consumer.subscribe()
+
+    qx.App.run(cts.token, before_shutdown=before_shutdown)
+    if cancellation_thread.is_alive(): # <.>
+        cancellation_thread.join()  
+----
+<.> Cancellation token used to stop message processing
+<.> Cancellation thread which will trigger the cancellation token
+<.> Join the cancellation thread to the main thread before exiting
+
+And the `on_event_data_received_handler` needs to be updated to keep track the messages consumed:
+
+[source, python]
+----
+def on_event_data_received_handler(stream: StreamConsumer, data: EventData):
+    global events_consumed
+    with data:
+        payload = json.loads(data.value)
+        payload["count"] *= 2
+        
+        message = qx.RawMessage(json.dumps(payload, indent=2).encode('utf-8'))
+        message.key = str(payload["id"]).encode('utf-8')
+        producer.publish(message)
+
+        topic_consumer.commit()
+
+        with thread_lock:
+            events_consumed += 1 # <.>
+
+        if events_consumed >= events_to_consume: # <.>
+            if not cancellation_thread.is_alive():
+                cancellation_thread.start() # <.>
+                print("Cancellation token triggered")
+            return
+----
+<.> Increment the number of messages consumed
+<.> Check if we've exceeded the count
+<.> Trigger the cancellation thread, which will cancel the token
+
+We can then call our Python script like this to process one event:
+
+[source, bash]
+----
+python massage.py --number-events 1
+----
+
+Let's now add another message to Kafka:
+
+[source, bash]
+----
+echo '{"id": 42, "count": 9000}' |
+jq -cr --arg sep ø '[.id, tostring] | join($sep)' |
+kcat -P -b localhost:9092 -t events -Kø
+----
+
+We'll see the following output from `massage.py`:
+
+.Output
+[source, text]
+----
+Listening to streams. Press CTRL-C to exit.
+Cancellation token triggered
+before shutdown
+----
+
+And if we look at the `massaged-events` topic, it now has the following message:
+
+.Output
+[source, json]
+----
+{"id":42,"count":18000}
+----
+
+You can find the full code in this https://gist.github.com/mneedham/d877080aa5247006a1272a2da464185f[GitHub Gist^].
