@@ -1,0 +1,96 @@
++++
+draft = false
+date="2023-09-12 00:44:37"
+title="kcat: SASL - Java JAAS configuration is not supported"
+tag=['kcat', 'kafka', 'til']
+category=['TIL']
+description="In this post, we'll learn how to ingest data into Kafka using kcat with SASL."
+image="uploads/2023/09/kcat-sasl-banner.png"
++++
+
+:icons: font
+
+I've been updating the StarTree Kafka SASL recipe to use Pinot 0.12 and ran into an error while trying to have it use `kcat` to ingest data into Kafka.
+In this blog post, we'll learn how I did this.
+
+The initial recipe was ingesting data into Kafka using `kafka-console-consumer.sh`, which uses the Java Kafka client.
+I'm using this Kafka client config file:
+
+.kafka-config/kafka_client.conf
+[source, properties]
+----
+security.protocol=SASL_PLAINTEXT
+sasl.mechanism=PLAIN
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+        username="alice" \
+        password="alice-secret";
+----
+
+And, we use this script to ingest data from a data generator:
+
+[source, bash]
+----
+python datagen.py |
+docker exec -i kafka-sasl /opt/kafka/bin/kafka-console-consumer.sh \
+   --bootstrap-server localhost:9093  \
+   --consumer.config /etc/kafka/kafka_client.conf \
+   --topic events \
+   --from-beginning
+----
+
+This all works fine, so I tried to update the script to use `kcat` instead:
+
+[source, bash]
+----
+python datagen.py |
+kcat -P -b localhost:9092 -F kafka-config/kafka_client.conf -t events
+----
+
+But this time it's not happy and we see the following error:
+
+.Output
+[source, text]
+----
+% Reading configuration from file kafka-config/kafka_client.conf
+% ERROR: kafka-config/kafka_client.conf:3: Java JAAS configuration is not supported, see https://github.com/edenhill/librdkafka/wiki/Using-SASL-with-librdkafka for more information.
+----
+
+ChatGPT helped me translate my original configuration to the following:
+
+.kafka-config/kafka_client_kcat.conf
+[source, properties]
+----
+security.protocol=SASL_PLAINTEXT
+sasl.mechanisms=PLAIN
+sasl.username=alice
+sasl.password=alice-secret
+----
+
+And then I updated my script to use that file:
+
+```bash
+python datagen.py |
+kcat -P -b localhost:9092 -F kafka-config/kafka_client_kcat.conf -t events
+```
+
+If we run that for a few seconds, we can then check if any data has been ingested:
+
+[source, text]
+----
+kcat -C -b localhost:9092 \
+  -F kafka-config/kafka_client_kcat.conf \
+  -t events \
+  -c 5
+----
+
+.Output
+[source, json]
+----
+{"ts": 1694529896154, "uuid": "1c192aca-05e4-497c-823c-6de697b38ebc", "count": 153}
+{"ts": 1694529896154, "uuid": "1336fc02-6e2a-47da-bbdb-b960356f6cac", "count": 674}
+{"ts": 1694529896154, "uuid": "ce4878f0-129a-4aad-b65f-d06b5817c5cd", "count": 231}
+{"ts": 1694529896154, "uuid": "006d29dd-e6a2-4dec-b9dd-49ee72406aeb", "count": 287}
+{"ts": 1694529896154, "uuid": "86693165-5194-41a5-9531-c61453b0d565", "count": 931}
+----
+
+Success!
