@@ -2,7 +2,7 @@
 draft = false
 date="2023-09-14 00:44:37"
 title="FAISS: Exploring Approximate Nearest Neighbours Cell Probe Methods"
-tag=['python]', 'faiss', 'til']
+tag=['python', 'faiss', 'til']
 category=['TIL']
 description="In this post, we'll learn how to do approximate nearest neighbours with FaceBook's FAISS vector search library."
 image="uploads/2023/09/faiss-banner.png"
