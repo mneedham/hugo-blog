@@ -1,0 +1,94 @@
++++
+draft = false
+date="2023-10-02 00:44:37"
+title="DuckDB: Show a list of views"
+tag=['duckdb', 'til']
+category=['TIL']
+description="In this post, we'll learn how to get a list of views in DuckDB."
+image="uploads/2023/10/duckdb-views-banner.png"
++++
+
+:icons: font
+
+I recently wanted to get a list of the views that I'd created in a DuckDB database and it took me a while to figure out how to do it.
+So this blog post is for future Mark more than anyone else!
+
+We're going to start with the following CSV file:
+
+.data/sales.csv
+[source, csv]
+----
+date,product_id,quantity,sales_amount
+2021-01-01,101,5,50
+2021-01-02,102,3,30
+2021-02-01,101,4,40
+2021-02-02,103,6,60
+----
+
+And now we'll create a table from the https://duckdb.org/docs/api/cli.html[DuckDB CLI^]:
+
+[source, sql]
+----
+CREATE TABLE sales AS 
+SELECT * from 'data/sales.csv';
+----
+
+The next task is to create a view called `monthly_sales` that aggregates the sales by month:
+
+[source, sql]
+----
+CREATE VIEW monthly_sales AS
+SELECT
+    DATE_TRUNC('MONTH', date) AS month,
+    product_id,
+    SUM(quantity) AS total_quantity,
+    SUM(sales_amount) AS total_sales_amount
+FROM sales
+GROUP BY ALL
+ORDER BY ALL
+----
+
+Now that I've created the view, I wanted to figure out how to list the views in my database.
+It took me a while to figure out how to do this from the docs, but I eventually found the solution on the https://duckdb.org/docs/sql/duckdb_table_functions[https://duckdb.org/docs/sql/duckdb_table_functions^] page.
+
+To get a list of all the views, we can run this query:
+
+[source, sql]
+----
+FROM duckdb_views();
+----
+
+But that returns a lot of rows as it includes all the internal views as well.
+To find just the ones that we've defined, we need to add the following `WHERE` clause:
+
+[source, sql]
+----
+FROM duckdb_views() 
+SELECT * EXCLUDE(sql)
+WHERE NOT internal;
+----
+
+.Output
+[options="header"]
+|===
+| database_name | database_oid | schema_name | schema_oid | view_name | view_oid | internal | temporary | column_count
+| sales | 992 | main | 994 | monthly_sales | 1006 | false | false | 4
+|===
+
+Or, if we want to write even less code, we can query the `duckdb_views` view rather than the function.
+The view automatically strips out the internal views:
+
+[source, sql]
+----
+FROM duckdb_views
+SELECT * EXCLUDE(sql);
+----
+
+.Output
+[options="header"]
+|===
+| database_name | database_oid | schema_name | schema_oid | view_name | view_oid | internal | temporary | column_count
+| sales | 992 | main | 994 | monthly_sales | 1006 | false | false | 4
+|===
+
+Job done!
