@@ -49,7 +49,7 @@ ORDER BY ALL
 ----
 
 Now that I've created the view, I wanted to figure out how to list the views in my database.
-It took me a while to figure out how to do this from the docs, but I eventually found the solution on the https://duckdb.org/docs/sql/duckdb_table_functions[https://duckdb.org/docs/sql/duckdb_table_functions^] page.
+It took me a while to figure out how to do this from the docs, but I eventually found the solution on the https://duckdb.org/docs/sql/duckdb_table_functions[DuckDB_% Metadata Functions^] page.
 
 To get a list of all the views, we can run this query:
 

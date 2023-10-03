@@ -1,0 +1,181 @@
++++
+draft = true
+date="2023-10-02 00:44:37"
+title="dbt-duckdb: Using a SQL query as a source"
+tag=['duckdb', 'dbt', 'til']
+category=['TIL']
+description="In this post, we'll learn how to use a SQL query as a dbt source to which we can apply a transformation."
+image="uploads/2023/10/duckdb-views-banner.png"
++++
+
+:icons: font
+
+https://github.com/duckdb/dbt-duckdb
+
+Query for one CSV file:
+
+[source, sql]
+----
+.mode line
+FROM read_csv_auto('https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_2023.csv', 
+  types={'winner_seed': 'VARCHAR', 'loser_seed': 'VARCHAR'}
+)
+LIMIT 1;
+----
+
+.Output
+[source, text]
+----
+        tourney_id = 2023-9900
+      tourney_name = United Cup
+           surface = Hard
+         draw_size = 18
+     tourney_level = A
+      tourney_date = 20230102
+         match_num = 300
+         winner_id = 126203
+       winner_seed = 3
+      winner_entry = 
+       winner_name = Taylor Fritz
+       winner_hand = R
+         winner_ht = 193
+        winner_ioc = USA
+        winner_age = 25.1
+          loser_id = 126610
+        loser_seed = 5
+       loser_entry = 
+        loser_name = Matteo Berrettini
+        loser_hand = R
+          loser_ht = 196
+         loser_ioc = ITA
+         loser_age = 26.7
+             score = 7-6(4) 7-6(6)
+           best_of = 3
+             round = F
+           minutes = 135
+             w_ace = 15
+              w_df = 2
+            w_svpt = 85
+           w_1stIn = 52
+          w_1stWon = 45
+          w_2ndWon = 16
+           w_SvGms = 12
+         w_bpSaved = 0
+         w_bpFaced = 0
+             l_ace = 7
+              l_df = 2
+            l_svpt = 97
+           l_1stIn = 62
+          l_1stWon = 47
+          l_2ndWon = 15
+           l_SvGms = 12
+         l_bpSaved = 9
+         l_bpFaced = 9
+       winner_rank = 9
+winner_rank_points = 3355
+        loser_rank = 16
+ loser_rank_points = 2375
+----
+
+Defining a source and model for that one file:
+
+.models/atp/sources.yml
+[source, yml]
+----
+version: 2
+  - name: github_2023
+    meta:
+      external_location: "read_csv_auto('https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_2023.csv', types={'winner_seed': 'VARCHAR', 'loser_seed': 'VARCHAR'})"
+      formatter: oldstyle
+
+    tables:
+      - name: matches_file
+----
+
+.Output
+[source, text]
+----
+16:03:38  Running with dbt=1.6.4
+16:03:38  Registered adapter: duckdb=1.6.0
+16:03:38  Encountered an error:
+"'winner_seed'"
+16:03:38  Traceback (most recent call last):
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-pipeline-fzeuMXbM-py3.11/lib/python3.11/site-packages/dbt/cli/requires.py", line 87, in wrapper
+    result, success = func(*args, **kwargs)
+                      ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-pipeline-fzeuMXbM-py3.11/lib/python3.11/site-packages/dbt/cli/requires.py", line 72, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-pipeline-fzeuMXbM-py3.11/lib/python3.11/site-packages/dbt/cli/requires.py", line 143, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-pipeline-fzeuMXbM-py3.11/lib/python3.11/site-packages/dbt/cli/requires.py", line 172, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-pipeline-fzeuMXbM-py3.11/lib/python3.11/site-packages/dbt/cli/requires.py", line 219, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-pipeline-fzeuMXbM-py3.11/lib/python3.11/site-packages/dbt/cli/requires.py", line 246, in wrapper
+    manifest = ManifestLoader.get_full_manifest(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-pipeline-fzeuMXbM-py3.11/lib/python3.11/site-packages/dbt/parser/manifest.py", line 316, in get_full_manifest
+    manifest = loader.load()
+               ^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-pipeline-fzeuMXbM-py3.11/lib/python3.11/site-packages/dbt/parser/manifest.py", line 505, in load
+    patcher.construct_sources()
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-pipeline-fzeuMXbM-py3.11/lib/python3.11/site-packages/dbt/parser/sources.py", line 85, in construct_sources
+    parsed = self.parse_source(patched)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-pipeline-fzeuMXbM-py3.11/lib/python3.11/site-packages/dbt/parser/sources.py", line 189, in parse_source
+    parsed_source.relation_name = self._get_relation_name(parsed_source)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-pipeline-fzeuMXbM-py3.11/lib/python3.11/site-packages/dbt/parser/sources.py", line 290, in _get_relation_name
+    return str(relation_cls.create_from(self.root_project, node))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-pipeline-fzeuMXbM-py3.11/lib/python3.11/site-packages/dbt/adapters/base/relation.py", line 259, in create_from
+    return cls.create_from_source(node, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-pipeline-fzeuMXbM-py3.11/lib/python3.11/site-packages/dbt/adapters/duckdb/relation.py", line 34, in create_from_source
+    ext_location = ext_location_template.format_map(source_config.as_dict())
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyError: "'winner_seed'"
+----
+
+But what about if we want to process all the CSV files? 
+We can't do wildcards on 
+
+[source, sql]
+----
+.mode line
+FROM read_csv_auto(list_transform(range(1968, 2023), 
+  y -> 'https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_' || y || '.csv'), 
+  types={'winner_seed': 'VARCHAR', 'loser_seed': 'VARCHAR'
+})
+LIMIT 1;
+----
+
+
+https://github.com/duckdb/dbt-duckdb#configuring-dbt-duckdb-plugins
+
+.models/atp/sources.yml
+[source, yml]
+----
+version: 2
+sources:
+  - name: github
+    meta:
+      external_location: "(FROM read_csv_auto(list_transform(range(1968, 2023), y -> 'https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_' || y || '.csv'), types={'winner_seed': 'VARCHAR', 'loser_seed': 'VARCHAR'}))"
+      formatter: oldstyle
+
+    tables:
+      - name: matches_file
+----
+
+.models/atp/matches_csv.sql
+[source, sql]
+----
+{{ config(materialized='external', location='output/matches.csv', format='csv')}}
+SELECT 
+    COLUMNS(col -> NOT  regexp_matches(col, 'w_.*') AND NOT regexp_matches(col, 'l_.*'))
+FROM {{ source('github', 'matches_file') }}
+----

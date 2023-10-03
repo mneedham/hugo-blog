@@ -1,0 +1,347 @@
++++
+draft = false
+date="2023-10-03 00:44:37"
+title="Running Mistral AI on my machine with Ollama"
+tag=['ollama', 'mistralai', 'generative-ai', 'llama-index', 'til']
+category=['TIL']
+description="In this post, we'll learn how to run Mistral AI's Large Language Model (LLM) on our own machine using Ollama."
+image="uploads/2023/10/mistral-banner.png"
++++
+
+:icons: font
+
+Last week Mistral AI announced the release of their first Large Language Model (LLM), trained with 7 billion parameters, and better than Meta's Llama 2 model with 13 billion parameters.
+For those keeping track, https://techcrunch.com/2023/06/13/frances-mistral-ai-blows-in-with-a-113m-seed-round-at-a-260m-valuation-to-take-on-openai/?guccounter=1[Mistral AI was founded in the summer of 2023^] and raised $113m in their seed round.
+
+== Ollama: Running LLMs locally
+
+In this blog post, we're going to try out Mistral AI's LLM on a local machine using a tool called https://ollama.ai/[Ollama^].
+We'll choose the Mac option from https://ollama.ai/download[the download page^], move it to our `/Applications` directory and then run it.
+There is no UI (at least at the moment), so we'll need to head to the terminal.
+
+We can run the following command to see what options we have:
+
+[source, bash]
+----
+ollama
+----
+
+.Output
+[source, bash]
+----
+Large language model runner
+
+Usage:
+  ollama [command]
+
+Available Commands:
+  serve       Start ollama
+  create      Create a model from a Modelfile
+  show        Show information for a model
+  run         Run a model
+  pull        Pull a model from a registry
+  push        Push a model to a registry
+  list        List models
+  cp          Copy a model
+  rm          Remove a model
+  help        Help about any command
+
+Flags:
+  -h, --help      help for ollama
+  -v, --version   version for ollama
+
+Use "ollama [command] --help" for more information about a command.
+----
+
+If we run `ollama list`, we'll get a list of the models that we've installed locally, which will initially be empty.
+
+== Installing Mistral AI
+
+Let's rectify that by installing the Mistral AI model.
+Let's navigate to the https://ollama.ai/library[list of models^] and then scroll down to find the https://ollama.ai/library/mistral[Mistral one^].
+
+This page has information about the model, as well as installation instructions.
+We can also click on `Tags` to see a bunch of variants of the model that we can use.
+
+If we want to run the instruct version of the model, we can execute the following command:
+
+[source, bash]
+----
+ollama run mistral:instruct
+----
+
+If the model doesn't exist locally, it will first be downloaded.
+We can also do the download in a separate step 
+
+[source, bash]
+----
+ollama pull mistral:instruct
+----
+
+.Output
+[source, text]
+----
+pulling manifest
+pulling 6ae280299950... 100% |██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| (4.1/4.1 GB, 23 TB/s)
+pulling fede2d8d6c1f... 100% |████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| (29/29 B, 280 kB/s)
+pulling b96850d2e482... 100% |██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| (307/307 B, 834 kB/s)
+verifying sha256 digest
+writing manifest
+removing any unused layers
+success
+----
+
+My computer can't download at 23 TB/second, the reason it shows that I've already locally installed `mistral:latest`, which happens to be the same as `mistral:instruct`.
+Let's have a look at the models that I've installed locally:
+
+[source, bash]
+----
+ollama list
+----
+
+.Output
+[source, text]
+----
+NAME            	ID          	SIZE  	MODIFIED
+mistral:instruct	8aa307f73b26	4.1 GB	27 seconds ago
+mistral:latest  	8aa307f73b26	4.1 GB	4 days ago
+----
+
+== Running Mistral AI from the CLI
+
+Now that we've downloaded the model, it's time to take it for a spin.
+We're going to interact with the model in interactive mode, by calling the `run` sub-command without providing a prompt:
+
+[source, bash]
+----
+ollama run mistral --verbose
+----
+
+.Output
+[source, text]
+----
+>>> Send a message (/? for help)
+----
+
+Let's start with a question about Apache Pinot that we asked of the `lmsys/fastchat-t5-3b-v1.0` model, in https://www.markhneedham.com/blog/2023/06/23/hugging-face-run-llm-model-locally-laptop/[my previous post about running LLMs on your machine^].
+
+[source, bash]
+----
+>>> What is Apache Pinot?
+----
+
+.Output
+[source, text]
+----
+Apache Pinot is an open-source columnar storage database designed to handle large amounts of data in a fast and efficient manner. It is built on top of the Apache Hadoop Distributed File System (HDFS) and
+is used to store and query massive volumes of structured and semi-structured data. Pinot provides high performance and low latency for real-time analytics, and can scale horizontally to handle large amounts
+of data across many nodes in a cluster. It also supports advanced analytics capabilities such as filtering, aggregation, sorting, and grouping of data.
+
+total duration:       2.497404s
+load duration:        1.366417ms
+prompt eval count:    15 token(s)
+prompt eval duration: 245.655ms
+prompt eval rate:     61.06 tokens/s
+eval count:           122 token(s)
+eval duration:        2.141823s
+eval rate:            56.96 tokens/s
+----
+
+It's not built on top of HDFS, so that's not right, but the rest of the answer isn't terrible.
+Let's tell it that and see what happens:
+
+[source, bash]
+----
+>>> I don't think it's built on HDFS?
+----
+
+.Output
+[source, text]
+----
+You are correct, Apache Pinot is not built on top of the Hadoop Distributed File System (HDFS). Instead, it has its own custom storage system called the "column store" which is optimized for storing and
+querying columnar data. The column store is built using a combination of in-memory and disk-based storage to provide fast read and write performance. Pinot also supports various data ingestion methods such
+as batch, real-time, and stream processing, making it suitable for use cases that require high throughput and low latency.
+
+total duration:       2.740019708s
+load duration:        2.253375ms
+prompt eval count:    158 token(s)
+prompt eval duration: 505.415ms
+prompt eval rate:     312.61 tokens/s
+eval count:           118 token(s)
+eval duration:        2.129927s
+eval rate:            55.40 tokens/s
+----
+
+It is a column store, but it's not called 'column store', but there we go!
+The description of how it's built isn't quite right either., but let's move on!
+
+An https://thenextweb.com/news/mistral-releases-first-generative-ai-model[article from thenextweb.com^] says the following:
+
+[blockquote]
+____
+French AI developer Mistral says its Large Language Model is optimal for low latency, text summarisation, classification, text completion, and code completion. The startup has opted to release Mistral 7B under the Apache 2.0 licence, which has no restrictions on use or reproduction beyond attribution.
+____
+
+Let's see how well it gets on with some of these tasks using https://www.bbc.co.uk/sport/football/66989159[this BBC article^] about the use of VAR (Video Assitant Referee) in the Premier League. 
+I've copy/pasted the text into the `bbc.txt` file locally.
+
+To programmatically pass in the contents of this file, we're going to exit interactive mode and pass in the prompt directly.
+First up, summarising the article:
+
+[source, bash]
+----
+ollama run mistral --verbose "Please can you summarise this article: $(cat bbc.txt)"
+----
+
+.Output
+[source, text]
+----
+In summary, the article reports that Jamie Carragher feels the crisis around VAR has escalated following the disallowed goal scored by Luis Diaz against Tottenham Hotspur on Saturday. The error was
+attributed to a significant human error and PGMOL, the governing body for referees, apologized for the mistake. However, Liverpool criticized the response of PGMOL and requested audio recordings of the
+match officials' communication. Shay Given also commented that it was a big mess and questioned how such a big moment could be wrong in a high-profile game. Chris Sutton agreed with Carragher and suggested
+that Liverpool fans should not see strong repercussions for the referee and the assistants who made the mistake.
+
+total duration:       5.61016175s
+load duration:        1.762583ms
+prompt eval count:    910 token(s)
+prompt eval duration: 2.349731s
+prompt eval rate:     387.28 tokens/s
+eval count:           153 token(s)
+eval duration:        3.125673s
+eval rate:            48.95 tokens/s
+----
+
+I'd say it's done a good job with that. 
+How about if we ask for bullet points instead?
+
+[source, bash]
+----
+ollama run mistral --verbose "Can you pull out 5 bullet points from the following article: $(cat bbc.txt)"
+----
+
+.Output
+[source, text]
+----
+1. The decision made by VAR during the game between Liverpool and Tottenham was incorrect, resulting in Luis Diaz's disallowed goal.
+2. PGMOL, the governing body for referees, admitted that the decision was due to "a significant human error".
+3. Jamie Carragher has stated that the feeling around VAR is at a crisis point after this incident.
+4. Liverpool are planning to appeal against the red card given to Curtis Jones for fouling Yves Bissouma.
+5. The controversy has led to criticism of PGMOL and the referees, with some calling for ex-players or people who understand the game more to be involved in VAR decisions.
+
+total duration:       5.490499458s
+load duration:        4.554ms
+prompt eval count:    918 token(s)
+prompt eval duration: 2.308006s
+prompt eval rate:     397.75 tokens/s
+eval count:           149 token(s)
+eval duration:        3.050338s
+eval rate:            48.85 tokens/s
+----
+
+Again, I like what it's come up with.
+How about if we ask it to categorise the document and detect its sentiment?
+
+[source, bash]
+----
+ollama run mistral --verbose "If you had to categorise this article, what tags would you use?: $(cat bbc.txt)"
+----
+
+.Output
+[source, text]
+----
+Football, Sports News, VAR, Referees, Human Error, Controversy, Red Cards, Discipline, Video Assistants, Governing Bodies
+
+total duration:       3.173798667s
+load duration:        3.880292ms
+prompt eval count:    925 token(s)
+prompt eval duration: 2.358585s
+prompt eval rate:     392.18 tokens/s
+eval count:           38 token(s)
+eval duration:        769.03ms
+eval rate:            49.41 tokens/s
+----
+
+[source, bash]
+----
+ollama run mistral --verbose "What's the sentiment of this article: $(cat bbc.txt)"
+----
+
+.Output
+[source, text]
+----
+The sentiment of this article is negative as it discusses criticism and controversy surrounding the video assistant referee (VAR) system. The incorrect decision made by VAR to flag Luis Diaz for offside
+resulted in a controversial match between Liverpool and Tottenham, with Liverpool losing 2-1 after an own goal deep into stoppage time. The club is appealing against the red card given to Curtis Jones, and
+there have been criticisms of PGMOL's response to the incident. Many people believe that this mistake was unprecedented and has undermined sporting integrity.
+
+total duration:       4.857536625s
+load duration:        2.101ms
+prompt eval count:    915 token(s)
+prompt eval duration: 2.344016s
+prompt eval rate:     390.36 tokens/s
+eval count:           118 token(s)
+eval duration:        2.40703s
+eval rate:            49.02 tokens/s
+----
+
+== Running Mistral AI from the HTTP API
+
+Ollama also provides an HTTP API that we can use to interact with the models.
+Let's give it a try:
+
+[source, bash]
+----
+curl -X POST http://localhost:11434/api/generate -d '{
+  "model": "mistral",
+  "prompt": "What is the sentiment of this sentence: The situation surrounding the video assistant referee is at crisis point."
+ }'
+----
+
+.Output
+[source, json]
+----
+{"model":"mistral","created_at":"2023-10-03T06:18:43.766825Z","response":"The","done":false}
+{"model":"mistral","created_at":"2023-10-03T06:18:43.785518Z","response":" sentiment","done":false}
+{"model":"mistral","created_at":"2023-10-03T06:18:43.804972Z","response":" of","done":false}
+{"model":"mistral","created_at":"2023-10-03T06:18:43.825034Z","response":" this","done":false}
+{"model":"mistral","created_at":"2023-10-03T06:18:43.84423Z","response":" sentence","done":false}
+{"model":"mistral","created_at":"2023-10-03T06:18:43.862961Z","response":" is","done":false}
+{"model":"mistral","created_at":"2023-10-03T06:18:43.881794Z","response":" negative","done":false}
+{"model":"mistral","created_at":"2023-10-03T06:18:43.900369Z","response":".","done":false}
+{"model":"mistral","created_at":"2023-10-03T06:18:43.91954Z","done":true,"context":[733,16289,28793,1824,349,272,21790,302,456,12271,28747,415,4620,12028,272,3798,13892,1792,14447,349,438,10788,1305,28723,733,28748,16289,28793,13,1014,21790,302,456,12271,349,7087,28723],"total_duration":397082750,"load_duration":1504000,"prompt_eval_count":26,"prompt_eval_duration":240025000,"eval_count":8,"eval_duration":141869000}
+----
+
+It works well, but the output is pretty tricky to work with, we'd have to do some work to massage that data.
+Luckily there are a bunch of LLM libraries that have done hard work for us!
+
+== Running Mistral AI with Llama Index
+
+Llama Index is a data framework for LLM applications to ingest, structure, and access private or domain-specific data.
+We can use it to call the Mistral model as part of a Python application:
+
+We'll first install Llama Index:
+
+[source, bash]
+----
+pip install llama-index
+----
+
+Now let's initialise the model:
+
+[source, python]
+----
+from llama_index.llms import Ollama
+llm = Ollama(model="mistral:instruct")
+----
+
+And call it:
+
+[source, python]
+----
+llm.complete("What is the sentiment of this sentence: The situation surrounding the video assistant referee is at crisis point.")
+----
+
+.Output
+[source, text]
+----
+CompletionResponse(text='The sentiment in the given sentence is negative, as it mentions that the situation is at a "crisis point" which suggests a state of extreme difficulty and urgency.', additional_kwargs={}, raw=None, delta=None)
+----
