@@ -1,0 +1,15 @@
++++
+draft = true
+date="2023-10-04 00:44:37"
+title="Poetry: Updating a package to a new version"
+tag=['ollama', 'mistralai', 'generative-ai', 'llama-index', 'til']
+category=['TIL']
+description="In this post, we'll learn how to run Mistral AI's Large Language Model (LLM) on our own machine using Ollama."
+image="uploads/2023/10/mistral-banner.png"
++++
+
+:icons: font
+
+db test date range 
+
+https://github.com/calogica/dbt-expectations#expect_table_row_count_to_equal

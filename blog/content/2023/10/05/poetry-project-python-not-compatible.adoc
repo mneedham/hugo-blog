@@ -1,0 +1,185 @@
++++
+draft = false
+date="2023-10-05 00:44:37"
+title="Poetry: The current project's Python requirement is not compatible"
+tag=['poetry', 'python', 'til']
+category=['TIL']
+description="In this post, we'll learn how to work around an issue when packages have different Python version requirements."
+image="uploads/2023/10/poetry-not-compatible-banner.png"
++++
+
+:icons: font
+
+A few times this week I've run into an interesting problem with Python version requirements when trying to install various packages.
+In this blog post, we'll learn what's going on and how to fix it.
+
+Our story begins with the innocent creation of a Poetry project:
+
+[source, bash]
+----
+poetry init
+----
+
+Next, we're going to add `dlt`, the data loading tool:
+
+[source, bash]
+----
+poetry add dlt
+----
+
+.Output
+[source, text]
+----
+Creating virtualenv incompatible-blog-Bp2VMsrx-py3.11 in /Users/markhneedham/Library/Caches/pypoetry/virtualenvs
+Using version ^0.3.18 for dlt
+
+Updating dependencies
+Resolving dependencies... (2.0s)
+
+Package operations: 38 installs, 1 update, 0 removals
+
+  • Installing six (1.16.0)
+  • Installing smmap (5.0.1)
+  • Installing certifi (2023.7.22): Installing...
+  • Installing certifi (2023.7.22)
+  • Installing charset-normalizer (3.3.0)
+  • Installing gitdb (4.0.10)
+  • Installing idna (3.4)
+  • Installing ply (3.11)
+  • Installing python-dateutil (2.8.2)
+  • Installing pytzdata (2020.1)
+  • Installing types-setuptools (68.2.0.0)
+  • Installing typing-extensions (4.8.0)
+  • Installing urllib3 (2.0.6)
+  • Installing wrapt (1.15.0)
+  • Installing astunparse (1.6.3)
+  • Installing click (8.1.7)
+  • Installing deprecated (1.2.14)
+  • Installing fsspec (2023.9.2)
+  • Installing gitpython (3.1.37)
+  • Installing giturlparse (0.12.0): Installing...
+  • Installing hexbytes (0.3.1): Installing...
+  • Installing giturlparse (0.12.0)
+  • Installing hexbytes (0.3.1)
+  • Installing humanize (4.8.0)
+  • Installing jsonpath-ng (1.6.0)
+  • Installing makefun (1.15.1)
+  • Installing orjson (3.9.7)
+  • Installing packaging (23.2)
+  • Installing pathvalidate (3.2.0): Pending...
+  • Installing pendulum (2.1.2): Installing...
+  • Installing pathvalidate (3.2.0)
+  • Installing pendulum (2.1.2)
+  • Installing pytz (2023.3.post1)
+  • Installing pyyaml (6.0.1)
+  • Installing requests (2.31.0)
+  • Installing requirements-parser (0.5.0)
+  • Installing semver (3.0.1)
+  • Updating setuptools (68.2.0 -> 68.2.2)
+  • Installing simplejson (3.19.1)
+  • Installing sqlalchemy (2.0.21)
+  • Installing tenacity (8.2.3)
+  • Installing tomlkit (0.12.1)
+  • Installing tzdata (2023.3)
+  • Installing dlt (0.3.18)
+
+Writing lock file
+----
+
+We want to ingest data into DuckDB, so let's add that dependency as well:
+
+[source, bash]
+----
+poetry add duckdb
+----
+
+.Output
+[source, text]
+----
+Using version ^0.9.0 for duckdb
+
+Updating dependencies
+Resolving dependencies... (0.1s)
+
+Package operations: 1 install, 0 updates, 0 removals
+
+  • Installing duckdb (0.9.0)
+
+Writing lock file
+----
+
+So far so good.
+But what about if we want to add pandas as well?
+
+[source, bash]
+----
+poetry add pandas
+----
+
+.Output
+[source, text]
+----
+Using version ^2.1.1 for pandas
+
+Updating dependencies
+Resolving dependencies... (0.1s)
+
+The current project's Python requirement (>=3.11,<4.0) is not compatible with some of the required packages Python requirement:
+  - numpy requires Python <3.13,>=3.9, so it will not be satisfied for Python >=3.13,<4.0
+
+Because no versions of pandas match >2.1.1,<3.0.0
+ and pandas (2.1.1) depends on numpy (>=1.26.0), pandas (>=2.1.1,<3.0.0) requires numpy (>=1.26.0).
+Because numpy (1.26.0) requires Python <3.13,>=3.9
+ and no versions of numpy match >1.26.0, numpy is forbidden.
+Thus, pandas is forbidden.
+So, because incompatible-blog depends on pandas (^2.1.1), version solving failed.
+
+  • Check your dependencies Python requirement: The Python requirement can be specified via the `python` or `markers` properties
+
+    For numpy, a possible solution would be to set the `python` property to ">=3.11,<3.13"
+
+    https://python-poetry.org/docs/dependency-specification/#python-restricted-dependencies,
+    https://python-poetry.org/docs/dependency-specification/#using-environment-markers
+----
+
+Disaster strikes!
+It's complaining about Poetry's Python requirement being incompatible with numpy's requirement.
+Our project allows any version from 3.11 -> 4.0 and numpy only allows 3.9 -> 3.13.
+Right now we're using 3.11, so we're currently fine, but it could break in the future.
+
+If we have a look at our `pyproject.toml` file, we can see the Python version is configured like this:
+
+[source, toml]
+----
+[tool.poetry.dependencies]
+python = ">=3.11"
+----
+
+At the moment it will allow any version that's 3.11 or above.
+We need to restrict the version to a maximum of 3.13, which we can do by updating it to read like this:
+
+[source, toml]
+----
+[tool.poetry.dependencies]
+python = ">=3.11.0,<3.13.0"
+----
+
+And now if we run `poetry add pandas` again:
+
+.Output
+[source, text]
+----
+Using version ^2.1.1 for pandas
+
+Updating dependencies
+Resolving dependencies... (0.2s)
+
+Package operations: 2 installs, 0 updates, 0 removals
+
+  • Installing numpy (1.26.0)
+  • Installing pandas (2.1.1)
+
+Writing lock file
+----
+
+Happy days!

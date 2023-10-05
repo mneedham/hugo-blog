@@ -1,0 +1,93 @@
++++
+draft = false
+date="2023-10-03 00:44:37"
+title="Poetry: Updating a package to a new version"
+tag=['poetry', 'python', 'til']
+category=['TIL']
+description="In this post, we'll learn how to update a package when using the Poetry Python package manager."
+image="uploads/2023/10/poetry-update-package-banner.png"
++++
+
+:icons: font
+
+I'm using the Poetry package manager for all my Python projects these days and wanted to upgrade as library that I installed a few weeks ago.
+I got myself all tangled up and wanted to write down how to do it for future me.
+
+Let's create a simple project to demonstrate what to do:
+
+[source, bash]
+----
+poetry init
+----
+
+.pyproject.toml
+[source, toml]
+----
+[tool.poetry]
+name = "update-blog"
+version = "0.1.0"
+description = ""
+authors = ["Mark Needham <m.h.needham@gmail.com>"]
+readme = "README.md"
+packages = [{include = "update_blog"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+duckdb = "0.8.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+----
+
+Next, we're going to add DuckDB version 0.8.1 to our project:
+
+[source, bash]
+----
+poetry add duckdb@0.8.1
+----
+
+I want to update this to version 0.9.0, so I initially did this:
+
+[source, bash]
+----
+poetry update duckdb 
+----
+
+.Output
+[source, text]
+----
+Updating dependencies
+Resolving dependencies... (0.4s)
+
+No dependencies to install or update
+----
+
+Hmmm, that doesn't do anything. 
+I came across https://nick.groenen.me/notes/upgrade-python-packages-to-their-latest-version-when-using-poetry/[Nick Groene's] blog post and he said you need to append `@latest` to force an update.
+Let's try taht:
+
+[source, bash]
+----
+poetry add duckdb@latest
+----
+
+.Output
+[source, text]
+----
+Using version ^0.9.0 for duckdb
+
+Updating dependencies
+Resolving dependencies... (0.1s)
+
+Package operations: 0 installs, 1 update, 0 removals
+
+  • Updating duckdb (0.8.1 -> 0.9.0)
+
+Writing lock file
+----
+
+Happy days!
+I still don't know how to update all the dependencies for a project to the latest version so if you know how to do that, please let me know!
