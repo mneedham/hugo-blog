@@ -1,0 +1,73 @@
++++
+draft = true
+date="2023-10-05 00:44:37"
+title="Poetry: The current project's Python requirement is not compatible"
+tag=['poetry', 'python', 'til']
+category=['TIL']
+description="In this post, we'll learn how to work around an issue when packages have different Python version requirements."
+image="uploads/2023/10/poetry-not-compatible-banner.png"
++++
+
+:icons: font
+
+
+Works fine if I do this:
+poetry run dagster dev -f atp/assets.py 
+
+but not if I do this:
+
+poetry run dagster dev
+
+ File "/Users/markhneedham/projects/needham/code/ch09/atp/__init__.py", line 7, in <module>
+    defs = Definitions(
+           ^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-app-er_2mvJz-py3.11/lib/python3.11/site-packages/dagster/_core/definitions/definitions_class.py", line 433, in __init__
+    self._created_pending_or_normal_repo = _create_repository_using_definitions_args(
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-app-er_2mvJz-py3.11/lib/python3.11/site-packages/dagster/_core/definitions/definitions_class.py", line 297, in _create_repository_using_definitions_args
+    @repository(
+     ^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-app-er_2mvJz-py3.11/lib/python3.11/site-packages/dagster/_core/definitions/decorators/repository_decorator.py", line 118, in __call__
+    repository_definitions = fn()
+                             ^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-app-er_2mvJz-py3.11/lib/python3.11/site-packages/dagster/_core/definitions/definitions_class.py", line 306, in created_repo
+    *with_resources(assets or [], resource_defs),
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-app-er_2mvJz-py3.11/lib/python3.11/site-packages/dagster/_core/execution/with_resources.py", line 105, in with_resources
+    transformed_defs.append(cast(T, definition.with_resources(resource_defs)))
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-app-er_2mvJz-py3.11/lib/python3.11/site-packages/dagster/_core/definitions/assets.py", line 1308, in with_resources
+    attributes_dict["resource_defs"] = merge_resource_defs(
+                                       ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-app-er_2mvJz-py3.11/lib/python3.11/site-packages/dagster/_core/definitions/resource_requirement.py", line 268, in merge_resource_defs
+    ensure_requirements_satisfied(
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-app-er_2mvJz-py3.11/lib/python3.11/site-packages/dagster/_core/definitions/resource_requirement.py", line 228, in ensure_requirements_satisfied
+    raise DagsterInvalidDefinitionError(
+
+  warnings.warn(f"Error loading repository location {location_name}:{error.to_string()}")
+2023-10-09 10:16:00 +0100 - dagster.daemon.SchedulerDaemon - WARNING - Could not load location atp to check for schedules due to the following error: dagster._core.errors.DagsterInvalidDefinitionError: resource with key 'duckdb' required by op 'atp_players_dataset' was not provided. Please provide a ResourceDefinition to key 'duckdb', or change the required key to one of the following keys which points to an ResourceDefinition: ['io_manager']
+
+Stack Trace:
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-app-er_2mvJz-py3.11/lib/python3.11/site-packages/dagster/_grpc/server.py", line 295, in __init__
+    self._loaded_repositories: Optional[LoadedRepositories] = LoadedRepositories(
+                                                              ^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-app-er_2mvJz-py3.11/lib/python3.11/site-packages/dagster/_grpc/server.py", line 139, in __init__
+    loadable_targets = get_loadable_targets(
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-app-er_2mvJz-py3.11/lib/python3.11/site-packages/dagster/_grpc/utils.py", line 47, in get_loadable_targets
+    else loadable_targets_from_python_module(module_name, working_directory)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-app-er_2mvJz-py3.11/lib/python3.11/site-packages/dagster/_core/workspace/autodiscovery.py", line 35, in loadable_targets_from_python_module
+    module = load_python_module(
+
+init file:
+
+from dagster import Definitions, load_assets_from_modules
+
+from . import assets
+
+all_assets = load_assets_from_modules([assets])
+
+defs = Definitions(
+    assets=all_assets
+)

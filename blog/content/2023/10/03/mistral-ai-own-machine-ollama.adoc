@@ -13,6 +13,15 @@ image="uploads/2023/10/mistral-banner.png"
 Last week Mistral AI announced the release of their first Large Language Model (LLM), trained with 7 billion parameters, and better than Meta's Llama 2 model with 13 billion parameters.
 For those keeping track, https://techcrunch.com/2023/06/13/frances-mistral-ai-blows-in-with-a-113m-seed-round-at-a-260m-valuation-to-take-on-openai/?guccounter=1[Mistral AI was founded in the summer of 2023^] and raised $113m in their seed round.
 
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/NFgEgqua-fg?si=P67Le7XyVjBwrIHR" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+++++
+====
+
 == Ollama: Running LLMs locally
 
 In this blog post, we're going to try out Mistral AI's LLM on a local machine using a tool called https://ollama.ai/[Ollama^].

@@ -1,0 +1,141 @@
++++
+draft = false
+date="2023-10-09 00:44:37"
+title="Poetry/Dagster: ImportError: cannot import name 'appengine' from 'requests.packages.urllib3.contrib'"
+tag=['poetry', 'python', 'dagster', 'til']
+category=['TIL']
+description="In this post, we'll learn how to work around a dependency issue when trying to run Dagster."
+image="uploads/2023/10/dagster-banner.png"
++++
+
+:icons: font
+
+I'm taking some tentative steps into the world of batch data pipelines and I've been following https://docs.dagster.io/integrations/duckdb/using-duckdb-with-dagster[Dagster's DuckDB tutorial] when I ran into a dependency issue that I had to work around.
+In this blog post, I'll share the steps that I took in case you run into the same issue.
+
+I'm using the https://python-poetry.org/[Poetry^] dependency management tool, but I think you'd get the same issue even if you used `pip` directly.
+We're going to start by adding the following dependencies:
+
+[source, bash]
+----
+poetry add dagster duckdb dagster-duckdb dagster-duckdb-pandas dagster-webserver
+----
+
+And then we'll create a file called `dagster_iris.py` that defines one asset, which ingests the Iris dataset into DuckDB.
+
+.dagster_iris.py
+[source, python]
+----
+from dagster_duckdb import DuckDBResource
+from dagster import Definitions, asset
+
+@asset
+def iris_dataset(duckdb: DuckDBResource) -> None:
+    iris_df = pd.read_csv(
+        "https://docs.dagster.io/assets/iris.csv",
+        names=[
+            "sepal_length_cm",
+            "sepal_width_cm",
+            "petal_length_cm",
+            "petal_width_cm",
+            "species",
+        ],
+    )
+
+    with duckdb.get_connection() as conn:
+        conn.execute("CREATE TABLE iris.iris_dataset AS SELECT * FROM iris_df")
+
+defs = Definitions(
+    assets=[iris_dataset],
+    resources={
+        "duckdb": DuckDBResource(
+            database="/tmp/iris.duckdb",  # required
+        )
+    },
+)
+----
+
+Next, we're going to launch Dagster's UI so that we can materialise this asset:
+
+[source, bash]
+----
+poetry run dagster dev -f dagster_iris.py
+----
+
+But we immediately run into this error:
+
+.Output
+[source, text]
+----
+Traceback (most recent call last):
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/tmp-Ef4UpWP3-py3.11/lib/python3.11/site-packages/requests_toolbelt/_compat.py", line 48, in <module>
+    from requests.packages.urllib3.contrib import appengine as gaecontrib
+ImportError: cannot import name 'appengine' from 'requests.packages.urllib3.contrib' (/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/tmp-Ef4UpWP3-py3.11/lib/python3.11/site-packages/urllib3/contrib/__init__.py)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/tmp-Ef4UpWP3-py3.11/lib/python3.11/site-packages/dagster_webserver/__main__.py", line 1, in <module>
+    from .cli import main  # pragma: no cover
+    ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/tmp-Ef4UpWP3-py3.11/lib/python3.11/site-packages/dagster_webserver/cli.py", line 28, in <module>
+    from .app import create_app_from_workspace_process_context
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/tmp-Ef4UpWP3-py3.11/lib/python3.11/site-packages/dagster_webserver/app.py", line 9, in <module>
+    from .webserver import DagsterWebserver
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/tmp-Ef4UpWP3-py3.11/lib/python3.11/site-packages/dagster_webserver/webserver.py", line 17, in <module>
+    from dagster_graphql import __version__ as dagster_graphql_version
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/tmp-Ef4UpWP3-py3.11/lib/python3.11/site-packages/dagster_graphql/__init__.py", line 3, in <module>
+    from .client import (
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/tmp-Ef4UpWP3-py3.11/lib/python3.11/site-packages/dagster_graphql/client/__init__.py", line 1, in <module>
+    from .client import DagsterGraphQLClient as DagsterGraphQLClient
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/tmp-Ef4UpWP3-py3.11/lib/python3.11/site-packages/dagster_graphql/client/client.py", line 12, in <module>
+    from gql.transport.requests import RequestsHTTPTransport
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/tmp-Ef4UpWP3-py3.11/lib/python3.11/site-packages/gql/transport/requests.py", line 11, in <module>
+    from requests_toolbelt.multipart.encoder import MultipartEncoder
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/tmp-Ef4UpWP3-py3.11/lib/python3.11/site-packages/requests_toolbelt/__init__.py", line 12, in <module>
+    from .adapters import SSLAdapter, SourceAddressAdapter
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/tmp-Ef4UpWP3-py3.11/lib/python3.11/site-packages/requests_toolbelt/adapters/__init__.py", line 12, in <module>
+    from .ssl import SSLAdapter
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/tmp-Ef4UpWP3-py3.11/lib/python3.11/site-packages/requests_toolbelt/adapters/ssl.py", line 16, in <module>
+    from .._compat import poolmanager
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/tmp-Ef4UpWP3-py3.11/lib/python3.11/site-packages/requests_toolbelt/_compat.py", line 50, in <module>
+    from urllib3.contrib import appengine as gaecontrib
+ImportError: cannot import name 'appengine' from 'urllib3.contrib' (/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/tmp-Ef4UpWP3-py3.11/lib/python3.11/site-packages/urllib3/contrib/__init__.py)
+2023-10-09 10:54:31 +0100 - dagster.daemon - INFO - Instance is configured with the following daemons: ['AssetDaemon', 'BackfillDaemon', 'SchedulerDaemon', 'SensorDaemon']
+2023-10-09 10:54:35 +0100 - dagster - ERROR - An unexpected exception has occurred
+Traceback (most recent call last):
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/tmp-Ef4UpWP3-py3.11/lib/python3.11/site-packages/dagster/_cli/dev.py", line 176, in dev_command
+    raise Exception(
+Exception: dagster-webserver process shut down unexpectedly with return code 1
+2023-10-09 10:54:35 +0100 - dagster - INFO - Shutting down Dagster services...
+2023-10-09 10:54:35 +0100 - dagster.daemon - INFO - Received interrupt, shutting down daemon threads...
+2023-10-09 10:54:35 +0100 - dagster.daemon - INFO - Daemon threads shut down.
+2023-10-09 10:54:35 +0100 - dagster - INFO - Dagster services shut down.
+----
+
+I came across https://stackoverflow.com/questions/76175487/sudden-importerror-cannot-import-name-appengine-from-requests-packages-urlli[this thread^], which describes a way to fix it.
+
+[quote]
+____
+The cause is that the latest version of requests does not support urllib3 2.0.0. This is fixed in kfp-2.0.0b16 (see PR with the change), so you can either upgrade to that, or create a new image that downgrades urllib.
+____
+
+So I ran the following command:
+
+[source, bash]
+----
+poetry add urllib3==1.26.15 requests-toolbelt==0.10.1
+----
+
+When I then re-run the `dagster dev` command, I can happily load the UI:
+
+[source, text]
+----
+2023-10-09 10:55:58 +0100 - dagster - INFO - Using temporary directory /private/tmp/tmpswb90dld for storage. This will be removed when dagster dev exits.
+2023-10-09 10:55:58 +0100 - dagster - INFO - To persist information across sessions, set the environment variable DAGSTER_HOME to a directory to use.
+2023-10-09 10:55:58 +0100 - dagster - INFO - Launching Dagster services...
+2023-10-09 10:55:59 +0100 - dagster.daemon - INFO - Instance is configured with the following daemons: ['AssetDaemon', 'BackfillDaemon', 'SchedulerDaemon', 'SensorDaemon']
+2023-10-09 10:56:00 +0100 - dagster-webserver - INFO - Serving dagster-webserver on http://127.0.0.1:3000 in process 31935
+----

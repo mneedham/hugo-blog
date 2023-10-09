@@ -1,6 +1,6 @@
 +++
 draft = false
-date="2023-10-03 00:44:37"
+date="2023-10-04 00:44:37"
 title="Poetry: Updating a package to a new version"
 tag=['poetry', 'python', 'til']
 category=['TIL']
