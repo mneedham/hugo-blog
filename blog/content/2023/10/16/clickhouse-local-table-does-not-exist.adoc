@@ -1,0 +1,71 @@
++++
+draft = false
+date="2023-10-16 00:44:37"
+title="ClickHouse: Code: 60. DB::Exception: Table does not exist'"
+tag=[''clickhouse', 'clickhouse-local', 'til']
+category=['TIL']
+description="In this post, we'll learn how "
+image="uploads/2023/10/dagster-banner.png"
++++
+
+:icons: font
+
+[source, bash]
+----
+curl https://clickhouse.com/ | sh
+----
+
+[source, bash]
+----
+./clickhouse local -m --path people.chdb
+----
+
+.people.csv
+[format="csv", options="header"]
+|===
+include::content/2023/10/16/data/people.csv[]
+|===
+
+
+[source, sql]
+----
+create table people ENGINE=MergeTree() ORDER BY tuple() AS 
+select * 
+from file('people.csv', CSVWithNames);
+----
+
+If we then query the `peoples` table:
+
+[source, sql]
+----
+SELECT *
+FROM people
+----
+
+.Output
+[source, text]
+----
+Query id: 8567a2c0-5a98-4981-9097-fd5ed33d173e
+
+┌─name────┬─hobby────┐
+│ Mark    │ tennis   │
+│ Michael │ football │
+│ James   │ cricket  │
+└─────────┴──────────┘
+
+3 rows in set. Elapsed: 0.002 sec.
+----
+
+But if we close that session, launch ClickHouse Local again, and then re-run the query we'll get the following error:
+
+.Output
+[source, text]
+----
+Query id: ffab38e6-b39c-4be4-88b0-834f43a67cd9
+
+
+0 rows in set. Elapsed: 0.262 sec.
+
+Received exception:
+Code: 60. DB::Exception: Table _local.people does not exist. (UNKNOWN_TABLE
+----
