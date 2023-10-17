@@ -1,0 +1,77 @@
++++
+draft = false
+date="2023-10-13 00:44:37"
+title="Apache Superset: Refusing to start due to insecure SECRET_KEY"
+tag=['apache-superset', 'til']
+category=['TIL']
+description="In this post, we'll learn how to configure a secret for using Apache Superset."
+image="uploads/2023/10/superset-banner.png"
++++
+
+:icons: font
+
+I've been trying to install https://pypi.org/project/apache-superset/[Apache Superset^] so that I can use it for a demo and ran into an issue with a secret key when trying to install it.
+In this blog post, I'll explain how to work around it.
+
+We're going to be using Poetry and will follow the https://superset.apache.org/docs/installation/installing-superset-from-scratch[installing from scratch^] guide.
+
+First up is installing the library:
+
+[source, bash]
+----
+poetry add apache-superset 
+----
+
+And then after initialising the database with `poetry run superset db upgrade`, we'll try to create the admin user:
+
+[source, bash]
+----
+export FLASK_APP=superset                
+poetry run superset fab create-admin
+----
+
+Running this command resulted in the following output:
+
+.Output
+[source, text]
+----
+--------------------------------------------------------------------------------
+                                    WARNING
+--------------------------------------------------------------------------------
+A Default SECRET_KEY was detected, please use superset_config.py to override it.
+Use a strong complex alphanumeric string and use a tool to help you generate 
+a sufficiently random sequence, ex: openssl rand -base64 42
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Refusing to start due to insecure SECRET_KEY
+----
+
+I learnt that it wants me to specify the `SUPERSET_SECRET_KEY`, a problem that's been https://github.com/apache/superset/discussions/23598[encountered by several others^].
+So let's set that environment variable and try again:
+
+[source, bash]
+----
+export SUPERSET_SECRET_KEY="oh-so-secret" # <.>
+poetry run superset fab create-admin
+----
+<.> I should probably use a more secret, but this is just for fun so I'll be lazy for now.
+
+And this time it's happy:
+
+.Output
+[source, text]
+----
+logging was configured successfully
+2023-10-13 13:54:52,555:INFO:superset.utils.logging_configurator:logging was configured successfully
+2023-10-13 13:54:52,557:INFO:root:Configured event logger of type <class 'superset.utils.log.DBEventLogger'>
+/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/data-app-er_2mvJz-py3.11/lib/python3.11/site-packages/flask_limiter/extension.py:336: UserWarning: Using the in-memory storage for tracking rate limits as no storage was explicitly specified. This is not recommended for production use. See: https://flask-limiter.readthedocs.io#configuring-a-storage-backend for documentation about configuring the storage backend.
+  warnings.warn(
+Username [admin]: 
+User first name [admin]: 
+User last name [user]: 
+Email [admin@fab.org]: 
+Password: 
+Repeat for confirmation: 
+Recognized Database Authentications.
+Admin User admin created.
+----

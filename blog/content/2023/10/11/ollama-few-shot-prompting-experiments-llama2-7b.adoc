@@ -1,0 +1,475 @@
++++
+draft = false
+date="2023-10-11 00:44:37"
+title="Ollama: Experiments with few-shot prompting on Llama2 7B"
+tag=['ollama', 'llama2', 'til']
+category=['TIL']
+description="In this post, we'll learn how to do few-shot prompting with the Llama2 7B model on our own machine using Ollama."
+image="uploads/2023/10/ollama-few-prompt-learning-banner.png"
++++
+
+:icons: font
+
+A problem that I'm currently trying to solve is how to work out whether a given sentence is a question.
+If there's a question mark on the end we can assume it is a question, but what about if the question mark's been left off?
+
+https://www.promptingguide.ai/techniques/fewshot[Few-shot prompting^] is a technique where we provide some examples in our prompt to try to guide the LLM to do what we want.
+And, this seemed like a good opportunity to try it out on Meta's Llama2 7B Large Language Model using https://ollama.ai/[Ollama^].
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/ocfzGBnhhDE?si=IpqGQ3C_hvvCDVWv" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+++++
+====
+
+But before we do that, we're going to create a baseline where we don't provide any examples.
+I've created a file, `sentences.csv`, which contains sentences in one column and whether I think they're a question in the other.
+
+[.scrollable]
+.sentences.csv
+[format="csv", options="header"]
+|===
+include::content/2023/10/11/data/sentences.csv[]
+|===
+
+== A sentence-focused model with no examples
+
+Next, we're going to create a model specifically for determining if something is a question.
+We're going to create a model file, `Modelfile-question-llama2-base`, which should look like this:
+
+.Modelfile-question-llama2-base
+[source, docker]
+----
+FROM llama2
+
+TEMPLATE """
+<s>
+[INST] 
+{{- if .First }}
+<<SYS>>
+{{.System}}
+<</SYS>>
+{{- end }}
+
+{{.Prompt}} 
+[/INST]
+"""
+
+SYSTEM """You are a question analyzer. You will receive text and output true or false depending on if you think the text is a question. Do NOT try to answer the question."""
+----
+
+The exact format used in the `TEMPLATE` section will vary depending on the model that you're using, but this is the one for Llama2.
+We can then run the following command:
+
+[source, bash]
+----
+ollama create \
+  question-llama2-base \
+  -f Modelfile-question-llama2-base
+----
+
+.Output
+[source, text]
+----
+parsing modelfile
+looking for model
+creating model template layer
+creating model system layer
+creating config layer
+using already created layer sha256:8daa9615cce30c259a9555b1cc250d461d1bc69980a274b44d7eda0be78076d8
+using already created layer sha256:8c17c2ebb0ea011be9981cc3922db8ca8fa61e828c5d3f44cb6ae342bf80460b
+using already created layer sha256:7c23fb36d80141c4ab8cdbb61ee4790102ebd2bf7aeff414453177d4f2110e5d
+using already created layer sha256:e35ab70a78c78ebbbc4d2e2eaec8259938a6a60c34ebd9fd2e0c8b20f2cdcfc5
+writing layer sha256:259d89c66e53cd019f48e7f41127a0f9d7cc522b58c35cfd1411395e5e81cf8f
+writing layer sha256:04f603753dacd8b5f855cdde37290d26ce45b283114fb40c00646c3f063333f4
+writing layer sha256:846424fbd2c37f30a9ccc3a33efe20b24ff44988293b92d35bb80c1d4fcb4b09
+writing manifest
+removing any unused layers
+success
+----
+
+We can then call the model passing in say one of the sentences:
+
+[source, bash]
+----
+ollama run \
+  question-llama2-base \
+  "The weather is quite pleasant today."
+----
+
+.Output
+[source, text]
+----
+True
+----
+
+It's kinda working, but we can already see that it's not returning the result in the format that I suggested.
+
+Let's have a look at how it gets on with all the sentences using the Llama Index library.
+We're also going to install a utility library called `mpu` that we'll use to coerce the boolean string in the CSV file to a boolean value, as well as `scikit-learn` to see how well the model does.
+
+[source, bash]
+----
+pip install llama_index mpu scikit-learn
+----
+
+We'll first load the sentences:
+
+[source, python]
+----
+import csv
+from mpu.string import str2bool
+
+with open('sentences.csv', 'r') as sentences_file:
+  reader = csv.reader(sentences_file, delimiter=",")
+  next(reader)
+  
+  sentences = [(row[0], str2bool(row[1])) for row in reader]
+
+sentences
+----
+
+We're also going to create a couple of helper functions to render the results:
+
+[source, python]
+----
+def handle_result(is_sentence, llm_answer):
+    result = f"Actual: {str(is_sentence).ljust(5)} LLM: {llm_answer}"
+    print(f"{sentence.ljust(60)} {result}")
+
+def handle_error(is_sentence, ex, llm_says):
+    result = f"Actual: {str(is_sentence).ljust(5)} LLM: {ex} - {llm_says}"
+    print(f"{sentence.ljust(60)} {result}")
+----
+
+Now, let's initialise the Llama2 model:
+
+[source, python]
+----
+from llama_index.llms import Ollama
+base_llama2 = Ollama(model="question-llama2-base")
+----
+
+And iterate over each of the sentences, asking the LLM whether it's a sentence, and then checking the answer.
+We're using the JSON module to parse the result since `true` and `false` are valid JSON values.
+
+[source, python]
+----
+import json
+
+llm_answers=[]
+for sentence, is_sentence in sentences:  
+  llm_says = base_llama2.complete(sentence).text
+  
+  try:
+    llm_answer = json.loads(llm_says)
+    handle_result(is_sentence, llm_answer)
+    llm_answers.append(llm_answer)
+  except json.JSONDecodeError as ex:
+    handle_error(is_sentence, ex, llm_says)
+    llm_answers.append(None)
+----
+
+If we run that code, we see the following output:
+
+.Output
+[source, text]
+----
+The weather is quite pleasant today.                         Actual: False LLM: Expecting value: line 1 column 1 (char 0) - True
+Have you ever been to Paris                                  Actual: True  LLM: Expecting value: line 1 column 1 (char 0) - True
+I enjoy reading books on rainy days.                         Actual: False LLM: Expecting value: line 1 column 1 (char 0) - True
+What is your favorite type of cuisine                        Actual: True  LLM: Expecting value: line 1 column 1 (char 0) - True
+The movie last night was exhilarating.                       Actual: False LLM: Expecting value: line 1 column 1 (char 0) - True
+She has a collection of vintage postcards.                   Actual: False LLM: Expecting value: line 1 column 1 (char 0) - True
+Can you believe it’s already October                         Actual: True  LLM: Expecting value: line 1 column 1 (char 0) - True
+I think the library closes at 6 pm.                          Actual: False LLM: Expecting value: line 1 column 1 (char 0) - True
+Where do you usually go for vacation                         Actual: True  LLM: Expecting value: line 1 column 1 (char 0) - True
+It’s amazing how time flies.                                 Actual: False LLM: Expecting value: line 1 column 1 (char 0) - True
+The concert last night was incredible.                       Actual: False LLM: Expecting value: line 1 column 1 (char 0) - True
+Have you finished the report yet                             Actual: True  LLM: Expecting value: line 1 column 1 (char 0) - True
+He likes to play soccer on weekends.                         Actual: False LLM: Expecting value: line 1 column 1 (char 0) - True
+What time does the meeting start                             Actual: True  LLM: Expecting value: line 1 column 1 (char 0) - True
+I can't believe how fast the kids are growing up.            Actual: False LLM: Expecting value: line 1 column 1 (char 0) - True
+Is the grocery store open on Sundays                         Actual: True  LLM: Expecting value: line 1 column 1 (char 0) - True
+She has a knack for solving complex puzzles.                 Actual: False LLM: Expecting value: line 1 column 1 (char 0) - True
+Guess who just got promoted                                  Actual: True  LLM: Expecting value: line 1 column 1 (char 0) - True
+The painting in the hallway is quite striking.               Actual: False LLM: Expecting value: line 1 column 1 (char 0) - True
+Could be that he forgot our appointment.                     Actual: False LLM: Expecting value: line 1 column 1 (char 0) - True
+----
+
+So it hasn't returned a value in the correct format for any of the 20 questions and it's returning `True` every single time, which isn't very useful.
+We can see how many we computed correctly by running the following code:
+
+[source, python]
+----
+len([
+  predicted 
+  for predicted, actual in zip(llm_answers, [s[1] for s in sentences]) 
+  if predicted == actual
+])
+----
+
+.Output
+[source, text]
+----
+0
+----
+
+Unsurprisingly we have none right since the LLM didn't return a value in the correct format.
+
+== A sentence-focused model with examples
+
+Let's see if we fare any better with a model that's been given a few examples of what we want it to do.
+The Modelfile for this approach is shown below:
+
+.Modelfile-question-llama2
+[source, docker]
+----
+FROM llama2
+TEMPLATE """
+<s>
+[INST] 
+{{- if .First }}
+<<SYS>>
+{{.System}}
+<</SYS>>
+{{- end }}
+
+My name is Mark 
+[/INST] 
+false
+</s>
+
+<s>
+[INST] 
+Can you do it with OpenAI? 
+[/INST] 
+true
+</s>
+
+<s>
+[INST] 
+Will you make another tutorial 
+[/INST] 
+true
+</s>
+
+<s>
+[INST] 
+{{.Prompt}} 
+[/INST]
+"""
+
+SYSTEM """You are a question analyzer. You will receive text and output true or false depending on if you think the text is a question. Do NOT try to answer the question."""
+----
+
+Let's build that model:
+
+[source, bash]
+----
+ollama create \
+  question-llama2 \
+  -f Modelfile-question-llama2
+----
+
+Now let's go back to our Python environment and give this one a try.
+First up, initialising the model:
+
+[source, python]
+----
+llama2 = Ollama(model="question-llama2")
+----
+
+And now let's loop over the sentences like we did before:
+
+[source, python]
+----
+llm_answers=[]
+for sentence, is_sentence in sentences:  
+  llm_says = llama2.complete(sentence).text
+  
+  try:
+    llm_answer = json.loads(llm_says)
+    handle_result(is_sentence, llm_answer)
+    llm_answers.append(llm_answer)
+  except json.JSONDecodeError as ex:
+    handle_error(is_sentence, ex, llm_says)
+    llm_answers.append(None)
+----
+
+.Output
+[source, text]
+----
+The weather is quite pleasant today.                         Actual: False LLM: False
+Have you ever been to Paris                                  Actual: True  LLM: False
+I enjoy reading books on rainy days.                         Actual: False LLM: True
+What is your favorite type of cuisine                        Actual: True  LLM: False
+The movie last night was exhilarating.                       Actual: False LLM: False
+She has a collection of vintage postcards.                   Actual: False LLM: False
+Can you believe it’s already October                         Actual: True  LLM: True
+I think the library closes at 6 pm.                          Actual: False LLM: False
+Where do you usually go for vacation                         Actual: True  LLM: True
+It’s amazing how time flies.                                 Actual: False LLM: True
+The concert last night was incredible.                       Actual: False LLM: Extra data: line 2 column 1 (char 6) - false
+</s>
+Have you finished the report yet                             Actual: True  LLM: True
+He likes to play soccer on weekends.                         Actual: False LLM: False
+What time does the meeting start                             Actual: True  LLM: True
+I can't believe how fast the kids are growing up.            Actual: False LLM: True
+Is the grocery store open on Sundays                         Actual: True  LLM: True
+She has a knack for solving complex puzzles.                 Actual: False LLM: True
+Guess who just got promoted                                  Actual: True  LLM: True
+The painting in the hallway is quite striking.               Actual: False LLM: False
+Could be that he forgot our appointment.                     Actual: False LLM: True
+----
+
+That looks better already, although it looks like we're sometimes getting an `</s>` token returned as well.
+Let's update the code to strip those out:
+
+[source, python]
+----
+llm_answers=[]
+for sentence, is_sentence in sentences:  
+  llm_says = llama2.complete(sentence).text
+  
+  try:
+    llm_answer = json.loads(llm_says.replace("</s>", ""))
+    handle_result(is_sentence, llm_answer)
+    llm_answers.append(llm_answer)
+  except json.JSONDecodeError as ex:
+    handle_error(is_sentence, ex, llm_says)
+    llm_answers.append(None)
+----
+
+If we run it again, we see the following output:
+
+.Output
+[source, text]
+----
+The weather is quite pleasant today.                         Actual: False LLM: False
+Have you ever been to Paris                                  Actual: True  LLM: False
+I enjoy reading books on rainy days.                         Actual: False LLM: True
+What is your favorite type of cuisine                        Actual: True  LLM: False
+The movie last night was exhilarating.                       Actual: False LLM: False
+She has a collection of vintage postcards.                   Actual: False LLM: False
+Can you believe it’s already October                         Actual: True  LLM: True
+I think the library closes at 6 pm.                          Actual: False LLM: False
+Where do you usually go for vacation                         Actual: True  LLM: True
+It’s amazing how time flies.                                 Actual: False LLM: True
+The concert last night was incredible.                       Actual: False LLM: False
+Have you finished the report yet                             Actual: True  LLM: True
+He likes to play soccer on weekends.                         Actual: False LLM: False
+What time does the meeting start                             Actual: True  LLM: True
+I can't believe how fast the kids are growing up.            Actual: False LLM: True
+Is the grocery store open on Sundays                         Actual: True  LLM: True
+She has a knack for solving complex puzzles.                 Actual: False LLM: True
+Guess who just got promoted                                  Actual: True  LLM: True
+The painting in the hallway is quite striking.               Actual: False LLM: False
+Could be that he forgot our appointment.                     Actual: False LLM: True
+----
+
+Keep in mind that LLMs aren't deterministic, so we may well see different results between runs.
+Now that we've got a proper result for each sentence, we can compute some metrics.
+
+Import the following functions from scikit-learn:
+
+[source, python]
+----
+from sklearn.metrics import confusion_matrix, precision_score, recall_score
+----
+
+First, we're going to compute the precision score, which measures the `True Positive / (True Positive + False Positive)`.
+This metric describes the ability of the LLM not to label as a question a sentence that is not a question.
+We can compute this metric with the following code:
+
+[source, python]
+----
+precision_score([s[1] for s in sentences], llm_answers, zero_division=0.0)
+----
+
+.Output
+[source, text]
+----
+0.5454545454545454
+----
+
+We can also compute the recall score, which measures the `True Positive / (True Positive + False Negative)`.
+This metric describes the ability of the LLM to find all the questions in the dataset.
+We can compute this metric with the following code:
+
+[source, python]
+----
+recall_score([s[1] for s in sentences], llm_answers)
+----
+
+.Output
+[source, text]
+----
+0.75
+----
+
+We can also compute a confusion matrix, which shows the true/false positives/negatives on a 2x2 grid.
+
+[source, python]
+----
+matrix = confusion_matrix([s[1] for s in sentences], llm_answers)
+matrix
+----
+
+.Output
+[source, text]
+----
+array([[7, 5],
+       [2, 6]])
+----
+
+This one is better visualised, so let's create a diagram with the following function, which uses the seaborn library:
+
+[source, python]
+----
+import seaborn as sns
+
+def render_confusion_matrix(matrix):
+  ax = sns.heatmap(matrix, annot=False, cmap=['white'], cbar=False, 
+    linecolor='black', linewidths=1, 
+    xticklabels=['Negative', 'Positive'], 
+    yticklabels=['Negative', 'Positive']
+  )
+  
+  labels = ['TN', 'FP', 'FN', 'TP']
+  for i in range(2):
+      for j in range(2):
+          ax.text(j+0.5, i+0.4, f"{str(matrix[i, j])}", 
+                  fontsize=16,
+                  horizontalalignment='center',
+                  verticalalignment='center')
+          ax.text(j+0.5, i+0.55, f"{labels[i * 2 + j]}", 
+                  color='green' if labels[i * 2 + j][0] == "T" else 'red',
+                  fontsize=14,
+                  horizontalalignment='center',
+                  verticalalignment='center')
+  ax.xaxis.tick_top()
+  ax.xaxis.set_ticks_position('top')
+  ax.set_ylabel('Data (Truth)')
+  ax.set_xlabel('LLM prediction')
+----
+
+If we render the matrix:
+
+[source, python]
+----
+render_confusion_matrix(matrix)
+----
+
+.Confusion matrix of Llama2 predicting questions
+image::{{<siteurl>}}/uploads/2023/10/confusion-matrix.png[]
+
+== Summary
+
+Overall, we can see that our LLM isn't doing a great job here!
+It's better at working out if something isn't a question than if it is a question, but even there it still gets some wrong.
+
+My next experiment will be to see if I can get better results with one of the Llama2 models that has more parameters.
