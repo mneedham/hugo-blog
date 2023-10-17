@@ -1,24 +1,40 @@
 +++
 draft = false
 date="2023-10-16 00:44:37"
-title="ClickHouse: Code: 60. DB::Exception: Table does not exist'"
-tag=[''clickhouse', 'clickhouse-local', 'til']
+title="ClickHouse: Code: 60. DB::Exception: Table does not exist"
+tag=['clickhouse', 'clickhouse-local', 'til']
 category=['TIL']
 description="In this post, we'll learn how "
-image="uploads/2023/10/dagster-banner.png"
+image="uploads/2023/10/clickhouse-table-banner.png"
 +++
 
 :icons: font
+
+I've been playing with clickhouse-localhttps://www.markhneedham.com/blog/2023/07/03/clickhouse-unpack-unnest-array/[again^] this week and ran into an interesting issue when persisting a table that I thought I'd document for future Mark.
+
+You can install ClickHouse on your machine by running the following command:
 
 [source, bash]
 ----
 curl https://clickhouse.com/ | sh
 ----
 
+Or you could use HomeBrew if you're working on a Mac:
+
+[source, bash]
+----
+brew install clickhouse
+----
+
+We can then launch clickhouse-local, which lets you run ClickHouse in what I think of as an embedded mode. 
+I'm also going to specify a directory for it to store any data that I create:
+
 [source, bash]
 ----
 ./clickhouse local -m --path people.chdb
 ----
+
+We're going to create a table based on the following CSV file:
 
 .people.csv
 [format="csv", options="header"]
@@ -26,6 +42,7 @@ curl https://clickhouse.com/ | sh
 include::content/2023/10/16/data/people.csv[]
 |===
 
+Which we can do by running this query:
 
 [source, sql]
 ----
@@ -56,6 +73,7 @@ Query id: 8567a2c0-5a98-4981-9097-fd5ed33d173e
 3 rows in set. Elapsed: 0.002 sec.
 ----
 
+All good so far!
 But if we close that session, launch ClickHouse Local again, and then re-run the query we'll get the following error:
 
 .Output
@@ -68,4 +86,84 @@ Query id: ffab38e6-b39c-4be4-88b0-834f43a67cd9
 
 Received exception:
 Code: 60. DB::Exception: Table _local.people does not exist. (UNKNOWN_TABLE
+----
+
+The problem that we've run into is described on https://github.com/ClickHouse/ClickHouse/issues/31163[this GitHub issue^]:
+
+[quote]
+____
+The behavior is expected. The default database of clickhouse-local is using the Memory engine that does not persist the `.sql` metadata files.
+____
+
+So if we want the data to be persisted, we need to first create a database, rather than using the default one. 
+Let's do that:
+
+[source, sql]
+----
+CREATE DATABASE mark;
+----
+
+.Output
+[soruce, text]
+----
+Query id: 104191d4-9d63-4888-8e40-f754270233d4
+
+Ok.
+
+0 rows in set. Elapsed: 0.003 sec.
+----
+
+Not forgetting to then switch to that database:
+
+[source, sql]
+----
+USE mark;
+----
+
+And then we'll run our create table command again.
+Once we've done that, we'll close clickhouse-local and launch it again.
+
+Let's check that our database is still there:
+
+[source, sql]
+----
+SHOW DATABASES:
+----
+
+.Output
+[soruce, text]
+----
+Query id: 56eb7dd5-20b5-46db-89da-f0f0d0b87293
+
+┌─name───────────────┐
+│ INFORMATION_SCHEMA │
+│ _local             │
+│ information_schema │
+│ mark               │
+│ system             │
+└────────────────────┘
+
+5 rows in set. Elapsed: 0.001 sec.
+----
+
+And we can query it too:
+
+
+[source, sql]
+----
+select * from mark.people;
+----
+
+.Output
+[soruce, text]
+----
+Query id: 77c8c500-3309-4dd3-8244-e178af40fb41
+
+┌─name────┬─hobby────┐
+│ Mark    │ tennis   │
+│ Michael │ football │
+│ James   │ cricket  │
+└─────────┴──────────┘
+
+3 rows in set. Elapsed: 0.002 sec.
 ----
