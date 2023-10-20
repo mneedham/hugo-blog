@@ -1,0 +1,111 @@
++++
+draft = false
+date="2023-10-18 00:44:37"
+title="Ollama: Running GGUF Models from Hugging Face"
+tag=['ollama', 'hugging-face', 'gguf', 'til']
+category=['TIL']
+description="In this post, we'll learn how to run a GGUF model from Hugging Face on our machine using Ollama."
+image="uploads/2023/10/ollama-hugging-face-gguf.png"
++++
+
+:icons: font
+
+https://medium.com/@phillipgimmi/what-is-gguf-and-ggml-e364834d241c[GGUF (GPT-Generated Unified Format)^] has emerged as the de facto standard file format for storing large language models for inference.
+We are starting to see a lot of models in this format on Hugging Face, many of them uploaded by https://huggingface.co/TheBloke[The Bloke^].
+
+One cool thing about GGUF models is that it's super easy to get them running on your own machine using https://ollama.ai/[Ollama^].
+In this blog post, we're going to look at how to download a GGUF model from Hugging Face and run it locally.
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/7BH4C6-HP14?si=jZMYLcOot5ItDyNZ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+++++
+====
+
+There are over 1,000 models on Hugging Face that match the search term `GGUF`, but we're going to download the https://huggingface.co/TheBloke/MistralLite-7B-GGUF[TheBloke/MistralLite-7B-GGUF^] model.
+We'll do this using the Hugging Face Hub CLI, which we can install like this:
+
+[source, bash]
+----
+pip install huggingface-hub
+----
+
+We can then download one of the MistalLite models by running the following:
+
+[source, bash]
+----
+huggingface-cli download \
+  TheBloke/MistralLite-7B-GGUF \
+  mistrallite.Q4_K_M.gguf \
+  --local-dir downloads \
+  --local-dir-use-symlinks False
+----
+
+Make sure you specify the name of the `gguf` file that you want to download, otherwise, it will download all of them!
+You can find a list of the model files to choose from on the https://huggingface.co/TheBloke/MistralLite-7B-GGUF/tree/main[files and versions^] page.
+
+This file is over 4GB in size, so connect your ethernet cable if you're going to try this at home.
+Once it's done, you'll have the file in your `downloads` directory.
+
+We're then going to create a `Modelfile` with the following contents:
+
+.Modelfile
+[source, dockerfile]
+----
+FROM ./downloads/mistrallite.Q4_K_M.gguf
+----
+
+We then build an Ollama model using the following command:
+
+[source, dockerfile]
+----
+ollama create mistrallite -f Modelfile
+----
+
+And now let's see if we can get the model to tell us all about the Grafana visualisation tool:
+
+[source, dockerfile]
+----
+ollama run mistrallite "What is Grafana?"
+----
+
+The result you get will be different to what I get as these models are stochastic, but this is the output I got on one of the tries:
+
+.Output
+[source, text]
+----
+Grafana is an open source tool that allows the user to query, visualize and alert
+on time series data.  It can be used as a drop in replacement for other monitoring
+tools such as Cacti, Munin or RRDtool.
+
+Grafana does not store any of the time series data itself but will connect to an
+external data source and display information in graphs and charts. Grafana’s
+flexible query editor allows users to extract the information they need from their
+time series data using the most popular query languages such as PromQL, InfluxDB
+Query Language (IL) and Graphite.  It is even possible to create your own custom
+queries.
+
+Grafana also supports a number of plugins which can extend its functionality or
+connect it to other systems such as Slack, HipChat, PagerDuty and others.
+
+Why should I use Grafana?
+
+One major benefit of using Grafana is that it provides the user with the ability to
+visualize their time series data in a variety of ways including bar graphs, line
+charts, pie charts and more.  This makes it easier for the user to identify
+patterns and trends in the data which can help them make better decisions.
+
+Another advantage of using Grafana is that it provides users with a centralized
+place where they can view all of their time series data from multiple sources.
+This makes it easy for users to compare data from different systems or even between
+different time periods.
+
+In addition, Grafana offers some unique features such as the ability to set alerts
+based on specific conditions being met in the data.  This allows users to be
+proactive in identifying potential issues before they become a problem.
+----
+
+I don't think this is the greatest model I've ever used, but it is cool that we now have a choice of over 1,000 models on Hugging Face to run on our own machines.

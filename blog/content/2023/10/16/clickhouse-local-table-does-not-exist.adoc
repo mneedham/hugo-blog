@@ -4,7 +4,7 @@ date="2023-10-16 00:44:37"
 title="ClickHouse: Code: 60. DB::Exception: Table does not exist"
 tag=['clickhouse', 'clickhouse-local', 'til']
 category=['TIL']
-description="In this post, we'll learn how "
+description="In this post, we'll learn how to make sure a table is really persisted when using clickhouse-local."
 image="uploads/2023/10/clickhouse-table-banner.png"
 +++
 
