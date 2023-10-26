@@ -1,13 +1,20 @@
 +++
 draft = true
-date="2023-10-18 00:44:37"
-title="Ollama: Running GGUF Models from Hugging Face"
-tag=['ollama', 'hugging-face', 'gguf', 'til']
+date="2023-10-20 00:44:37"
+title="Checking Mac GPU usage from the terminal"
+tag=['ollama', 'til']
 category=['TIL']
-description="In this post, we'll learn how "
+description="In this post, we'll learn how to check the Max GPU usage from the terminal."
 image="uploads/2023/10/clickhouse-table-banner.png"
 +++
 
 :icons: font
 
+I've been playing around with Large Language Models on my own machine a fair bit and I've 
+
 https://github.com/tlkh/asitop
+
+[source, bash]
+----
+sudo asitop
+----

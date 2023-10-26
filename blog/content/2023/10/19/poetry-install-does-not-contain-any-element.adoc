@@ -1,34 +1,77 @@
 +++
 draft = true
 date="2023-10-18 00:44:37"
-title="Ollama: Running GGUF Models from Hugging Face"
-tag=['ollama', 'hugging-face', 'gguf', 'til']
+title="Poetry: Install does not contain any element"
+tag=['python', 'poetry', 'til']
 category=['TIL']
-description="In this post, we'll learn how "
+description="In this post, we'll learn how to work around the Poetry 'does not contain any element' error message"
 image="uploads/2023/10/clickhouse-table-banner.png"
 +++
 
 :icons: font
 
-[source, toml]
+
+
+[source, bash]
 ----
+$ poetry init
+----
+
+.Output
+[source, text]
+----
+This command will guide you through creating your pyproject.toml config.
+
+Package name [tei-tutorial]:
+Version [0.1.0]:
+Description []:
+Author [Mark Needham <m.h.needham@gmail.com>, n to skip]:
+License []:
+Compatible Python versions [^3.11]:
+
+Would you like to define your main dependencies interactively? (yes/no) [yes] no
+Would you like to define your development dependencies interactively? (yes/no) [yes] no
+Generated file
+
 [tool.poetry]
-name = "gguf-ollama"
+name = "tei-tutorial"
 version = "0.1.0"
 description = ""
 authors = ["Mark Needham <m.h.needham@gmail.com>"]
 readme = "README.md"
-packages = [{include = "gguf_ollama"}]
+packages = [{include = "tei_tutorial"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
-huggingface-hub = ">=0.17.1"
 
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 ----
+
+As you can see from the output, this is what my `pyproject.yaml` file contains:
+
+[source, toml]
+----
+[tool.poetry]
+name = "tei-tutorial"
+version = "0.1.0"
+description = ""
+authors = ["Mark Needham <m.h.needham@gmail.com>"]
+readme = "README.md"
+packages = [{include = "tei_tutorial"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+----
+
+If I then run the following:
 
 [source, bash]
 ----
@@ -42,5 +85,26 @@ Installing dependencies from lock file
 
 No dependencies to install or update
 
-/Users/markhneedham/projects/learndatawithmark/gguf-ollama/gguf_ollama does not contain any element
+/Users/markhneedham/projects/learndatawithmark/tei-tutorial/tei_tutorial does not contain any element
+----
+
+The line in `pyproject.toml` that's causing the problem is this one:
+
+[source, toml]
+----
+packages = [{include = "tei_tutorial"}]
+----
+
+I'm not entirely sure what makes that line get added because for some of my projects, it's added and for others, it isn't!
+The line itself does make sense if you're using Poetry to create a library as you'd probably then have your code under the `tei-tutorial` directory in this case.
+But in my case, I'm using Poetry to manage projects with a few scripts in the root directory, so I don't have that folder.
+
+If we delete that line and run `poetry install` again, we'll see the following output:
+
+.Output
+[source, text]
+----
+Installing dependencies from lock file
+
+No dependencies to install or update
 ----
