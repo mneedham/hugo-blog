@@ -1,21 +1,27 @@
 +++
-draft = true
-date="2023-10-18 00:44:37"
+draft = false
+date="2023-10-26 00:44:37"
 title="Poetry: Install does not contain any element"
 tag=['python', 'poetry', 'til']
 category=['TIL']
 description="In this post, we'll learn how to work around the Poetry 'does not contain any element' error message"
-image="uploads/2023/10/clickhouse-table-banner.png"
+image="uploads/2023/10/poetry-install-banner.png"
 +++
 
 :icons: font
 
+I've run into an interesting error a few times when using the Poetry package manager over the last few weeks and wanted to document it in case anyone else has the same problem.
+I'm still not sure how to avoid it in the first place, so if you know, please let me know!
 
+Anyway, let's get started.
+Imagine we're creating a new project and we type the following:
 
 [source, bash]
 ----
 $ poetry init
 ----
+
+It will pop up the following dialogue and we'll select the defaults, won't define anything interactively, and will then have it create the file:
 
 .Output
 [source, text]
@@ -50,7 +56,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 ----
 
-As you can see from the output, this is what my `pyproject.yaml` file contains:
+As you can see from the output at the end, this is what my `pyproject.yaml` file contains:
 
 [source, toml]
 ----
@@ -78,6 +84,8 @@ If I then run the following:
 poetry install
 ----
 
+I get the following error message:
+
 .Output
 [source, text]
 ----
@@ -99,7 +107,8 @@ I'm not entirely sure what makes that line get added because for some of my proj
 The line itself does make sense if you're using Poetry to create a library as you'd probably then have your code under the `tei-tutorial` directory in this case.
 But in my case, I'm using Poetry to manage projects with a few scripts in the root directory, so I don't have that folder.
 
-If we delete that line and run `poetry install` again, we'll see the following output:
+So if we want to get rid of the error, we either need to create the `tei_tutorial` directory or we need to delete the `packages` line in `pyproject.toml`
+I'm going to delete it, and if I then run `poetry install` again, it's happy:
 
 .Output
 [source, text]
