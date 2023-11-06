@@ -113,6 +113,7 @@ select toUnixTimestamp(today()) AS date;
 
 .Output
 [source, text]
+----
 ┌───────date─┐
 │ 1699228800 │
 └────────────┘
@@ -127,6 +128,7 @@ SELECT toUnixTimestamp64Milli(toDateTime64(today(), 3)) AS date;
 
 .Output
 [source, text]
+----
 ┌──────────date─┐
 │ 1699228800000 │
 └───────────────┘
