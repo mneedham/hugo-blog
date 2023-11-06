@@ -1,0 +1,127 @@
++++
+draft = false
+date="2023-11-03 00:44:37"
+title="ClickHouse: Nested type Array(String) cannot be inside Nullable type (ILLEGAL_TYPE_OF_ARGUMENT)"
+tag=['clickhouse', 'clickhouse-local', 'til']
+category=['TIL']
+description="In this post, we'll learn how to process a tab-separated value inside a CSV file with ClickHouse."
+image="uploads/2023/11/clickhouse-null-banner.png"
++++
+
+:icons: font
+
+I've been working with some data that's in CSV format but has tab-separated values in some columns.
+In this blog post, we're going to learn how to process that data in ClickHouse.
+
+The CSV file that we're working with looks like this:
+
+.data.csv
+[format="csv", options="header"]
+|===
+include::content/2023/11/03/data.csv[]
+|===
+
+We'll launch ClickHouse Local (`clickhouse local`) and then run the following:
+
+[source, sql]
+----
+FROM file('data.csv', CSVWithNames) 
+SELECT *;
+----
+
+.Output
+[source, text]
+----
+┌─value─────┐
+│ foo   bar │
+└───────────┘
+----
+
+Let's try to split the `value` field on tab using the `splitByString` function:
+
+[source, sql]
+----
+FROM file('data.csv', CSVWithNames) 
+SELECT splitByString('\t', value);
+----
+
+.Output
+[source, text]
+----
+Received exception:
+Code: 43. DB::Exception: Nested type Array(String) cannot be inside Nullable type: While processing splitByString('\t', value). (ILLEGAL_TYPE_OF_ARGUMENT)
+----
+
+The problem we've run into here is that ClickHouse's CSV reader assumes that fields are nullable since it's possible that there could be nulls.
+We can disable the `schema_inference_make_columns_nullable` setting to tell it to not treat fields as nullable.
+
+[source, sql]
+----
+FROM file('data.csv', CSVWithNames)
+SELECT splitByString('\t', value)
+SETTINGS schema_inference_make_columns_nullable = 0;
+----
+
+.Output
+[source, text]
+----
+┌─splitByString('\t', value)─┐
+│ ['foo','bar']              │
+└────────────────────────────┘
+----
+
+Alternatively, we can use the `assumeNotNull` function if we want it to keep all other fields nullable:
+
+[source, sql]
+----
+FROM file('data.csv', CSVWithNames)
+SELECT splitByString('\t', assumeNotNull(value));
+----
+
+.Output
+[source, text]
+----
+┌─splitByString('\t', assumeNotNull(value))─┐
+│ ['foo','bar']                             │
+└───────────────────────────────────────────┘
+----
+
+But this function will return an arbitrary value if a null is found.
+So let's say we update our CSV file to look like this:
+
+.data.csv
+[format="csv", options="header"]
+|===
+include::content/2023/11/03/data-update.csv[]
+|===
+
+If we run that last query, we'll see the following output:
+
+.Output
+[source, text]
+----
+┌─splitByString('\t', assumeNotNull(value))─┐
+│ ['foo','bar']                             │
+│ ['']                                      │
+│ ['mark','bar']                            │
+└───────────────────────────────────────────┘
+----
+
+So we might prefer to use `ifNull`, which lets us choose our own default value to use if a null value is encountered:
+
+
+[source, sql]
+----
+FROM file('data.csv', CSVWithNames)
+SELECT splitByString('\t', ifNull(value, 'N/A'));
+----
+
+.Output
+[source, text]
+----
+┌─splitByString('\t', ifNull(value, 'N/A'))─┐
+│ ['foo','bar']                             │
+│ ['N/A']                                   │
+│ ['mark','bar']                            │
+└───────────────────────────────────────────┘
+----
