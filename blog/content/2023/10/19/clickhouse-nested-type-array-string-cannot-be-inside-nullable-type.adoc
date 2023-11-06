@@ -1,0 +1,61 @@
++++
+draft = true
+date="2023-10-19 00:44:37"
+title="ClickHouse: Code: 60. DB::Exception: Table does not exist"
+tag=['clickhouse', 'clickhouse-local', 'til']
+category=['TIL']
+description="In this post, we'll learn how "
+image="uploads/2023/10/clickhouse-table-banner.png"
++++
+
+:icons: font
+
+[source, sql]
+----
+SELECT
+    `Symbol\tDescription` AS col,
+    splitByString('\t', col) AS split
+FROM file(
+    'Stock Histories.zip :: {NASDAQ,NYSE}.txt', 
+    CSVWithNames
+)
+LIMIT 10
+----
+
+.Output
+[source, text]
+----
+Received exception:
+Code: 43. DB::Exception: Nested type Array(String) cannot be inside Nullable type: While processing `Symbol\tDescription` AS x, splitByString('\t', x). (ILLEGAL_TYPE_OF_ARGUMENT)
+----
+
+https://github.com/ClickHouse/ClickHouse/issues/20612
+
+[source, sql]
+----
+SELECT
+    `Symbol\tDescription` AS col,
+    splitByString('\t', assumeNotNull(col)) AS split
+FROM file(
+    'Stock Histories.zip :: {NASDAQ,NYSE}.txt', 
+    CSVWithNames
+)
+LIMIT 10
+----
+
+.Output
+[source, text]
+----
+ col                                                split
+
+ AABA	Altaba Inc                                   ['AABA','Altaba Inc']
+ AAL	American Airlines Gp                         ['AAL','American Airlines Gp']
+ AAME	Atlantic Amer Cp                             ['AAME','Atlantic Amer Cp']
+ AAOI	Applied Optoelect                            ['AAOI','Applied Optoelect']
+ AAON	Aaon Inc                                     ['AAON','Aaon Inc']
+ AAPL	Apple Inc                                    ['AAPL','Apple Inc']
+ AAWW	Atlas Air Ww                                 ['AAWW','Atlas Air Ww']
+ AAXJ	All Country Asia Ex Japan Ishares MSCI ETF   ['AAXJ','All Country Asia Ex Japan Ishares MSCI ETF']
+ AAXN	Axon Inc                                     ['AAXN','Axon Inc']
+ ABAC	Aoxin Tianli Grp                             ['ABAC','Aoxin Tianli Grp']
+ ----

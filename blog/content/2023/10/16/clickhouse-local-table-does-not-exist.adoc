@@ -10,7 +10,7 @@ image="uploads/2023/10/clickhouse-table-banner.png"
 
 :icons: font
 
-I've been playing with clickhouse-localhttps://www.markhneedham.com/blog/2023/07/03/clickhouse-unpack-unnest-array/[again^] this week and ran into an interesting issue when persisting a table that I thought I'd document for future Mark.
+I've been playing with https://www.markhneedham.com/blog/2023/07/03/clickhouse-unpack-unnest-array/[clickhouse-local again^] this week and ran into an interesting issue when persisting a table that I thought I'd document for future Mark.
 
 You can install ClickHouse on your machine by running the following command:
 
