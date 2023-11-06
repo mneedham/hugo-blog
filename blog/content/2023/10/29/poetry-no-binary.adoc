@@ -1,0 +1,29 @@
++++
+draft = true
+date="2023-10-29 00:44:37"
+title="iPython: How to disable autocomplete"
+tag=['python', 'ipython', 'poetry', 'til']
+category=['TIL']
+description="In this post, we'll learn how to disable autocomplete when using the iPython REPL."
+image="uploads/2023/10/autocomplete-banner.png"
++++
+
+:icons: font
+
+poetry add ctransformers
+
+OSError: Precompiled binaries are not available for the current platform. Please reinstall from source using:
+
+  pip uninstall ctransformers --yes
+  CT_METAL=1 pip install ctransformers --no-binary ctransformers
+
+poetry config --local installer.no-binary ctransformers
+
+poetry add ctransformers
+
+But it doesn't pick up the environment variable and compile with GPU support. 
+
+What if we add it manually to pyproject.toml?
+
+
+CT_METAL=1 poetry install

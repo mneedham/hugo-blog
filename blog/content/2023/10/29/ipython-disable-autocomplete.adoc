@@ -1,0 +1,83 @@
++++
+draft = false
+date="2023-10-29 00:44:37"
+title="iPython: How to disable autocomplete"
+tag=['python', 'ipython', 'poetry', 'til']
+category=['TIL']
+description="In this post, we'll learn how to disable autocomplete when using the iPython REPL."
+image="uploads/2023/10/autocomplete-banner.png"
++++
+
+:icons: font
+
+I've been toying with the idea of using iPython as the Python REPL for videos on https://www.youtube.com/channel/UCKEk670ECmteGBehmDjVSSg[@LearnDataWithMark^], but I wanted to disable the autocomplete functionality as I find it too distracting.
+In this blog post, I'll show how to do it.
+
+First, let's install iPython:
+
+[source, bash]
+----
+poetry add ipython
+----
+
+And now we'll launch the iPython REPL:
+
+[source, bash]
+----
+poetry run ipython
+----
+
+.Output
+[source, text]
+----
+Python 3.11.4 (main, Jun 20 2023, 17:23:00) [Clang 14.0.3 (clang-1403.0.22.14.1)]
+Type 'copyright', 'credits' or 'license' for more information
+IPython 8.16.1 -- An enhanced Interactive Python. Type '?' for help.
+----
+
+Now, let's say I type `x = ` to populate a variable.
+It will suggest something like the following:
+
+.Not so helpful autocomplete
+image::{{<siteurl>}}/uploads/2023/10/ipython-autocomplete.png[]
+
+I've only just started the session so this isn't particularly useful.
+I'm not sure where it's getting the suggestions from - perhaps from my previous normal Python REPL?
+
+In any case, I want to turn them off, which we can do from the https://ipython.org/ipython-doc/3/config/intro.html[iPython configuration file^].
+You can create one of those by running the following command:
+
+[source, bash]
+----
+poetry run ipython profile create
+----
+
+.Output
+[source, text]
+----
+[ProfileCreate] Generating default config file: PosixPath('/Users/markhneedham/.ipython/profile_default/ipython_config.py')
+----
+
+If we open that file, the first few lines will read like this:
+
+.~/.ipython/profile_default/ipython_config.py
+[source, python]
+----
+# Configuration file for ipython.
+
+c = get_config()  #noqa
+----
+
+To disable autocomplete, let's add the following line:
+
+[source, python]
+----
+c.TerminalInteractiveShell.autosuggestions_provider = None
+----
+
+If we then close the iPython REPL and launch it again, we can try the `x = ` code fragment again:
+
+.No autocomplete
+image::{{<siteurl>}}/uploads/2023/10/ipython-autocomplete-off.png[]
+
+Job done!

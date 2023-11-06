@@ -10,7 +10,7 @@ image="uploads/2023/10/clickhouse-table-banner.png"
 
 :icons: font
 
-I've been playing around with Large Language Models on my own machine a fair bit and I've 
+I've been playing around with Large Language Models on my own machine a fair bit and I've been trying to figure out 
 
 https://github.com/tlkh/asitop
 
