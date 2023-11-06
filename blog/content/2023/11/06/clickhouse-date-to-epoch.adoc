@@ -32,7 +32,7 @@ SELECT now() AS time;
 ----
 ┌────────────────time─┐
 │ 2023-11-06 14:58:19 │
-└─────────────────────
+└─────────────────────┘
 ----
 
 If we want to convert this value to epoch seconds, we can use the `toUnixTimestamp` function.
