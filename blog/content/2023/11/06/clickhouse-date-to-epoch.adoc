@@ -1,0 +1,133 @@
++++
+draft = false
+date="2023-11-06 00:44:37"
+title="ClickHouse: Convert date or datetime to epoch"
+tag=['clickhouse', 'clickhouse-local', 'til']
+category=['TIL']
+description="In this post, we'll learn how to convert a date or datetime to epoch in milliseconds in ClickHouse"
+image="uploads/2023/11/clickhouse-date-epoch.png"
++++
+
+:icons: font
+
+I've been working with dates in ClickHouse today and I wanted to convert some values into epoch seconds/milliseconds to use with another tool.
+We're going to document how to do that in this blog post, for future me if no one else.
+
+Let's start an instance of ClickHouse Local:
+
+[source, bash]
+----
+clickhouse local -m
+----
+
+And now we'll write a query that returns the current date/time:
+
+[source, sql]
+----
+SELECT now() AS time;
+----
+
+.Output
+[source, text]
+----
+┌────────────────time─┐
+│ 2023-11-06 14:58:19 │
+└─────────────────────┘
+----
+
+If we want to convert this value to epoch seconds, we can use the `toUnixTimestamp` function.
+
+[source, sql]
+----
+SELECT toUnixTimestamp(now()) AS time
+----
+
+.Output
+[source, text]
+----
+┌───────time─┐
+│ 1699282944 │
+└────────────┘
+----
+
+There's an equivalent function, `toUnixTimestamp64Milli`, that will give us epoch millis.
+Let's try that:
+
+[source, sql]
+----
+SELECT toUnixTimestamp64Milli(now()) AS time;
+----
+
+.Output
+[source, text]
+----
+Received exception:
+Code: 43. DB::Exception: The only argument for function toUnixTimestamp64Milli must be DateTime64: While processing toUnixTimestamp64Milli(now()) AS time. (ILLEGAL_TYPE_OF_ARGUMENT)
+----
+
+Hmmm, looks like we'll need to do some casting.
+
+[source, sql]
+----
+SELECT toUnixTimestamp64Milli(cast(now(), 'DateTime64')) AS time;
+----
+
+Or we could use the https://clickhouse.com/docs/en/sql-reference/data-types/datetime64[`toDateTime64`^] function
+
+[source, sql]
+----
+SELECT toUnixTimestamp64Milli(toDateTime64(now(), 3)) AS time; -- <.>
+----
+<.> `3` means a granularity of `milliseconds`
+
+.Output
+[source, text]
+----
+┌──────────time─┐
+│ 1699283200000 │
+└───────────────┘
+----
+
+If we genuinely do want the current time down to the millisecond, we'll need to use the `now64` function instead:
+
+[source, sql]
+----
+SELECT toUnixTimestamp64Milli(now64()) AS time;
+----
+
+.Output
+[source, text]
+----
+┌──────────time─┐
+│ 1699283352267 │
+└───────────────┘
+----
+
+How about if we only have a date, without a time?
+We can get that in epoch seconds like this:
+
+[source, sql]
+----
+select toUnixTimestamp(today()) AS date;
+----
+
+.Output
+[source, text]
+┌───────date─┐
+│ 1699228800 │
+└────────────┘
+----
+
+If we want to get epoch millis, we need to convert the value to a `DateTime64`:
+
+[source, sql]
+----
+SELECT toUnixTimestamp64Milli(toDateTime64(today(), 3)) AS date;
+----
+
+.Output
+[source, text]
+┌──────────date─┐
+│ 1699228800000 │
+└───────────────┘
+----
