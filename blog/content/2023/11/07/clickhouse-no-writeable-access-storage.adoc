@@ -65,13 +65,13 @@ It turns out that we need to put those values in config files under the `config.
 .config.d/folders.xml
 [source, xml]
 ----
-include::content/2023/11/07/server/folders.xml[]
+include::content/2023/11/07/server/config.d/folders.xml[]
 ----
 
 .config.d/users.xml
 [source, xml]
 ----
-include::content/2023/11/07/server/users.xml[]
+include::content/2023/11/07/server/config.d/users.xml[]
 ----
 
 If we restart the server and then go back to the client, we can try to create the user again:
