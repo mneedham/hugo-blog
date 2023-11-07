@@ -1,0 +1,126 @@
+
++++
+draft = false
+date="2023-11-06 00:44:37"
+title="ClickHouse - DB::Exception:: there is no writeable access storage in user directories (ACCESS_STORAGE_FOR_INSERTION_NOT_FOUND)"
+tag=['clickhouse', 'til']
+category=['TIL']
+description="In this post, we'll learn how to convert a date or datetime to epoch in milliseconds in ClickHouse"
+image="uploads/2023/11/clickhouse-writeable-access-storage.png"
++++
+
+:icons: font
+
+I've been working with ClickHouse's access control/account management as part of a video that I created showing https://www.youtube.com/watch?v=Rhe-kUyrFUE[how to login to a ClickHouse server with an SSH key^], but getting it all setup locally was a bit fiddly.
+In this blog post, we'll go through the mistakes I made and how to fix them.
+
+I initially tried starting the ClickHouse server:
+
+[source, bash]
+----
+./clickhouse server
+----
+
+Connecting to it with a client:
+
+[source, bash]
+----
+./clickhouse client
+----
+
+And then tried to create a user:
+
+[source, sql]
+----
+CREATE USER mark 
+IDENTIFIED WITH sha256_password 
+BY 'my_password';
+----
+
+This resulted in the following error:
+
+.Output
+[source, text]
+----
+Received exception from server (version 23.11.1):
+Code: 514. DB::Exception: Received from localhost:9000. DB::Exception: Could not insert user `mark` because there is no writeable access storage in user directories. (ACCESS_STORAGE_FOR_INSERTION_NOT_FOUND)
+----
+
+I hadn't following https://clickhouse.com/docs/en/operations/access-rights[these instructions from the documentation^]:
+
+[blockquote]
+____
+Setup a directory for configurations storage.
+
+ClickHouse stores access entity configurations in the folder set in the `access_control_path` server configuration parameter.
+
+Enable SQL-driven access control and account management for at least one user account.
+
+By default, SQL-driven access control and account management is disabled for all users. You need to configure at least one user in the users.xml configuration file and set the values of the `access_management`, `named_collection_control`, `show_named_collections`, and `show_named_collections_secrets` settings to 1.
+____
+
+I wasn't sure where I should be setting those properties, but https://www.linkedin.com/in/richraposa[Rich Raposa^] came to the rescue.
+It turns out that we need to put those values in config files under the `config.d` directory:
+
+.config.d/folders.xml
+[source, xml]
+----
+include::content/2023/11/07/server/folders.xml[]
+----
+
+.config.d/users.xml
+[source, xml]
+----
+include::content/2023/11/07/server/users.xml[]
+----
+
+If we restart the server and then go back to the client, we can try to create the user again:
+
+[source, sql]
+----
+CREATE USER mark 
+IDENTIFIED WITH sha256_password 
+BY 'my_password';
+----
+
+.Output
+[source, text]
+----
+Query id: bdccd4a3-91f9-47c1-846c-29229fe95abe
+
+Ok.
+----
+
+And we can see the user if we call `SHOW USERS`:
+
+[source, sql]
+----
+SHOW USERS;
+----
+
+.Output
+[source, text]
+----
+Query id: 668a4379-fd56-4dec-ab96-2e914977a60a
+
+┌─name────┐
+│ default │
+│ mark    │
+└─────────┘
+----
+
+If we then look under the `my_access_folder` directory, we'll see the following files:
+
+.my_access_folder/users.list
+[source, xml]
+----
+include::content/2023/11/07/server/my_access_folder/users.list[]
+----
+
+.my_access_folder/10471a13-2fb4-1bec-7a81-6afc7296df98.sql
+[source, xml]
+----
+include::content/2023/11/07/server/my_access_folder/10471a13-2fb4-1bec-7a81-6afc7296df98.sql[]
+----
+
+If you run that yourself, you'll have a different UUID used for the user, but the structure should be similar.
