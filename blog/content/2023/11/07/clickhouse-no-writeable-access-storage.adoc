@@ -46,7 +46,7 @@ Received exception from server (version 23.11.1):
 Code: 514. DB::Exception: Received from localhost:9000. DB::Exception: Could not insert user `mark` because there is no writeable access storage in user directories. (ACCESS_STORAGE_FOR_INSERTION_NOT_FOUND)
 ----
 
-I hadn't following https://clickhouse.com/docs/en/operations/access-rights[these instructions from the documentation^]:
+It turns out I hadn't followed https://clickhouse.com/docs/en/operations/access-rights[these instructions from the documentation^]:
 
 [blockquote]
 ____
