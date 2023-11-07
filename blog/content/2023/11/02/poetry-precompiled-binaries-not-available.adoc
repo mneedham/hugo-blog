@@ -1,0 +1,58 @@
++++
+draft = false
+date="2023-11-02 00:44:37"
+title="Poetry: OSError: Precompiled binaries are not available for the current platform. Please reinstall from source"
+tag=['python', 'poetry', 'til']
+category=['TIL']
+description="In this post, we'll learn how to install a library from source using Poetry."
+image="uploads/2023/10/autocomplete-banner.png"
++++
+
+:icons: font
+
+I've been playing around with the https://github.com/marella/ctransformers/tree/main[CTransformers^] library recently and getting it installed via Poetry was a bit fiddly.
+In this post, we'll run through what I've ended up doing.
+
+If we try to add the library in the usual way:
+
+[source, bash]
+----
+poetry add ctransformers
+----
+
+We'll get the following error:
+
+.Output
+[source, text]
+----
+OSError: Precompiled binaries are not available for the current platform. Please reinstall from source using:
+
+  pip uninstall ctransformers --yes
+  CT_METAL=1 pip install ctransformers --no-binary ctransformers
+----
+
+Instead, we need to call the following command to tell Poetry to install the library from source:
+
+[source, bash]
+----
+poetry config --local installer.no-binary ctransformers
+----
+
+We can then run the following command again:
+
+[source, bash]
+----
+poetry add ctransformers
+----
+
+And this time it will install from source.
+Unfortunately, I still haven't worked out how to have Poetry pickup the `CT_METAL` environment variable, which means it doesn't get installed with GPU support.
+To get GPU support I'm having to go around Poetry's dependency management by running `pip` directly:
+
+[source, bash]
+----
+CT_METAL=1 poetry run pip install ctransformers
+----
+
+Which works, but isn't ideal.
+If anybody knows how to have Poetry pick up the environment variable, please let me know in the comments.
