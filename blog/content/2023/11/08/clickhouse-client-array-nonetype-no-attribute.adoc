@@ -1,0 +1,92 @@
++++
+draft = false
+date="2023-11-08 00:44:37"
+title="ClickHouse - AttributeError: 'NoneType' object has no attribute 'array'"
+tag=['clickhouse', 'python', 'til']
+category=['TIL']
+description="In this post, we'll learn how to fix an error that we might get when creating a Pandas DataFrame from a query result."
+image="uploads/2023/11/clickhouse-pandas-missing.png"
++++
+
+I was querying a ClickHouse server from a Python script a couple of days ago and ran into an error message when trying to create a Pandas DataFrame.
+In this blog, we'll see the error message and how to fix it.
+
+I'm gonna assume that we have a ClickHouse Server running and we're going to connect to it like this:
+
+[source, bash]
+----
+./clickhouse client
+----
+
+.Output
+[source, text]
+----
+ClickHouse client version 23.10.1.1709 (official build).
+Connecting to localhost:9000 as user default.
+Connected to ClickHouse server version 23.11.1 revision 54466.
+----
+
+Next, let's create a table with one column and populate it with some values:
+
+[source, sql]
+----
+CREATE TABLE x(value Int32) 
+ENGINE MergeTree() 
+ORDER BY tuple();
+
+INSERT INTO x VALUES(1) (4) (7) (12) (24);
+----
+
+Now we're going to query this table from a Python script.
+We'll first install https://pypi.org/project/clickhouse-connect/[`clickhouse-connect`^]:
+
+[source, bash]
+----
+pip install clickhouse-connect
+----
+
+And then we'll try to get back a Pandas DataFrame containing our result:
+
+[source, python]
+----
+import clickhouse_connect
+
+client = clickhouse_connect.get_client(host='localhost')
+
+client.query_df("FROM x SELECT *")
+----
+
+.Output
+[source, text]
+----
+File ~/Library/Caches/pypoetry/virtualenvs/fastembed-clickhouse-4QwM5Uh0-py3.11/lib/python3.11/site-packages/clickhouse_connect/datatypes/string.py:40, in String._finalize_column(self, column, ctx)
+     38 def _finalize_column(self, column: Sequence, ctx: QueryContext) -> Sequence:
+     39     if ctx.use_extended_dtypes and self.read_format(ctx) == 'native':
+---> 40         return pd.array(column, dtype=pd.StringDtype())
+     41     if ctx.use_numpy and ctx.max_str_len:
+     42         return np.array(column, dtype=f'<U{ctx.max_str_len}')
+
+AttributeError: 'NoneType' object has no attribute 'array'
+----
+
+It looks like we need to install Pandas, which I guess kinda makes sense.
+
+[source, bash]
+----
+pip install pandas
+----
+
+And then if we re-run our script, we'll see the following output:
+
+.Output
+[source, text]
+----
+   value
+0      1
+1      4
+2      7
+3     12
+4     24
+----
+
+Job done.
