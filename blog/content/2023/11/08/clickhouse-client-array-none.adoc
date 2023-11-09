@@ -1,0 +1,19 @@
++++
+draft = true
+date="2023-11-06 00:44:37"
+title="ClickHouse - DB::Exception:: there is no writeable access storage in user directories (ACCESS_STORAGE_FOR_INSERTION_NOT_FOUND)"
+tag=['clickhouse', 'til']
+category=['TIL']
+description="In this post, we'll learn how to convert a date or datetime to epoch in milliseconds in ClickHouse"
+image="uploads/2023/11/clickhouse-writeable-access-storage.png"
++++
+
+
+File ~/Library/Caches/pypoetry/virtualenvs/fastembed-clickhouse-4QwM5Uh0-py3.11/lib/python3.11/site-packages/clickhouse_connect/datatypes/string.py:40, in String._finalize_column(self, column, ctx)
+     38 def _finalize_column(self, column: Sequence, ctx: QueryContext) -> Sequence:
+     39     if ctx.use_extended_dtypes and self.read_format(ctx) == 'native':
+---> 40         return pd.array(column, dtype=pd.StringDtype())
+     41     if ctx.use_numpy and ctx.max_str_len:
+     42         return np.array(column, dtype=f'<U{ctx.max_str_len}')
+
+AttributeError: 'NoneType' object has no attribute 'array'

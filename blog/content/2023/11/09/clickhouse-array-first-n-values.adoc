@@ -1,0 +1,85 @@
++++
+draft = false
+date="2023-11-09 00:44:37"
+title="ClickHouse - How to get the first 'n' values from an array"
+tag=['clickhouse', 'til']
+category=['TIL']
+description="In this post, we'll learn how to get the first few entries from an array in ClickHouse"
+image="uploads/2023/11/clickhouse-arrays-slice.png"
++++
+
+:icons: font
+
+I was recently working with some very long arrays in ClickHouse and I wanted to select just a few values so that they didn't take up the entire screen.
+The way I thought would 'just work' (TM) didn't, so this blog documents how to do it.
+
+If you want to follow along, you'll need to https://clickhouse.com/docs/en/install[install ClickHouse^].
+On a Mac, Brew is a pretty good option:
+
+[source, bash]
+----
+brew install clickhouse
+----
+
+Once you've done that, launch ClickHouse Local:
+
+[source, bash]
+----
+clickhouse local -m
+----
+
+.Output
+[source, text]
+----
+ClickHouse local version 23.10.1.1976 (official build).
+
+MN :)
+----
+
+And then we're going to return an array that contains 10 values:
+
+[source, sql]
+----
+SELECT range(0,10);
+----
+
+.Output
+[source, text]
+----
+┌─range(0, 10)──────────┐
+│ [0,1,2,3,4,5,6,7,8,9] │
+└───────────────────────┘
+----
+
+I wanted to get just the first 5 values, so I tried to use the Python-esque syntax:
+
+[source, sql]
+----
+SELECT range(0,10)[:5];
+----
+
+But that wasn't too happy with me:
+
+.Output
+[source, text]
+----
+Expected one of: token, Comma, ClosingSquareBracket, CAST operator, NOT, INTERVAL, CASE, DATE, TIMESTAMP, tuple, collection of literals, array, number, literal, NULL, Bool, true, false, string literal, asterisk, qualified asterisk, compound identifier, list of elements, identifier, COLUMNS matcher, COLUMNS, qualified COLUMNS matcher, substitution, MySQL-style global variable
+----
+
+What we need is the https://clickhouse.com/docs/en/sql-reference/functions/array-functions#arrayslice[`arraySlice`^] function, which lets us extract a variable number of values from an array.
+We have to specify an `offset` (remembering that array indexing in ClickHouse starts from `1`) and then a `length`, which is the number of values to return.
+
+The following does the job:
+
+[source, sql]
+----
+SELECT arraySlice(range(0,10), 1, 5);
+----
+
+.Output
+[source, text]
+----
+┌─arraySlice(range(0, 10), 1, 5)─┐
+│ [0,1,2,3,4]                    │
+└────────────────────────────────┘
+----
