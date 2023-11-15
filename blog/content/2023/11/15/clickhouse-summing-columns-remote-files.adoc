@@ -2,7 +2,7 @@
 draft = false
 date="2023-11-15 00:44:37"
 title="Summing columns in remote Parquet files using ClickHouse"
-tag=['clickhouse', 'til']
+tag=['clickhouse', 'parquet', 'til']
 category=['TIL']
 description="In this post, we'll learn how to sum columns in remote Parquet files using ClickHouse."
 image="uploads/2023/11/clickhouse-summing-remote-parquet-files.png"
@@ -46,7 +46,7 @@ And then launch ClickHouse Local:
 
 == Querying one file
 
-We'll start by getting a row of one of the files, formatting at JSON.
+We'll start by getting a row of one of the files, formatting as JSON.
 
 [source, bash]
 ----
