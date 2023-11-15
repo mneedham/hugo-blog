@@ -1,0 +1,174 @@
++++
+draft = false
+date="2023-11-15 00:44:37"
+title="Summing columns in remote Parquet files using ClickHouse"
+tag=['clickhouse', 'til']
+category=['TIL']
+description="In this post, we'll learn how to sum columns in remote Parquet files using ClickHouse."
+image="uploads/2023/11/clickhouse-summing-remote-parquet-files.png"
++++
+
+:icons: font
+
+I'm an avid reader of https://til.simonwillison.net[Simon Willison's TIL blog^] and enjoyed https://til.simonwillison.net/duckdb/remote-parquet[a recent post^] showing how to sum the size of all the Midjourney images stored on Discord.
+He did this by querying a bunch of Parquet files stored on Hugging Face with DuckDB.
+I was curious whether I could do the same thing using ClickHouse and in this blog post, we're going to find out.
+
+The dataset that we're going to use is available at https://huggingface.co/datasets/vivym/midjourney-messages[vivym/midjourney-messages^].
+It contains just over 55 million records spread over 56 Parquet files.
+
+The files have the following structure:
+
+[source, bash]
+----
+https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet
+https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000001.parquet
+...
+https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000055.parquet
+----
+
+== Setting up ClickHouse Local
+
+Let's install ClickHouse on our machine:
+
+[source, bash]
+----
+curl https://clickhouse.com/ | sh
+----
+
+And then launch ClickHouse Local:
+
+[source, bash]
+----
+
+./clickhouse local -m
+----
+
+== Querying one file
+
+We'll start by getting a row of one of the files, formatting at JSON.
+
+[source, bash]
+----
+FROM url('https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet')
+SELECT *
+LIMIT 1
+Format JSONEachRow;
+----
+
+.Output
+[source, text]
+----
+Received exception:
+Code: 483. DB::Exception: Too many redirects while trying to access https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet. You can allow redirects by changing the setting 'max_http_get_redirects'. Example: `SET max_http_get_redirects = 10`. Redirects are restricted to prevent possible attack when a malicious server redirects to an internal resource, bypassing the authentication or firewall.: Cannot extract table structure from Parquet format file. You can specify the structure manually. (TOO_MANY_REDIRECTS)
+----
+
+Oops, it doesn't like that the URL redirects elsewhere, but we can have it handle that by configuring `max_http_get_redirects`.
+Let's update our query:
+
+[source, sql]
+----
+FROM url('https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet')
+SELECT *
+LIMIT 1
+Format JSONEachRow
+SETTINGS max_http_get_redirects=1;
+----
+
+.Output
+[source, text]
+----
+{"id":"1144508197969854484","channel_id":"989268300473192561","content":"**adult Goku in Dragonball Z, walking on a beach, in a Akira Toriyama anime style** - Image #1 <@1016225582566101084>","timestamp":"2023-08-25T05:46:58.330000+00:00","image_id":"1144508197693046875","height":"1024","width":"1024","url":"https:\/\/cdn.discordapp.com\/attachments\/989268300473192561\/1144508197693046875\/anaxagore54_adult_Goku_in_Dragonball_Z_walking_on_a_beach_in_a__987e6fd5-64a1-43f6-83dd-c58d2eb42948.png","size":"1689284"}
+
+1 row in set. Elapsed: 3.424 sec.
+----
+
+That took a few seconds and I expect that it pulled down the whole file before selecting the first row.
+Let's configure nettop, as described in Simon's post, and then run the query again:
+
+[source, bash]
+----
+nettop -p 70254 -J bytes_in
+----
+
+.Output
+[source, bash]
+----
+                    bytes_in
+clickhouse.70254    152 MiB
+----
+
+It downloaded 152MB, which is the size of the file. 
+
+== Summing the size of one file
+
+Let's now see what happens if we sum the `size` column, like Simon did in his post:
+
+
+[source, sql]
+----
+FROM url('https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet')
+SELECT sum(size) as totalSize, formatReadableSize(totalSize)
+SETTINGS max_http_get_redirects=1;
+----
+
+.Output
+[source, text]
+----
+┌─────totalSize─┬─formatReadableSize(sum(size))─┐
+│ 3456458790156 │ 3.14 TiB                      │
+└───────────────┴───────────────────────────────┘
+
+1 row in set. Elapsed: 1.097 sec.
+----
+
+Just over 3 TB for the first file.
+And this is the nettop output:
+
+.Output
+[source, bash]
+----
+                    bytes_in
+clickhouse.70254    5386 KiB
+----
+
+This time it was quicker and only downloaded about 5 MB because ClickHouse also uses HTTP range header tricks to only pull down the `size` column.
+
+
+== Summing the size of all the files
+
+Okay, now we're ready to sum up the `size` column in all the files.
+ClickHouse has quite a neat 'range syntax' for doing this.
+So to sum the size column in all 56 Parquet files, we can write the following query:
+
+[source, sql]
+----
+SELECT
+    sum(size) AS totalSize,
+    formatReadableSize(totalSize)
+FROM url('https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/0000{00..55}.parquet')
+SETTINGS max_http_get_redirects = 1
+----
+
+.Output
+[source, text]
+----
+┌───────totalSize─┬─formatReadableSize(sum(size))─┐
+│ 162800469938172 │ 148.07 TiB                    │
+└─────────────────┴───────────────────────────────┘
+
+1 row in set. Elapsed: 9.798 sec. Processed 54.08 million rows, 8.50 GB (5.52 million rows/s., 867.48 MB/s.)
+Peak memory usage: 896.00 B.
+----
+
+It's kinda insane that Midjourney has created 148 TB of image files!
+And what does nettop have to say?
+
+.Output
+[source, bash]
+----
+                    bytes_in
+clickhouse.70254    287 MiB
+----
+
+Again, pretty similar to what Simon saw - ClickHouse has also only downloaded 287 MB of data instead of the full 8 GB to work out the total size.
