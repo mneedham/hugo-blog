@@ -1,0 +1,346 @@
++++
+draft = false
+date="2023-11-15 00:44:37"
+title="ClickHouse: Tuples - Code: 47. DB::Exception: Missing columns: while processing query:"
+tag=['clickhouse', 'til']
+category=['TIL']
+description="In this post, we'll learn how to filter on tuples using ClickHouse."
+image="uploads/2023/11/clickhouse-summing-remote-parquet-files.png"
++++
+
+:icons: font
+
+I've been playing around with the https://www.markhneedham.com/blog/2023/11/15/clickhouse-summing-columns-remote-files/[Mid Journey Parquet metadata that I wrote about in my last blog post^] and struggled quite a bit to get the query to do what I wanted.
+Come along on a journey with me and we'll figure it out together.
+
+We're querying the metadata of a Parquet file that contains the metadata (I know!) of images created by the Mid Journey generative AI service.
+The following query gets us the columns:
+
+[source, sql]
+----
+FROM url('https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet', ParquetMetadata)
+SELECT columns
+SETTINGS max_http_get_redirects=1
+Format Vertical;
+----
+
+.Output
+[source, text]
+----
+Row 1:
+──────
+columns: [('id','id',1,0,'BYTE_ARRAY','String','SNAPPY',23093988,13133418,'43.13%',['PLAIN','RLE','RLE_DICTIONARY']),('channel_id','channel_id',1,0,'BYTE_ARRAY','String','SNAPPY',112,116,'-3.571%',['PLAIN','RLE','RLE_DICTIONARY']),('content','content',1,0,'BYTE_ARRAY','String','SNAPPY',208657682,46191873,'77.86%',['PLAIN','RLE','RLE_DICTIONARY']),('timestamp','timestamp',1,0,'BYTE_ARRAY','String','SNAPPY',36052113,9046231,'74.91%',['PLAIN','RLE','RLE_DICTIONARY']),('image_id','image_id',1,0,'BYTE_ARRAY','String','SNAPPY',23093988,13118570,'43.19%',['PLAIN','RLE','RLE_DICTIONARY']),('height','height',1,0,'INT64','None','SNAPPY',915584,498549,'45.55%',['PLAIN','RLE','RLE_DICTIONARY']),('width','width',1,0,'INT64','None','SNAPPY',916607,496767,'45.8%',['PLAIN','RLE','RLE_DICTIONARY']),('url','url',1,0,'BYTE_ARRAY','String','SNAPPY',180090922,71430496,'60.34%',['PLAIN','RLE','RLE_DICTIONARY']),('size','size',1,0,'INT64','None','SNAPPY',8286381,5392260,'34.93%',['PLAIN','RLE','RLE_DICTIONARY'])]
+----
+
+This isn't that readable, but we can sort that out by using the `arrayJoin` function to pull each column out into its own row.
+The metadata about each column is stored in a tuple, so we're also going to use the `toTypeName` function to return the names of each element in the tuple:
+
+[source, sql]
+----
+FROM url('https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet', ParquetMetadata)
+SELECT arrayJoin(columns) AS md, toTypeName(md)
+SETTINGS max_http_get_redirects=1
+Format Vertical;
+----
+
+.Output
+[source, text]
+----
+Row 1:
+──────
+md:                             ('id','id',1,0,'BYTE_ARRAY','String','SNAPPY',23093988,13133418,'43.13%',['PLAIN','RLE','RLE_DICTIONARY'])
+toTypeName(arrayJoin(columns)): Tuple(name String, path String, max_definition_level UInt64, max_repetition_level UInt64, physical_type String, logical_type String, compression String, total_uncompressed_size UInt64, total_compressed_size UInt64, space_saved String, encodings Array(String))
+
+Row 2:
+──────
+md:                             ('channel_id','channel_id',1,0,'BYTE_ARRAY','String','SNAPPY',112,116,'-3.571%',['PLAIN','RLE','RLE_DICTIONARY'])
+toTypeName(arrayJoin(columns)): Tuple(name String, path String, max_definition_level UInt64, max_repetition_level UInt64, physical_type String, logical_type String, compression String, total_uncompressed_size UInt64, total_compressed_size UInt64, space_saved String, encodings Array(String))
+
+Row 3:
+──────
+md:                             ('content','content',1,0,'BYTE_ARRAY','String','SNAPPY',208657682,46191873,'77.86%',['PLAIN','RLE','RLE_DICTIONARY'])
+toTypeName(arrayJoin(columns)): Tuple(name String, path String, max_definition_level UInt64, max_repetition_level UInt64, physical_type String, logical_type String, compression String, total_uncompressed_size UInt64, total_compressed_size UInt64, space_saved String, encodings Array(String))
+
+Row 4:
+──────
+md:                             ('timestamp','timestamp',1,0,'BYTE_ARRAY','String','SNAPPY',36052113,9046231,'74.91%',['PLAIN','RLE','RLE_DICTIONARY'])
+toTypeName(arrayJoin(columns)): Tuple(name String, path String, max_definition_level UInt64, max_repetition_level UInt64, physical_type String, logical_type String, compression String, total_uncompressed_size UInt64, total_compressed_size UInt64, space_saved String, encodings Array(String))
+
+Row 5:
+──────
+md:                             ('image_id','image_id',1,0,'BYTE_ARRAY','String','SNAPPY',23093988,13118570,'43.19%',['PLAIN','RLE','RLE_DICTIONARY'])
+toTypeName(arrayJoin(columns)): Tuple(name String, path String, max_definition_level UInt64, max_repetition_level UInt64, physical_type String, logical_type String, compression String, total_uncompressed_size UInt64, total_compressed_size UInt64, space_saved String, encodings Array(String))
+
+Row 6:
+──────
+md:                             ('height','height',1,0,'INT64','None','SNAPPY',915584,498549,'45.55%',['PLAIN','RLE','RLE_DICTIONARY'])
+toTypeName(arrayJoin(columns)): Tuple(name String, path String, max_definition_level UInt64, max_repetition_level UInt64, physical_type String, logical_type String, compression String, total_uncompressed_size UInt64, total_compressed_size UInt64, space_saved String, encodings Array(String))
+
+Row 7:
+──────
+md:                             ('width','width',1,0,'INT64','None','SNAPPY',916607,496767,'45.8%',['PLAIN','RLE','RLE_DICTIONARY'])
+toTypeName(arrayJoin(columns)): Tuple(name String, path String, max_definition_level UInt64, max_repetition_level UInt64, physical_type String, logical_type String, compression String, total_uncompressed_size UInt64, total_compressed_size UInt64, space_saved String, encodings Array(String))
+
+Row 8:
+──────
+md:                             ('url','url',1,0,'BYTE_ARRAY','String','SNAPPY',180090922,71430496,'60.34%',['PLAIN','RLE','RLE_DICTIONARY'])
+toTypeName(arrayJoin(columns)): Tuple(name String, path String, max_definition_level UInt64, max_repetition_level UInt64, physical_type String, logical_type String, compression String, total_uncompressed_size UInt64, total_compressed_size UInt64, space_saved String, encodings Array(String))
+
+Row 9:
+───────
+md:                             ('size','size',1,0,'INT64','None','SNAPPY',8286381,5392260,'34.93%',['PLAIN','RLE','RLE_DICTIONARY'])
+toTypeName(arrayJoin(columns)): Tuple(name String, path String, max_definition_level UInt64, max_repetition_level UInt64, physical_type String, logical_type String, compression String, total_uncompressed_size UInt64, total_compressed_size UInt64, space_saved String, encodings Array(String))
+----
+
+We can explode these tuples so that each element in the tuple has its own column by using the `untuple` function:
+
+
+[source, sql]
+----
+FROM url('https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet', ParquetMetadata)
+SELECT untuple(arrayJoin(columns)) AS md
+LIMIT 1
+SETTINGS max_http_get_redirects=1
+Format Vertical;
+----
+
+[source, text]
+----
+Row 1:
+──────
+md.name:                    id
+md.path:                    id
+md.max_definition_level:    1
+md.max_repetition_level:    0
+md.physical_type:           BYTE_ARRAY
+md.logical_type:            String
+md.compression:             SNAPPY
+md.total_uncompressed_size: 23093988
+md.total_compressed_size:   13133418
+md.space_saved:             43.13%
+md.encodings:               ['PLAIN','RLE','RLE_DICTIONARY']
+----
+
+So far, so good.
+But what about if we want to filter the data so that we say only return the columns that have a `logical_type` of `STRING`?
+
+I tried to do this in a few different ways:
+
+[source, sql]
+----
+FROM url('https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet', ParquetMetadata)
+SELECT untuple(arrayJoin(columns)) AS md
+WHERE md.logical_type = 'STRING'
+SETTINGS max_http_get_redirects=1
+Format Vertical;
+----
+
+.Output
+[source, text]
+----
+Received exception:
+Code: 47. DB::Exception: Missing columns: 'md.logical_type' while processing query: 'SELECT untuple(arrayJoin(columns)) AS md FROM url('https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet', ParquetMetadata) WHERE md.logical_type = 'STRING' SETTINGS max_http_get_redirects = 1', required columns: 'md.logical_type' 'columns', maybe you meant: 'columns'. (UNKNOWN_IDENTIFIER)
+----
+
+
+[source, sql]
+----
+FROM url('https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet', ParquetMetadata)
+SELECT untuple(arrayJoin(columns)) AS md
+WHERE "md.logical_type" = 'STRING'
+SETTINGS max_http_get_redirects=1
+Format Vertical;
+----
+
+.Output
+[source, text]
+----
+Received exception:
+Code: 47. DB::Exception: Missing columns: 'md.logical_type' while processing query: 'SELECT untuple(arrayJoin(columns)) AS md FROM url('https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet', ParquetMetadata) WHERE `md.logical_type` = 'STRING' SETTINGS max_http_get_redirects = 1', required columns: 'md.logical_type' 'columns', maybe you meant: 'columns'. (UNKNOWN_IDENTIFIER)
+----
+
+[source, sql]
+----
+WITH columns AS (
+    FROM url('https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet', ParquetMetadata)
+    SELECT untuple(arrayJoin(columns)) AS md
+    SETTINGS max_http_get_redirects=1
+)
+FROM columns
+SELECT * 
+WHERE "md.logical_type" = 'STRING'
+Format Vertical;
+----
+
+.Output
+[source, text]
+----
+Received exception:
+Code: 47. DB::Exception: Missing columns: 'md.logical_type' while processing query: 'SELECT untuple(arrayJoin(columns)) AS md FROM url('https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet', ParquetMetadata) WHERE `md.logical_type` = 'STRING' SETTINGS max_http_get_redirects = 1', required columns: 'md.logical_type' 'columns', maybe you meant: 'columns'. (UNKNOWN_IDENTIFIER)
+----
+
+But no luck - it doesn't seem to recognise the columns created by the `untuple` function.
+So my next move was to try filtering on the tuple before I called `untuple`.
+
+[source, sql]
+----
+WITH columns AS (
+    FROM url('https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet', ParquetMetadata)
+    SELECT arrayJoin(columns) AS col
+    SETTINGS max_http_get_redirects=1
+)
+FROM columns
+SELECT untuple(col) AS md
+WHERE col.'logical_type' = 'String'
+Format Vertical;
+----
+
+.Output
+[source, text]
+----
+Row 1:
+──────
+md.name:                    id
+md.path:                    id
+md.max_definition_level:    1
+md.max_repetition_level:    0
+md.physical_type:           BYTE_ARRAY
+md.logical_type:            String
+md.compression:             SNAPPY
+md.total_uncompressed_size: 23093988
+md.total_compressed_size:   13133418
+md.space_saved:             43.13%
+md.encodings:               ['PLAIN','RLE','RLE_DICTIONARY']
+
+Row 2:
+──────
+md.name:                    channel_id
+md.path:                    channel_id
+md.max_definition_level:    1
+md.max_repetition_level:    0
+md.physical_type:           BYTE_ARRAY
+md.logical_type:            String
+md.compression:             SNAPPY
+md.total_uncompressed_size: 112
+md.total_compressed_size:   116
+md.space_saved:             -3.571%
+md.encodings:               ['PLAIN','RLE','RLE_DICTIONARY']
+
+Row 3:
+──────
+md.name:                    content
+md.path:                    content
+md.max_definition_level:    1
+md.max_repetition_level:    0
+md.physical_type:           BYTE_ARRAY
+md.logical_type:            String
+md.compression:             SNAPPY
+md.total_uncompressed_size: 208657682
+md.total_compressed_size:   46191873
+md.space_saved:             77.86%
+md.encodings:               ['PLAIN','RLE','RLE_DICTIONARY']
+
+Row 4:
+──────
+md.name:                    timestamp
+md.path:                    timestamp
+md.max_definition_level:    1
+md.max_repetition_level:    0
+md.physical_type:           BYTE_ARRAY
+md.logical_type:            String
+md.compression:             SNAPPY
+md.total_uncompressed_size: 36052113
+md.total_compressed_size:   9046231
+md.space_saved:             74.91%
+md.encodings:               ['PLAIN','RLE','RLE_DICTIONARY']
+
+Row 5:
+──────
+md.name:                    image_id
+md.path:                    image_id
+md.max_definition_level:    1
+md.max_repetition_level:    0
+md.physical_type:           BYTE_ARRAY
+md.logical_type:            String
+md.compression:             SNAPPY
+md.total_uncompressed_size: 23093988
+md.total_compressed_size:   13118570
+md.space_saved:             43.19%
+md.encodings:               ['PLAIN','RLE','RLE_DICTIONARY']
+
+Row 6:
+──────
+md.name:                    url
+md.path:                    url
+md.max_definition_level:    1
+md.max_repetition_level:    0
+md.physical_type:           BYTE_ARRAY
+md.logical_type:            String
+md.compression:             SNAPPY
+md.total_uncompressed_size: 180090922
+md.total_compressed_size:   71430496
+md.space_saved:             60.34%
+md.encodings:               ['PLAIN','RLE','RLE_DICTIONARY']
+----
+
+That's better.
+But let's say we only want to return a subset of the columns rather than all of them.
+We can do that by running the following query:
+
+[source, sql]
+----
+WITH columns AS (
+    FROM url('https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet', ParquetMetadata)
+    SELECT arrayJoin(columns) AS col
+    SETTINGS max_http_get_redirects=1
+)
+FROM columns
+SELECT 
+    col.'name' AS name, 
+    col.'physical_type' AS physical_type, 
+    col.'logical_type' AS logical_type, 
+    col.'compression' AS compression
+WHERE col.'logical_type' = 'String';
+----
+
+.Output
+[source, text]
+----
+┌─name───────┬─physical_type─┬─logical_type─┬─compression─┐
+│ id         │ BYTE_ARRAY    │ String       │ SNAPPY      │
+│ channel_id │ BYTE_ARRAY    │ String       │ SNAPPY      │
+│ content    │ BYTE_ARRAY    │ String       │ SNAPPY      │
+│ timestamp  │ BYTE_ARRAY    │ String       │ SNAPPY      │
+│ image_id   │ BYTE_ARRAY    │ String       │ SNAPPY      │
+│ url        │ BYTE_ARRAY    │ String       │ SNAPPY      │
+└────────────┴───────────────┴──────────────┴─────────────┘
+----
+
+Nice!
+Alternatively, we can use the `ARRAY JOIN` clause instead of the `arrayJoin` function, which I think is a better choice for this problem.
+
+[source, sql]
+----
+SELECT
+    col.name,
+    col.physical_type,
+    col.logical_type,
+    col.compression
+FROM url('https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet', ParquetMetadata)
+ARRAY JOIN columns AS col
+WHERE col.logical_type = 'String'
+SETTINGS max_http_get_redirects=1;
+----
+
+.Output
+[source, text]
+----
+┌─col.name───┬─col.physical_type─┬─col.logical_type─┬─col.compression─┐
+│ id         │ BYTE_ARRAY        │ String           │ SNAPPY          │
+│ channel_id │ BYTE_ARRAY        │ String           │ SNAPPY          │
+│ content    │ BYTE_ARRAY        │ String           │ SNAPPY          │
+│ timestamp  │ BYTE_ARRAY        │ String           │ SNAPPY          │
+│ image_id   │ BYTE_ARRAY        │ String           │ SNAPPY          │
+│ url        │ BYTE_ARRAY        │ String           │ SNAPPY          │
+└────────────┴───────────────────┴──────────────────┴─────────────────┘
+----
