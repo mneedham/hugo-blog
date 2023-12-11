@@ -1,11 +1,11 @@
 +++
 draft = false
-date="2023-11-15 00:44:37"
+date="2023-12-04 00:44:37"
 title="ClickHouse: Tuples - Code: 47. DB::Exception: Missing columns: while processing query:"
 tag=['clickhouse', 'til']
 category=['TIL']
 description="In this post, we'll learn how to filter on tuples using ClickHouse."
-image="uploads/2023/11/clickhouse-summing-remote-parquet-files.png"
+image="uploads/2023/12/clickhouse-tuples.png"
 +++
 
 :icons: font

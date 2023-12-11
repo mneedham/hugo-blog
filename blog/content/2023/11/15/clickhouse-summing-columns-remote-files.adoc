@@ -16,6 +16,7 @@ I was curious whether I could do the same thing using ClickHouse and in this blo
 
 The dataset that we're going to use is available at https://huggingface.co/datasets/vivym/midjourney-messages[vivym/midjourney-messages^].
 It contains just over 55 million records spread over 56 Parquet files.
+They're a little over 150 MB each, for a total of around 8 GB.
 
 The files have the following structure:
 
@@ -84,7 +85,7 @@ SETTINGS max_http_get_redirects=1;
 ----
 
 That took a few seconds and I expect that it pulled down the whole file before selecting the first row.
-Let's configure nettop, as described in Simon's post, and then run the query again:
+Let's configure `nettop`, as described in Simon's post, and then run the query again:
 
 [source, bash]
 ----
@@ -98,12 +99,11 @@ nettop -p 70254 -J bytes_in
 clickhouse.70254    152 MiB
 ----
 
-It downloaded 152MB, which is the size of the file. 
+It downloaded 152MB, which is the size of the file.
 
 == Summing the size of one file
 
-Let's now see what happens if we sum the `size` column, like Simon did in his post:
-
+Let's now see what happens if we sum the `size` column, as Simon did in his post:
 
 [source, sql]
 ----
@@ -123,7 +123,7 @@ SETTINGS max_http_get_redirects=1;
 ----
 
 Just over 3 TB for the first file.
-And this is the nettop output:
+And this is the `nettop` output:
 
 .Output
 [source, bash]
@@ -133,7 +133,6 @@ clickhouse.70254    5386 KiB
 ----
 
 This time it was quicker and only downloaded about 5 MB because ClickHouse also uses HTTP range header tricks to only pull down the `size` column.
-
 
 == Summing the size of all the files
 
@@ -162,7 +161,7 @@ Peak memory usage: 896.00 B.
 ----
 
 It's kinda insane that Midjourney has created 148 TB of image files!
-And what does nettop have to say?
+And what does `nettop` have to say?
 
 .Output
 [source, bash]
