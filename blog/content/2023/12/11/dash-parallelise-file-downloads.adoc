@@ -1,0 +1,123 @@
++++
+draft = false
+date="2023-11-15 00:44:37"
+title="Dask: Parallelising file downloads"
+tag=['clickhouse', 'til']
+category=['TIL']
+description="In this post, we'll learn how to use dask to parallelise the download of Parquet files from Hugging Face."
+image="uploads/2023/11/clickhouse-summing-remote-parquet-files.png"
++++
+
+:icons: font
+
+Before a recent meetup talk that I did showing https://speakerdeck.com/markhneedham/analytics-on-your-laptop-with-clickhouse-local[how to do analytics on your laptop with ClickHouse Local^] at https://www.meetup.com/uk-open-source-data-infrastructure-meetup/events/297395569/[Aiven's Open Source Data Infrastructure Meetup^], I needed to download a bunch of Parquet files from https://huggingface.co/datasets/vivym/midjourney-messages[Hugging Face's midjourney-messages dataset^].
+I alternate between using `wget`/`curl` or a Python script to do this type of work.
+
+This time I used Python's `requests` library and I had the following script which downloads the Parquet files that I haven't already downloaded.
+
+.download_parquet_files.py
+[source, python]
+----
+import requests
+import os
+import shutil
+import time
+from tqdm import tqdm
+
+def download_file(url, local_filename):
+    with requests.get(url, stream=True, allow_redirects=True) as r:
+        r.raise_for_status()
+        total_length = int(r.headers.get('content-length', 0))
+        chunk_size = 1024
+
+        with open(local_filename, 'wb') as f:
+            for chunk in tqdm(r.iter_content(chunk_size), total=total_length/chunk_size, desc=local_filename):
+                if chunk:
+                    f.write(chunk)
+    return local_filename
+
+
+def download(file):
+    url = f"https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/{file}?download=true"
+    print(f"Downloading {url}")
+    local_filename = download_file(url, f"data/{file}")
+    return local_filename
+
+files_to_download = [f"0000{index:0>2}.parquet" for index in range(0, 56)]
+
+for file in files_to_download:
+    if not os.path.isfile(f"data/{file}"):
+        download(file)
+    else:
+        print(f"File {file} already exists")
+----
+
+If we run this script, it downloads each file sequentially.
+The output will look like the following:
+
+.Output
+[source, text]
+----
+Downloading https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet?download=true
+data/000000.parquet: 155582it [00:14, 10577.06it/s]
+Downloading https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000001.parquet?download=true
+data/000001.parquet: 154888it [00:14, 10625.43it/s]
+Downloading https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000002.parquet?download=true
+data/000002.parquet: 147923it [00:13, 11228.27it/s]
+
+5.42s user 1.40s system 15% cpu 43.926 total
+----
+
+It's pretty fast considering I haven't got my ethernet cable connected, but I was curious whether parallelising the downloads would speed things up.
+
+I've previously done this using the https://docs.python.org/3/library/multiprocessing.html[multiprocessing^] library, but I found it quite fiddly to set up.
+I'd heard about a library called https://www.dask.org/[dask^] on a few podcasts and although it's overkill to use it for this problem, I wanted to see if I could do it.
+
+I didn't have to make too many changes to my script to get it working.
+I had to add the following import
+
+[source, python]
+----
+import dask
+----
+
+And update my for loop to use the `dask.delayed` function:
+
+[source, python]
+----
+lazy_results = []
+for file in files_to_download:
+    if not os.path.isfile(f"data/{file}"):
+        result = dask.delayed(download)(file)
+        lazy_results.append(result)
+    else:
+        print(f"File {file} already exists")
+
+dask.persist(*lazy_results)
+----
+
+I deleted a few of the Parquet files from my machine and then gave it a try:
+
+[source, python]
+----
+time poetry run python download_parquet_files.py
+----
+
+.Output
+[source, text]
+----
+....
+Downloading https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000000.parquet?download=true
+Downloading https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000001.parquet?download=true
+Downloading https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/000002.parquet?download=true
+data/000002.parquet: 147923it [00:47, 3084.88it/s]
+data/000001.parquet: 154888it [00:48, 3221.52it/s]
+data/000000.parquet: 155582it [00:50, 3088.57it/s]
+
+7.27s user 2.52s system 19% cpu 51.266 total
+----
+
+Well, that's no good - I made it slower!
+
+So a good lesson for me that parallelising doesn't always make things faster, but along the way, I learnt that dask is very easy to configure.
+Now I need to give it a try on some other tasks that can easily be parallelised to see if it fares better on those.
