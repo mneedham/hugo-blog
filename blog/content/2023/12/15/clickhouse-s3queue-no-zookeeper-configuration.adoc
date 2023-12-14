@@ -1,0 +1,173 @@
++++
+draft = false
+date="2023-12-15 00:44:37"
+title="ClickHouse/S3Queue: DB::Exception: There is no Zookeeper configuration in server config"
+tag=['clickhouse', 'til']
+category=['TIL']
+description="In this post, we'll learn how to ingest data from S3 into ClickHouse."
+image="uploads/2023/12/litellm-llamafile.png"
++++
+
+:icons: font
+
+This week I've been making a video showing how to use ClickHouse's https://clickhouse.com/docs/en/engines/table-engines/integrations/s3queue[S3Queue table engine^], which allows streaming import of files in an S3 bucket.
+The S3Queue table engine was released in version 23.8, but only received 'production-ready' status in version 23.11.
+In this blog post, we'll walk through the steps to getting this to work locally and the mistakes that I made along the way.
+
+I configured an S3 bucket, added 10 files containing 100,000 rows of JSON each, and made sure that I'd set the `AWS_PROFILE` environment variable so that ClickHouse Server could read from the bucket.
+I then started the ClickHouse Server:
+
+[source, bash]
+----
+./clickhouse server
+----
+
+Connected to that server using the ClickHouse client:
+
+[source, bash]
+----
+./clickhouse client -m
+----
+
+And tried to configure an S3Queue table engine based on my S3 bucket:
+
+[source, sql]
+----
+CREATE TABLE ordersQueue (
+    orderDate DateTime, 
+    gender String,
+    customerId UUID,
+    cost Float32,
+    name String,
+    creditCardNumber String,
+    address String,
+    orderId UUID
+)
+ENGINE = S3Queue(
+    'https://s3queue.clickhouse.com.s3.eu-north-1.amazonaws.com/data/*.json',
+    JSONEachRow
+)
+SETTINGS 
+    mode = 'ordered', 
+    s3queue_enable_logging_to_s3queue_log = 1;
+----
+
+When I ran this query, I got the following error:
+
+.Output
+[source, text]
+----
+Received exception from server (version 23.12.1):
+Code: 139. DB::Exception: Received from localhost:9000. DB::Exception: There is no Zookeeper configuration in server config. (NO_ELEMENTS_IN_CONFIG)
+----
+
+The mistake I made was not configuring ClickHouse Keeper in the ClickHouse Server config.
+ClickHouse Server uses ClickHouse Keeper to keep track of the files that have already been processed. 
+
+When running ClickHouse from the binary executable it picks up any XML or YAML config files under the `config.d` directory (relative to where it's run) and then merges them into its global configuration file during the startup process.
+So to enable ClickHouse Keeper, we will add the following config:
+
+.\.config.d/config.yaml
+[source, yaml]
+----
+keeper_server:
+    tcp_port: 2181
+    server_id: 1
+    log_storage_path: 'keeper/coordination/log'
+    snapshot_storage_path: 'keeper/coordination/snapshots'
+
+    coordination_settings:
+        operation_timeout_ms: 10000
+        session_timeout_ms: 30000
+        raft_logs_level: warning
+
+    raft_configuration:
+        server:
+            id: 1
+            hostname: '127.0.0.1'
+            port: 9444
+
+s3queue_log:
+    database: system
+    table: s3queue_log
+
+logger:
+    level: debug
+    console: true
+----
+
+We can then restart the server:
+
+[source, bash]
+----
+./clickhouse server
+----
+
+And if we re-run the `CREATE TABLE` command, it will succeed.
+
+The next step is to create a table to store the data in ClickHouse.
+The query to create that table is similar to the previous one, but we use the `MergeTree` engine instead of `S3Queue`:
+
+[source, sql]
+----
+CREATE TABLE orders (
+    orderDate DateTime, 
+    gender String,
+    customerId UUID,
+    cost Float32,
+    name String,
+    creditCardNumber String,
+    address String,
+    orderId UUID
+)
+ENGINE = MergeTree 
+ORDER BY (customerId, orderDate);
+----
+
+The final piece that glues these two tables together is a materialised view.
+The materialised view processes rows coming in from S3 files and then writes them into the table:
+
+[source, sql]
+----
+CREATE MATERIALIZED VIEW ordersConsumer TO orders AS 
+SELECT * 
+FROM ordersQueue;
+----
+
+We can then query the `orders` table to check that data is being ingested:
+
+[source, sql]
+----
+FROM orders SELECT count()
+----
+
+One thing I found confusing is that this query returned 0 for what seemed like ages and then suddenly the count went up to 1 million in one go.
+I learnt that this happens because the materialised view only flushes the data once it's reached a certain number of rows, which is determined by the config properties `min_insert_block_size_rows_for_materialized_views` and `min_insert_block_size_bytes_for_materialized_views`.
+
+If those properties aren't configured, their values default to `min_insert_block_size_rows` and `min_insert_block_size_bytes` respectively.
+The default values of `min_insert_block_size_rows` and `min_insert_block_size_bytes` are as follows:
+
+.Output
+[source, text]
+----
+┌─name────────────────────────┬─type───┬─value─────┐
+│ min_insert_block_size_bytes │ UInt64 │ 268402944 │
+│ min_insert_block_size_rows  │ UInt64 │ 1048449   │
+└─────────────────────────────┴────────┴───────────┘
+----
+
+So, by default, the materialised view was only getting flushed once it had just over 1 million rows!
+We can, however, configure this property at the server level, the same way that we configured ClickHouse Keeper.
+I added the following config file and restarted ClickHouse Server:
+
+.\.config.d/profiles.yaml
+[source.yaml]
+----
+profiles:
+  default:
+    min_insert_block_size_rows_for_materialized_views: 1000
+    min_insert_block_size_bytes_for_materialized_views: 2000
+----
+
+I then removed the tables and materialised view and recreated everything.
+And this time I could see the data being ingested immediately!

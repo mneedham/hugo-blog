@@ -1,15 +1,22 @@
 +++
 draft = true
 date="2023-12-09 00:44:37"
-title="ClickHouse: Tuples - Code: 47. DB::Exception: Missing columns: while processing query:"
-tag=['clickhouse', 'til']
+title="Poetry/pyautogui: AttributeError: dlsym(0x3cd8685ec, objc_msgSendSuper_stret): symbol not found"
+tag=['poetry', 'pyautogui', 'python', 'til']
 category=['TIL']
 description="In this post, we'll learn how to filter on tuples using ClickHouse."
 image="uploads/2023/12/clickhouse-tuples.png"
 +++
 
 :icons: font
+
+[source, bash]
+----
 $ poetry run python simulate.py --filename /Users/markhneedham/projects/learndatawithmark/llava/iterm/launch.md --window 0 --tab 0 
+----
+
+[source, bash]
+----
 Traceback (most recent call last):
   File "/Users/markhneedham/projects/iterm-simulator/simulate.py", line 9, in <module>
     import pyautogui
@@ -31,5 +38,6 @@ Traceback (most recent call last):
     func = self._FuncPtr((name_or_ordinal, self))
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 AttributeError: dlsym(0x3cd8685ec, objc_msgSendSuper_stret): symbol not found
+----
 
 rm -rf `poetry env info -p`
