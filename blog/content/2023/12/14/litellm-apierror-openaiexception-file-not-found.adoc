@@ -1,0 +1,156 @@
++++
+draft = false
+date="2023-12-14 00:44:37"
+title="litellm and llamafile -  APIError: OpenAIException - File Not Found"
+tag=['llamafile', 'litellm', 'til']
+category=['TIL']
+description="In this post, we'll learn how to get litellm and llamafile playing nicely together."
+image="uploads/2023/12/litellm-llamafile.png"
++++
+
+:icons: font
+
+I wanted to get two of my favourite tools in the LLM world - https://docs.litellm.ai/docs/[llmlite^] and https://github.com/Mozilla-Ocho/llamafile[llamafile^] - to play nicely and ran into an issue that I'll explain in this blog post.
+This should be helpful if you're trying to wire up other LLM servers to llmlite, it's not specific to llamafile.
+
+In case you want to follow along, I https://github.com/Mozilla-Ocho/llamafile/releases[downloaded llamafile^] and MistralAI 7B weights from https://huggingface.co/TheBloke/Mistral-7B-v0.1-GGUF[TheBloke/Mistral-7B-v0.1-GGUF^].
+I then started the llamafile server like this:
+
+[source, bash]
+----
+./llamafile-server-0.3 -m models/mistral-7b-instruct-v0.1.Q4_K_M.gguf --nobrowser
+----
+
+Let's install litellm, a library that lets you call many different LLMs as if they had the OpenAI API.
+
+[source, bash]
+----
+poetry add litellm
+----
+
+or
+
+[source, bash]
+----
+pip install litellm
+----
+
+Right, now we need to figure out how to call llamafile from litellm.
+There isn't currently a documentation page for llamafile, but we can follow the instructions for creating https://docs.litellm.ai/docs/providers/custom_openai_proxy[a Custom API Server^], since llamafile provides an Open AI compatible endpoint.
+
+[source, python]
+----
+import os
+from litellm import completion
+
+os.environ["OPENAI_API_KEY"] = "i-am-not-used-but-must-be-here"
+
+messages = [{"content": "Write a limerick about ClickHouse", "role": "user"}]
+response = completion(
+    model="command-nightly",
+    messages=messages,
+    api_base="http://localhost:8080/",
+    custom_llm_provider="openai"
+)
+----
+
+I ran this code and got the following error:
+
+[source, python]
+----
+File ~/Library/Caches/pypoetry/virtualenvs/llamafile-playground-PMlWj0HV-py3.11/lib/python3.11/site-packages/litellm/utils.py:4192, in exception_type(model, original_exception, custom_llm_provider, completion_kwargs)
+   4190     else:
+   4191         exception_mapping_worked = True
+-> 4192         raise APIError(
+   4193             status_code=original_exception.status_code,
+   4194             message=f"OpenAIException - {original_exception.message}",
+   4195             llm_provider="openai",
+   4196             model=model,
+   4197             request=original_exception.request
+   4198         )
+   4199 else:
+   4200     # if no status code then it is an APIConnectionError: https://github.com/openai/openai-python#handling-errors
+   4201     raise APIConnectionError(
+   4202         __cause__=original_exception.__cause__,
+   4203         llm_provider=custom_llm_provider,
+   4204         model=model,
+   4205         request=original_exception.request
+   4206     )
+
+APIError: OpenAIException - File Not Found
+----
+
+
+I couldn't make much sense of the stack trace - I'm not sure why it's mentioning trying to find a file to start with, so I turned on debug mode so that I could see the HTTP requests that were being made.
+
+[source, python]
+----
+import litellm
+litellm.set_verbose = True
+----
+
+If we re-run the completion function above, we'll see something like the following output:
+
+[source, bash]
+----
+POST Request Sent from LiteLLM:
+curl -X POST \
+http://localhost:8080 \
+-d '{'model': 'command-nightly', 'messages': [{'content': 'Write a limerick about ClickHouse', 'role': 'user'}]}'
+
+RAW RESPONSE:
+File Not Found
+----
+
+The debug output doesn't seem quite right to me as I think it's actually appending `/chat/completion` to the base URI, which would mean the request was made to `http://localhost:8080/chat/completion`.
+I had a look in the llamafile logs to see if it had registered a request:
+
+[source, bash]
+----
+{"timestamp":1702535457,"level":"INFO","function":"log_server_request","line":2593,"message":"request","remote_addr":"127.0.0.1","remote_port":50193,"status":404,"method":"POST","path":"/chat/completions","params":{}}
+----
+
+The 'File Not Found' message makes more sense now since it was saying that it was getting a 404 when trying to call llamafile.
+The mistake I'd made is not including the `v1` suffix in the `api_base` property.
+Let's fix that:
+
+[source, python]
+----
+response = completion(
+    model="command-nightly",
+    messages=messages,
+    api_base="http://localhost:8080/v1",
+    custom_llm_provider="openai"
+)
+----
+
+If we run it this time, we'll see the following debug output:
+
+[source, bash]
+----
+POST Request Sent from LiteLLM:
+curl -X POST \
+http://localhost:8080/v1 \
+-d '{'model': 'command-nightly', 'messages': [{'content': 'Write a limerick about ClickHouse', 'role': 'user'}]}'
+
+
+RAW RESPONSE:
+{"id":"chatcmpl-b5Q6ctuTXM9xgHJPyH7q8oqw5OL1FScH","choices":[{"finish_reason":"stop","index":0,"message":{"content":"There once was a database named ClickHouse\nIt could handle all sorts of data, no doubt\nWith its speed and its might\nIt could handle all queries in sight\nAnd its users were never left in a drought\n","role":"assistant","function_call":null,"tool_calls":null}}],"created":1702536234,"model":"gpt-3.5-turbo-0613","object":"chat.completion","system_fingerprint":null,"usage":{"completion_tokens":53,"prompt_tokens":37,"total_tokens":90}}
+----
+
+And let's print out the limerick:
+
+[source, python]
+----
+print(response.choices[0].message.content)
+----
+
+.Output
+[source, text]
+----
+There once was a database named ClickHouse
+It could handle all sorts of data, no doubt
+With its speed and its might
+It could handle all queries in sight
+And its users were never left in a drought
+----

@@ -1,0 +1,35 @@
++++
+draft = true
+date="2023-12-09 00:44:37"
+title="ClickHouse: Tuples - Code: 47. DB::Exception: Missing columns: while processing query:"
+tag=['clickhouse', 'til']
+category=['TIL']
+description="In this post, we'll learn how to filter on tuples using ClickHouse."
+image="uploads/2023/12/clickhouse-tuples.png"
++++
+
+:icons: font
+$ poetry run python simulate.py --filename /Users/markhneedham/projects/learndatawithmark/llava/iterm/launch.md --window 0 --tab 0 
+Traceback (most recent call last):
+  File "/Users/markhneedham/projects/iterm-simulator/simulate.py", line 9, in <module>
+    import pyautogui
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/iterm-simulator-CNStoUis-py3.11/lib/python3.11/site-packages/pyautogui/__init__.py", line 246, in <module>
+    import mouseinfo
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/iterm-simulator-CNStoUis-py3.11/lib/python3.11/site-packages/mouseinfo/__init__.py", line 100, in <module>
+    from rubicon.objc import ObjCClass, CGPoint
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/iterm-simulator-CNStoUis-py3.11/lib/python3.11/site-packages/rubicon/objc/__init__.py", line 33, in <module>
+    from . import api, collections, runtime, types
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/iterm-simulator-CNStoUis-py3.11/lib/python3.11/site-packages/rubicon/objc/api.py", line 29, in <module>
+    from .runtime import (
+  File "/Users/markhneedham/Library/Caches/pypoetry/virtualenvs/iterm-simulator-CNStoUis-py3.11/lib/python3.11/site-packages/rubicon/objc/runtime.py", line 460, in <module>
+    libobjc.objc_msgSendSuper_stret.restype = None
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.6_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/ctypes/__init__.py", line 389, in __getattr__
+    func = self.__getitem__(name)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.6_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/ctypes/__init__.py", line 394, in __getitem__
+    func = self._FuncPtr((name_or_ordinal, self))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: dlsym(0x3cd8685ec, objc_msgSendSuper_stret): symbol not found
+
+rm -rf `poetry env info -p`

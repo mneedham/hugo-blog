@@ -1,11 +1,11 @@
 +++
 draft = false
-date="2023-11-15 00:44:37"
+date="2023-12-11 00:44:37"
 title="Dask: Parallelising file downloads"
-tag=['clickhouse', 'til']
+tag=['dask', 'python', 'til']
 category=['TIL']
 description="In this post, we'll learn how to use dask to parallelise the download of Parquet files from Hugging Face."
-image="uploads/2023/11/clickhouse-summing-remote-parquet-files.png"
+image="uploads/2023/12/dask-banner.png"
 +++
 
 :icons: font
