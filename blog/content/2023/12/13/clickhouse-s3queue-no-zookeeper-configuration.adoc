@@ -1,11 +1,11 @@
 +++
 draft = false
-date="2023-12-15 00:44:37"
-title="ClickHouse/S3Queue: DB::Exception: There is no Zookeeper configuration in server config"
+date="2023-12-13 00:44:37"
+title="ClickHouse: S3Queue Table Engine -  DB::Exception: There is no Zookeeper configuration in server config"
 tag=['clickhouse', 'til']
 category=['TIL']
 description="In this post, we'll learn how to ingest data from S3 into ClickHouse."
-image="uploads/2023/12/litellm-llamafile.png"
+image="uploads/2023/12/clickhouse-s3queue.png"
 +++
 
 :icons: font

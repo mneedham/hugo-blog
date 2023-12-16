@@ -13,6 +13,8 @@ image="uploads/2023/12/litellm-llamafile.png"
 I wanted to get two of my favourite tools in the LLM world - https://docs.litellm.ai/docs/[llmlite^] and https://github.com/Mozilla-Ocho/llamafile[llamafile^] - to play nicely and ran into an issue that I'll explain in this blog post.
 This should be helpful if you're trying to wire up other LLM servers to llmlite, it's not specific to llamafile.
 
+== Setting up llamafile
+
 In case you want to follow along, I https://github.com/Mozilla-Ocho/llamafile/releases[downloaded llamafile^] and MistralAI 7B weights from https://huggingface.co/TheBloke/Mistral-7B-v0.1-GGUF[TheBloke/Mistral-7B-v0.1-GGUF^].
 I then started the llamafile server like this:
 
@@ -20,6 +22,8 @@ I then started the llamafile server like this:
 ----
 ./llamafile-server-0.3 -m models/mistral-7b-instruct-v0.1.Q4_K_M.gguf --nobrowser
 ----
+
+== Installing litellm
 
 Let's install litellm, a library that lets you call many different LLMs as if they had the OpenAI API.
 
@@ -34,6 +38,8 @@ or
 ----
 pip install litellm
 ----
+
+== Calling llamafile from litellm
 
 Right, now we need to figure out how to call llamafile from litellm.
 There isn't currently a documentation page for llamafile, but we can follow the instructions for creating https://docs.litellm.ai/docs/providers/custom_openai_proxy[a Custom API Server^], since llamafile provides an Open AI compatible endpoint.
