@@ -150,10 +150,17 @@ The default values of `min_insert_block_size_rows` and `min_insert_block_size_by
 .Output
 [source, text]
 ----
-┌─name────────────────────────┬─type───┬─value─────┐
-│ min_insert_block_size_bytes │ UInt64 │ 268402944 │
-│ min_insert_block_size_rows  │ UInt64 │ 1048449   │
-└─────────────────────────────┴────────┴───────────┘
+Row 1:
+──────
+name:  min_insert_block_size_bytes
+type:  UInt64
+value: 268402944
+
+Row 2:
+──────
+name:  min_insert_block_size_rows
+type:  UInt64
+value: 1048449
 ----
 
 So, by default, the materialised view was only getting flushed once it had just over 1 million rows!
