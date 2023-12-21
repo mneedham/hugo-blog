@@ -67,7 +67,7 @@ ClickHouse Server uses ClickHouse Keeper to keep track of the files that have al
 When running ClickHouse from the binary executable it picks up any XML or YAML config files under the `config.d` directory (relative to where it's run) and then merges them into its global configuration file during the startup process.
 So to enable ClickHouse Keeper, we will add the following config:
 
-.\.config.d/config.yaml
+..config.d/config.yaml
 [source, yaml]
 ----
 keeper_server:
@@ -160,7 +160,7 @@ So, by default, the materialised view was only getting flushed once it had just 
 We can, however, configure this property at the server level, the same way that we configured ClickHouse Keeper.
 I added the following config file and restarted ClickHouse Server:
 
-.\.config.d/profiles.yaml
+..config.d/profiles.yaml
 [source.yaml]
 ----
 profiles:
