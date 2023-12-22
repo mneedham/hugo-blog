@@ -1,0 +1,220 @@
++++
+draft = false
+date="2023-12-22 00:44:37"
+title="Generating sample JSON data in S3 with shadowtraffic.io"
+tag=['s3', 'til']
+category=['TIL']
+description="In this post, we'll learn how to generate sample data in an S3 bucket with shadowtraffic.io."
+image="uploads/2023/12/litellm-llamafile.png"
++++
+
+:icons: font
+
+I needed to quickly generate some data to write to S3 for a https://www.youtube.com/watch?v=lnbWFjfZxZ4&t=4s[recent video on the ClickHouse YouTube channel^] and it seemed like a good opportunity to try out https://shadowtraffic.io/[ShadowTraffic].
+
+ShadowTraffic is a tool being built by Michael Drogalis and it simulates production traffic based on a JSON file that you provide.
+Michael is documenting the process of building ShadowTraffic on https://michaeldrogalis.substack.com/[his Substack newsletter^].
+
+[NOTE]
+====
+Michael gave me a free license to use for a few months as a 'thank you' for giving him some feedback on the product, but there is also a free version of the tool.
+====
+
+
+The first thing we need to do is create a JSON file that describes the data that we'd like to generate.
+I've adapted the sample e-commerce example to include orders and customer details in the same file.
+You can see my file below:
+
+.orders.json
+[source, json]
+----
+{
+    "generators": [
+        {
+            "table": "orders",
+            "row": {
+                "customerId": {
+                    "_gen": "uuid"
+                },
+                "name": {
+                    "_gen": "string",
+                    "expr": "#{Name.full_name}"
+                },
+                "gender": {
+                    "_gen": "weightedOneOf",
+                    "choices": [
+                        {
+                            "weight": 49,
+                            "value": "male"
+                        },
+                        {
+                            "weight": 49,
+                            "value": "female"
+                        },
+                        {
+                            "weight": 1,
+                            "value": "non-binary"
+                        }
+                    ]
+                },
+                "address": {
+                    "_gen": "string",
+                    "expr": "#{Address.full_address}"
+                },
+                "membership": {
+                    "_gen": "oneOf",
+                    "choices": [
+                        "bronze",
+                        "silver",
+                        "gold"
+                    ]
+                },
+                "orderId": {
+                    "_gen": "uuid"
+                },
+                "orderDate": {
+                    "_gen": "now"
+                },
+                "cost": {
+                    "_gen": "number",
+                    "n": {
+                        "_gen": "normalDistribution",
+                        "mean": 50,
+                        "sd": 20
+                    }
+                },
+                "creditCardNumber": {
+                    "_gen": "string",
+                    "expr": "#{Finance.credit_card}"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "pg": {
+            "kind": "postgres",
+            "connectionConfigs": {
+                "host": "localhost",
+                "port": 5432,
+                "username": "postgres",
+                "password": "postgres",
+                "db": "mydb"
+            }
+        }
+    }
+}
+----
+
+You need to provide a connection to either Postgres or Kafka, so I had to provide something even though I'm not planning to use either tool.
+
+We can then call ShadowTraffic in Dry-Run mode by passing the `--stdout` parameter and have it generate a single record by passing `--sample 1`
+
+[source, bash]
+----
+docker run \
+  --env-file license.env \
+  -v ./orders.json:/home/config.json \
+  shadowtraffic/shadowtraffic:latest \
+  --config /home/config.json \
+  -q --stdout --sample 1
+----
+
+.Output
+[source, json]
+----
+{
+  "table" : "orders",
+  "row" : {
+    "membership" : "gold",
+    "gender" : "female",
+    "customerId" : "2aad62a4-0cd7-4e44-b64f-bb2d0561e8b1",
+    "cost" : 17.29207782281643,
+    "name" : "Silas Homenick",
+    "creditCardNumber" : "6771575378399757",
+    "address" : "Apt. 604 974 Simon Lakes, New Austinside, PA 21990-2886",
+    "orderId" : "f147c2ac-0b82-474a-af2d-67c79a3dd0b4",
+    "orderDate" : 1703266786651
+  }
+}
+----
+
+The bit of JSON that we're interested in is under the `row` property, so we're going to filter that using the `jq` tool.
+We'll pass in the `-c` flag so that we get the JSON on a single line:
+
+[source, bash]
+----
+docker run \
+  --env-file license.env \
+  -v ./orders.json:/home/config.json \
+  shadowtraffic/shadowtraffic:latest \
+  --config /home/config.json \
+  -q --stdout --sample 1 |
+jq -c '.row'
+----
+
+.Output
+[source, json]
+----
+{"membership":"gold","gender":"female","customerId":"266422b6-8abd-4b3c-a293-0461c0d45ab8","cost":37.02247112428602,"name":"Tristan Block","creditCardNumber":"3528-7302-3997-0048","address":"Apt. 817 623 Odilia Way, Predovicshire, MD 95620-9365","orderId":"d54ec3e5-5956-4915-b410-dbbe74a98a83","orderDate":1703266858589}
+----
+
+If we remove `--sample 1` it will generate infinite JSON messages for us.
+I then wrote the following script which reads messages from `stdin` and writes them to S3 every 100,000 messages.
+
+.upload_s3.py
+[source, python]
+----
+import sys
+import boto3
+from datetime import datetime
+
+
+def upload_to_s3(file_name, bucket_name, object_name=None):
+    if object_name is None:
+        object_name = file_name
+    s3_client = boto3.client('s3')
+    try:
+        print(f"Uploading {file_name} to {bucket_name}")
+        s3_client.upload_file(file_name, bucket_name, object_name)
+        print(f"Uploaded {file_name} to {bucket_name}")
+    except Exception as e:
+        print(f"Error uploading file: {e}")
+
+
+def main():
+    max_entries = 100_000
+    entries = []
+
+    for line in sys.stdin:
+        entries.append(line)
+
+        if len(entries) >= max_entries:
+            file_name = f"data/batch_{datetime.now().strftime('%Y%m%d%H%M%S')}.json"
+            with open(file_name, 'w') as file:
+                for entry in entries:
+                    file.write(entry)
+
+            upload_to_s3(file_name, 's3queue.clickhouse.com')
+
+            entries = []
+
+
+if __name__ == "__main__":
+    main()
+----
+
+We can then pipe the messages into `upload_s3.py` like this:
+
+[source, bash]
+----
+docker run \
+  --env-file license.env \
+  -v ./orders.json:/home/config.json \
+  shadowtraffic/shadowtraffic:latest \
+  --config /home/config.json \
+  -q --stdout |
+jq -c '.row' |
+poetry run python upload_s3.py
+----
+
+And that's it!
