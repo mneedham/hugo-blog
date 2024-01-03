@@ -1,0 +1,87 @@
++++
+draft = false
+date="2024-01-02 00:44:37"
+title="ClickHouse: How does a number have a set number of decimal places?"
+tag=['clickhouse', 'til']
+category=['TIL']
+description="In this post, we'll learn how to format a Decimal number to have a set/fixed number of decimal places."
+image="uploads/2024/01/clickhouse-decimal-banner.png"
++++
+
+:icons: font
+
+I've been working with a dataset in ClickHouse where I compute currency values and I really struggled to figure out how to get numbers whose decimal part is divisible by 10 to have a fixed number of decimal places.
+If you want to do that too, hopefully, this blog post will help.
+
+Let's start by seeing what happens if we output the number `12.40`
+
+[source, sql]
+----
+SELECT 12.40 AS number;
+----
+
+.Output
+[source, sql]
+----
+┌─number─┐
+│   12.4 │
+└────────┘
+----
+
+The trailing `0` has been stripped. 
+But maybe we can fix that by casting it to a Decimal type with 2 decimal places?
+
+[source, sql]
+----
+SELECT CAST(12.40 AS Decimal(10,2)) AS number;
+----
+
+.Output
+[source, sql]
+----
+┌─number─┐
+│   12.4 │
+└────────┘
+----
+
+Hmm, nope.
+What about if we coerce the value with the `toDecimal32` function instead?
+
+
+[source, sql]
+----
+SELECT toDecimal32(12.40, 2) AS number;
+----
+
+.Output
+[source, sql]
+----
+┌─number─┐
+│   12.4 │
+└────────┘
+----
+
+Still nope. 
+At this point I was pretty stuck - Google didn't have any suggestions and even ChatGPT didn't know what to do.
+
+Lucky for me, my colleague https://github.com/Avogar[Pavel^] came to the rescue by pointing me to the https://clickhouse.com/docs/en/operations/settings/formats#output_format_decimal_trailing_zeros[`output_format_decimal_trailing_zeros`^] setting.
+If we enable that, we'll see our trailing 0 as long as we have a Decimal type.
+
+
+[source, sql]
+----
+SELECT 12.40 AS number, 
+       toDecimal32(number, 2) AS number2, 
+       CAST(number AS Decimal(10,2)) AS number3
+SETTINGS output_format_decimal_trailing_zeros=1;
+----
+
+.Output
+[source, sql]
+----
+┌─number─┬─number2─┬─number3─┐
+│   12.4 │   12.40 │   12.40 │
+└────────┴─────────┴─────────┘
+----
+
+Thanks Pavel!
