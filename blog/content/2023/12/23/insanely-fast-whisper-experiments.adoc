@@ -1,0 +1,275 @@
++++
+draft = false
+date="2023-12-23 00:44:37"
+title="Experimenting with insanely-fast-whisper"
+tag=['whisper', 'openai', 'til']
+category=['TIL']
+description="In this post, we'll learn how to use insanely-fast-whisper to generate a transcript for one of Scott Galloway's podcast episodes."
+image="uploads/2023/12/whisper-banner.png"
++++
+
+:icons: font
+
+I recently came across https://github.com/Vaibhavs10/insanely-fast-whisper[insanely-fast-whisper^], a CLI tool that you can use to transcribe audio files using https://huggingface.co/openai/whisper-large-v3[OpenAI's whisper-large-v3 model^] or other smaller models.
+In this blog post, I'll summarise my experience using it to transcribe one of Scott Galloway's podcast episodes.
+
+I listen to podcasts on Player.FM and we'll use the https://player.fm/series/the-prof-g-pod-with-scott-galloway/prof-g-markets-scotts-nine-businesses[Prof G Markets: Scott’s Nine Businesses^] episode. 
+If we append `.json` to the URL, we'll get the https://player.fm/series/the-prof-g-pod-with-scott-galloway/prof-g-markets-scotts-nine-businesses.json[JSON metadata^] for the podcast.
+
+[source, bash]
+----
+curl \
+  -H "Accept: application/json" \
+  --compressed \
+  https://player.fm/series/the-prof-g-pod-with-scott-galloway/prof-g-markets-scotts-nine-businesses.json 2>/dev/null
+----
+
+.Output
+[source, json]
+----
+{
+  "type": "episode",
+  "id": 386048284,
+  "slug": "prof-g-markets-scotts-nine-businesses",
+  "explicit": false,
+  "mediaType": "audio/mpeg",
+  "rawTitle": "prof g market scott s busi",
+  "title": "Prof G Markets: Scott’s Nine Businesses",
+  "url": "https://www.podtrac.com/pts/redirect.mp3/pdst.fm/e/chrt.fm/track/524GE/traffic.megaphone.fm/VMP5922871816.mp3?updated=1701050904",
+  "publishedAt": 1701075600,
+  "lookup": "https://player.fm/series/2629939/386048284.json",
+  "share": "https://player.fm/1Balmje",
+  "size": 0,
+  "duration": 3256,
+  "description": "<p>Scott tells the story of his career in entrepreneurship, from starting a video rental company before business school, to going public with Red Envelope, to founding Prof G Media. He shares what was most meaningful about those experiences, and what was most surprising.</p><p>Learn more about your ad choices. Visit <a href=\"https://podcastchoices.com/adchoices\">podcastchoices.com/adchoices</a></p>",
+  "image": {
+    "url": "https://megaphone.imgix.net/podcasts/6769b2f4-3513-11ed-80e4-f37d796024b6/image/3e611f.png?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+    "type": "image"
+  },
+  "series": {
+    "type": "series",
+    "id": 2629939,
+    "slug": "the-prof-g-pod-with-scott-galloway",
+    "access": "public",
+    "currentURL": "https://feeds.megaphone.fm/WWO6655869236",
+    "url": "https://feeds.megaphone.fm/WWO6655869236",
+    "author": "Vox Media Podcast Network",
+    "mediaKind": "audio",
+    "updatedAt": 1703149585,
+    "fingerprint": "OfxuCQYPnerfKAGIJams50OQEFXQ,Ufh9dcOyNk_0eM",
+    "descriptionFingerprint": "xN61CKwuMT87BElgYpgS5gqzI5xnI50UvHDxPiKe_9g",
+    "title": "The Prof G Pod with Scott Galloway",
+    "home": "https://podcasts.voxmedia.com/show/the-prof-g-show-with-scott-galloway",
+    "language": "en",
+    "imageURL": "https://megaphone.imgix.net/podcasts/e36115c4-4db6-11ea-be1c-87cdcc67bd9e/image/Tile.png?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+    "fetch": {"status": "ok", "confidence": 9},
+    "fetchStatus": "ok",
+    "lookup": "https://player.fm/series/2629939.json",
+    "latestLookup": "https://player.fm/series/2629939/at/1703149585.json",
+    "relatedLookup": "https://player.fm/related-to/the-prof-g-pod-with-scott-galloway.json",
+    "share": "https://player.fm/series/the-prof-g-pod-with-scott-galloway",
+    "stats": {
+      "numberOfSubscriptions": 1558,
+      "numberOfEpisodes": 486,
+      "averageDuration": 2112,
+      "averageInterval": 144514,
+      "earliestPublishedAt": 1581525840,
+      "latestPublishedAt": 1703149200,
+      "manualSubscriptionsCentile": 0.985,
+      "shortTrendCentile": 0.12,
+      "longTrendCentile": 0.99
+    },
+    "tags": [
+      {
+        "type": "tag",
+        "id": 506,
+        "title": "Careers",
+        "rawTitle": "career",
+        "language": "en",
+        "polar": 0.5,
+        "topic": {"id": 658, "owner": {"id": 3}, "title": "Careers"},
+        "ancestors": null,
+        "series": {"amount": 17308, "centile": 0.991},
+        "sources": ["categories"]
+      },
+      {
+        "type": "tag",
+        "id": 1218967,
+        "title": "Section 4 / Westwood One Podcast Network",
+        "rawTitle": "section-4-westwood-network",
+        "language": "en",
+        "polar": 0.5,
+        "sources": ["owner"]
+      },
+      {
+        "type": "tag",
+        "id": 225,
+        "title": "Business Trends",
+        "rawTitle": "busi-trend",
+        "language": "en",
+        "polar": 0.7,
+        "topic": {
+          "id": 1695746,
+          "owner": {"id": 3},
+          "title": "Business Trends"
+        },
+        "ancestors": null,
+        "series": {"amount": 114, "centile": 0.941},
+        "sources": ["featured"]
+      },
+      {
+        "type": "tag",
+        "id": 125,
+        "title": "Business",
+        "rawTitle": "busi",
+        "language": "en",
+        "polar": 0.5,
+        "topic": {"id": 932129, "owner": {"id": 3}, "title": "Business"},
+        "ancestors": null,
+        "series": {"amount": 112273, "centile": 0.997},
+        "sources": ["featured"]
+      },
+      {
+        "type": "tag",
+        "id": 256,
+        "title": "Entrepreneur",
+        "rawTitle": "entrepreneur",
+        "language": "en",
+        "polar": 0.5,
+        "topic": {"id": 17993, "owner": {"id": 3}, "title": "Entrepreneur"},
+        "ancestors": null,
+        "series": {"amount": 25242, "centile": 0.991},
+        "sources": ["featured"]
+      }
+    ],
+    "image": {
+      "type": "image",
+      "id": 26431330,
+      "url": "https://megaphone.imgix.net/podcasts/e36115c4-4db6-11ea-be1c-87cdcc67bd9e/image/Tile.png?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+      "urlBase": "https://cdn.player.fm/images/26431330/series/u3mGVUW4HakPKQ0o",
+      "palette": ["4eafb8", "091011"],
+      "suffix": "jpg"
+    },
+    "description": "Bestselling author, professor and entrepreneur Scott Galloway combines business insight and analysis with provocative life and career advice. On Mondays, Prof G Markets breaks down what’s moving the capital markets, teaching the basics of financial literacy so you can build economic security. Wednesdays, during Office Hours, Scott answers your questions about business, career, and life. Thursdays, Scott has a conversation with a blue-flame thinker in the innovation economy. And Scott closes the week on Saturdays with his Webby Award–winning newsletter, No Mercy / No Malice, as read by actor and raconteur George Hahn. To resist is futile… Want to get in touch? Email us, officehours@profgmedia.com",
+    "backgroundColor": "#D81422",
+    "network": {"name": "Vox Media Podcast Network"}
+  },
+  "versionInfo": "1.1.0"
+}
+----
+
+We're mostly interested in the `url`, so let's update the command to extract that using `jq`:
+
+[source, bash]
+----
+curl \
+  -H "Accept: application/json" \
+  --compressed \
+  https://player.fm/series/the-prof-g-pod-with-scott-galloway/prof-g-markets-scotts-nine-businesses.json 2>/dev/null |
+jq '.url'
+----
+
+[source, text]
+----
+"https://www.podtrac.com/pts/redirect.mp3/pdst.fm/e/chrt.fm/track/524GE/traffic.megaphone.fm/VMP5922871816.mp3?updated=1701050904"
+----
+
+I downloaded that to my machine and then installed insanely-fast-whisper:
+
+[source, bash]
+----
+pipx install insanely-fast-whisper==0.0.12
+----
+
+Once that was installed, I ran it using the `openai/whisper-large-v3` model
+
+[source, bash]
+----
+insanely-fast-whisper \
+  --file-name VMP5922871816.mp3 \
+  --device-id mps \
+  --model-name openai/whisper-large-v3 \
+  --batch-size 4 \
+  --transcript-path profg.jsons
+----
+
+.Output
+[source, text]
+----
+🤗 Transcribing... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 0:13:37
+Voila!✨ Your file has been transcribed go check it out over here 👉 profg.json
+----
+
+You can see from the output that it took just over 13 minutes to transcribe this file, which is 54 minutes long.
+This is nowhere near as fast as  Vaibhav Srivastav (the author) was able to achieve on a Nvidia A100 - 80GB. 
+
+He later posted a LinkedIn message where he showed how to use the tool with the https://huggingface.co/distil-whisper/distil-small.en[distil-whisper/distil-small.en^] model.
+
+++++
+<iframe src="https://www.linkedin.com/embed/feed/update/urn:li:ugcPost:7139995906757537792" height="914" width="504" frameborder="0" allowfullscreen="" title="Embedded post"></iframe>
+++++
+
+This is a small model and the Hugging Face says the following:
+
+[blockquote]
+____
+Distil-Whisper was proposed in the paper Robust Knowledge Distillation via Large-Scale Pseudo Labelling. It is a distilled version of the Whisper model that is 6 times faster, 49% smaller, and performs within 1% WER on out-of-distribution evaluation sets.
+
+This is the repository for distil-small.en, a distilled variant of Whisper small.en. It is the smallest Distil-Whisper checkpoint, with just 166M parameters, making it the ideal choice for memory constrained applications (e.g. on-device).
+____
+
+I gave this a try by running the following command:
+
+[source, bash]
+----
+insanely-fast-whisper \
+  --file-name VMP5922871816.mp3 \
+  --device-id mps \
+  --model-name distil-whisper/distil-small.en \
+  --batch-size 4 \
+  --transcript-path profg-small.json
+----
+
+I'm using an Apple M1 Max with 64GB RAM and below is the amount of time that it took for various batch sizes:
+
+[options="header"]
+|===
+| Batch Size | Time 
+|1 |08:54
+| 2 | 06:50
+|3 | 06:57
+|4 | 06:40
+|5 | 07:15
+| 6 | 07:26
+| 8 | 07:30
+| 12 | 08:42
+|===
+
+And if we want to do this directly in code, we can run the following script:
+
+[source, python]
+----
+import torch
+from transformers import pipeline
+import time
+
+pipe = pipeline(
+    "automatic-speech-recognition",
+    model="distil-whisper/distil-small.en",
+    torch_dtype=torch.float16,
+    device="mps",
+    model_kwargs={"use_flash_attention_2": False}, 
+)
+
+start = time.time()
+outputs = pipe(
+    "VMP5922871816.mp3",
+    chunk_length_s=30,
+    batch_size=4,
+    return_timestamps=True
+)
+end = time.time()
+
+print(outputs)
+print(end - start)
+----

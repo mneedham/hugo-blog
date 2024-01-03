@@ -197,4 +197,4 @@ jq -c '.row' |
 poetry run python upload_s3.py
 ----
 
-I found this generated 100,000 messages roughly every 15 seconds, which is pretty neat.
+I found this generated 100,000 messages roughly every 15 seconds, which is pretty neat and more than enough data for my use case.
