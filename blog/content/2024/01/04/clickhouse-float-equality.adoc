@@ -1,6 +1,6 @@
 +++
-draft = true
-date="2024-01-03 00:44:37"
+draft = false
+date="2024-01-04 00:44:37"
 title="ClickHouse: Float equality"
 tag=['clickhouse', 'til']
 category=['TIL']

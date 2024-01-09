@@ -1,5 +1,5 @@
 +++
-draft = true
+draft = false
 date="2024-01-03 00:44:37"
 title="nvim: Unable to create directory for swap file - recovery impossible: permission denied"
 tag=['nvim', 'til']
