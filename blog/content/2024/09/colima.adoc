@@ -1,0 +1,7 @@
+$ colima start --runtime docker
+INFO[0000] starting colima
+INFO[0000] runtime: docker
+INFO[0000] starting ...                                  context=vm
+INFO[0013] provisioning ...                              context=docker
+INFO[0013] starting ...                                  context=docker
+INFO[0014] done

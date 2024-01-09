@@ -1,0 +1,19 @@
++++
+draft = false
+date="2024-01-03 00:44:37"
+title="ClickHouse: Float equality"
+tag=['clickhouse', 'til']
+category=['TIL']
+description="In this post, we'll learn how to check for equality of float values in ClickHouse."
+image="uploads/2024/01/clickhouse-floats-banner.png"
++++
+
+pandas dataframe exclude columns regex
+
+
+[source, python]
+----
+tariffs.loc[:, ~tariffs.columns.str.contains("raw")]
+----
+
+https://www.google.com/search?q=pandas+dataframe+exclude+columns+regex&sourceid=chrome&ie=UTF-8

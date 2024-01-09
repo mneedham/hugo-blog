@@ -1,26 +1,33 @@
 +++
-draft = true
+draft = false
 date="2024-01-03 00:44:37"
 title="nvim: Unable to create directory for swap file - recovery impossible: permission denied"
 tag=['nvim', 'til']
 category=['TIL']
-description="In this post, we'll learn how to use insanely-fast-whisper to generate a transcript for one of Scott Galloway's podcast episodes."
-image="uploads/2023/12/whisper-banner.png"
+description="In this post, we'll learn how work about a permissions issue when using nvim."
+image="uploads/2024/01/nvim-banner.png"
 +++
 
 :icons: font
 
-https://neovim.io/[nvim^]
+I was playing around with https://neovim.io/[neovim^] last week and despite installing it via Homebrew, ran into a weird permissions error.
+In this blog post, I'll describe the problem I had and how to solve it.
+
+I installed it like this:
 
 [source, bash]
 ----
 brew install nvim
 ----
 
+And then tried to create a new file:
+
 [source, bash]
 ----
 nvim foo.py
 ----
+
+Which resulted in the following error:
 
 .Output
 [source, text]
@@ -28,6 +35,8 @@ nvim foo.py
 E303: Unable to create directory "/Users/markhneedham/.local/state/nvim" for swap file, recovery impossible: permission denied
 E303: Unable to open swap file for "foo.py", recovery impossible
 ----
+
+Hmm, let's take a look at what's in my `~/.local` directory.
 
 [source, bash]
 ----
@@ -45,6 +54,9 @@ drwxr-xr-x@   6 markhneedham  staff   192B 29 Nov 21:40 pipx
 drwxr-xr-x    5 markhneedham  staff   160B  2 Jan 23:31 share
 drwxr-xr-x    3 root          staff    96B 14 Feb  2023 state
 ----
+
+Weird, it's made `root` the owner of the `state` directory, whereas I need it to be `markhneedham`.
+But we can fix that using `chown`:
 
 [source, bash]
 ----
