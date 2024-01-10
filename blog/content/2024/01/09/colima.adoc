@@ -1,3 +1,14 @@
++++
+draft = true
+date="2024-01-04 00:44:37"
+title="ClickHouse: Float equality"
+tag=['clickhouse', 'til']
+category=['TIL']
+description="In this post, we'll learn how to check for equality of float values in ClickHouse."
+image="uploads/2024/01/clickhouse-floats-banner.png"
++++
+
+
 $ colima start --runtime docker
 INFO[0000] starting colima
 INFO[0000] runtime: docker
