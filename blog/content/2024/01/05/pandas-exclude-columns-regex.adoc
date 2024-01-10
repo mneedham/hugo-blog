@@ -1,19 +1,112 @@
 +++
 draft = true
 date="2024-01-03 00:44:37"
-title="ClickHouse: Float equality"
+title="Pandas: Exclude columns using regex"
 tag=['clickhouse', 'til']
 category=['TIL']
-description="In this post, we'll learn how to check for equality of float values in ClickHouse."
-image="uploads/2024/01/clickhouse-floats-banner.png"
+description="In this post, we'll learn how to exclude columns in Pandas using a regular expression."
+image="uploads/2024/01/pandas-banner.png"
 +++
 
-pandas dataframe exclude columns regex
+After a few months of using ClickHouse, I've got quite used to using the `SELECT <expr> EXCEPT` modifier, which lets you remove columns based on a regular expression.
+I wanted to do something similar when working with some data in Pandas and in this blog we'll explore how to do that.
 
+We're gonna be working with a CSV file of UK energy and gas tariffs for one of the energy providers.
+The CSV file looks like this:
+
+.tariffs.csv
+[format="csv", options="header"]
+|===
+include::content/2024/01/05/tariffs.csv[]
+|===
+
+We can read it with Pandas like this:
 
 [source, python]
 ----
-tariffs.loc[:, ~tariffs.columns.str.contains("raw")]
+import pandas as pd
+
+tariffs = pd.read_csv("tariffs.csv")
+print(tariffs.to_string(index=False))
 ----
 
-https://www.google.com/search?q=pandas+dataframe+exclude+columns+regex&sourceid=chrome&ie=UTF-8
+.Output
+[source, text]
+----
+ energyType  standingCharge  unitRate  startDate    endDate
+electricity          47.560    29.380 2024-01-01 2024-03-30
+        gas          29.600     7.450 2024-01-01 2024-03-30
+electricity          44.961    26.758 2023-10-01 2023-12-31
+        gas          27.726     6.594 2023-10-01 2023-12-31
+electricity          44.961    29.428 2023-07-01 2023-09-30
+        gas          27.726     7.179 2023-07-01 2023-09-30
+electricity          44.961    49.117 2023-04-01 2023-06-30
+        gas          27.726    11.990 2023-04-01 2023-06-30
+electricity          40.646    65.555 2023-01-01 2023-03-30
+        gas          27.128    16.229 2023-01-01 2023-03-30
+electricity          40.646    50.630 2022-10-01 2022-12-31
+        gas          27.128    14.021 2022-10-01 2022-12-31
+----
+
+Now, let's say we only want to return fields that contain the term `Date`.
+We can use the `loc` function where we only include columns that contain this term as the column argument:
+
+[source, python]
+----
+print(
+    (tariffs
+      .loc[:, tariffs.columns.str.contains("Date")]
+      .to_string(index=False)
+    )
+)
+----
+
+.Output
+[source, text]
+----
+ startDate    endDate
+2024-01-01 2024-03-30
+2024-01-01 2024-03-30
+2023-10-01 2023-12-31
+2023-10-01 2023-12-31
+2023-07-01 2023-09-30
+2023-07-01 2023-09-30
+2023-04-01 2023-06-30
+2023-04-01 2023-06-30
+2023-01-01 2023-03-30
+2023-01-01 2023-03-30
+2022-10-01 2022-12-31
+2022-10-01 2022-12-31
+----
+
+And what about if we want to get rid of the `Date` fields?
+We can add the `~` prefix:
+
+[source, python]
+----
+print(
+    (tariffs
+      .loc[:, ~tariffs.columns.str.contains("Date")]
+      .to_string(index=False)
+    )
+)
+----
+
+.Output
+[source, text]
+----
+ energyType  standingCharge  unitRate
+electricity          47.560    29.380
+        gas          29.600     7.450
+electricity          44.961    26.758
+        gas          27.726     6.594
+electricity          44.961    29.428
+        gas          27.726     7.179
+electricity          44.961    49.117
+        gas          27.726    11.990
+electricity          40.646    65.555
+        gas          27.128    16.229
+electricity          40.646    50.630
+        gas          27.128    14.021
+----
+
