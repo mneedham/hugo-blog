@@ -1,14 +1,14 @@
 +++
-draft = true
-date="2024-01-03 00:44:37"
+draft = false
+date="2024-01-05 00:44:37"
 title="Pandas: Exclude columns using regex"
-tag=['clickhouse', 'til']
+tag=['pandas', 'til']
 category=['TIL']
 description="In this post, we'll learn how to exclude columns in Pandas using a regular expression."
 image="uploads/2024/01/pandas-banner.png"
 +++
 
-After a few months of using ClickHouse, I've got quite used to using the `SELECT <expr> EXCEPT` modifier, which lets you remove columns based on a regular expression.
+After a few months of using ClickHouse, I've got quite used to using the https://clickhouse.com/docs/en/sql-reference/statements/select#except[`SELECT <expr> EXCEPT`^] modifier, which lets you remove columns based on a regular expression.
 I wanted to do something similar when working with some data in Pandas and in this blog we'll explore how to do that.
 
 We're gonna be working with a CSV file of UK energy and gas tariffs for one of the energy providers.

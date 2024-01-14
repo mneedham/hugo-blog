@@ -2,7 +2,7 @@
 draft = false
 date="2023-06-22 02:44:37"
 title="Chroma/LangChain: 'NoneType' object has no attribute 'info'"
-tag=['chroma', 'langchain', 'til', 'generative-ai']
+tag=['chroma', 'chromadb', 'langchain', 'til', 'generative-ai']
 category=['TIL']
 description="In this post we'll learn about an error message when using the Chroma database."
 image="uploads/2023/06/chroma-nonetype-banner.png"

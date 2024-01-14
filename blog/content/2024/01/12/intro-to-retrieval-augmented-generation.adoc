@@ -1,0 +1,294 @@
++++
+draft = false
+date="2024-01-12 00:44:37"
+title="An introduction to Retrieval Augmented Generation"
+tag=['retrieval-augmented-generation', 'rag', 'generative-ai', 'chromadb', 'chroma', 'langchain', 'til']
+category=['TIL']
+description="In this post, we'll learn how to do Retrieval Augmented Generation with ChromaDB, Ollama, LangChain, and Mixtral from Mistral AI to answer questions about the Wimbledon 2023 tennis tournament."
+image="uploads/2024/01/rag-banner.png"
++++
+
+Retrieval Augmented Generation (RAG) is a technique used with Large Language Models (LLM) where you *augment* the prompt with data **retrieved** from a data store so that the LLM can *generate* a better answer to the question that is being asked.
+In this blog post, we're going to learn the basics of RAG by creating a Question and Answer system on top of the https://en.wikipedia.org/wiki/2023_Wimbledon_Championships[2023 Wimbledon Championships^] Wikipedia page.
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Cim1lNXvCzY?si=FCBtGd7w_TZ_k4W0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+++++
+====
+
+== Setup
+
+I'm using the Poetry package manager, but feel free to use whichever tooling you like to follow along.
+Below is my Poetry config file:
+
+.pyproject.toml
+[source, toml]
+----
+[tool.poetry]
+name = "intro-to-rag"
+version = "0.1.0"
+description = ""
+authors = ["Mark Needham"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.12"
+fastembed = "^0.1.3"
+chromadb = "^0.4.22"
+langchain = "^0.1.0"
+wikipedia = "^1.4.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+----
+
+== Initialising an LLM
+
+We're going to start by initialising the Mixtral Large Language Model, which we have running locally using https://ollama.ai/[Ollama^].
+We'll use the popular https://www.langchain.com/[LangChain^] library to glue everything together.
+
+[source, python]
+----
+from langchain_community.llms import Ollama
+from langchain.callbacks.manager import CallbackManager
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
+llm = Ollama(
+    model="mixtral",
+    callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]),
+)
+----
+
+We can check that's all wired together by running the following:
+
+[source, python]
+----
+llm.invoke("Who won the men's singles at Wimbledon 2023?")
+----
+
+.Output
+[source, text]
+----
+ I'm unable to provide that information as there has been no Wimbledon tournament held in 2023 yet. The last Men's Singles champion at Wimbledon was Novak Djokovic in 2022. It's recommended to check the official Wimbledon website or reliable news sources for updated and accurate information on the latest championship results.
+----
+
+Often an LLM will hallucinate an answer to a question if it doesn't know the answer i.e. it will come up with something plausible but completely made up.
+In this case, it's actually done a good job by telling us that it doesn't know.
+
+== Augmented Generation
+
+One way that we could help the LLM out here is by creating a new prompt where we manually paste in the contents of the whole page (which we called the `context`) and ask the LLM to use that context to answer the question.
+This would work, but it's not all that efficient - although we don't have the issue of having to pay for tokens because we're using a local model, it tends to be the case that an LLM will take longer to answer a longer prompt.
+So instead, we want to identify the part of the page that likely has the answer to the question and only paste that bit into the prompt.
+
+Let's see how the LLM responds to the question if we augment the prompt manually i.e. Augmented Generation!
+In LangChain we can construct a prompt using the following code:
+
+[source, python]
+----
+from langchain.prompts import PromptTemplate
+
+template = """You are a bot that answers user questions about Wimbledon using only the context provided.
+If you don't know the answer, simply state that you don't know.
+
+{context}
+
+Question: {input}"""
+
+prompt = PromptTemplate(
+    template=template, input_variables=["context", "input"]
+)
+----
+
+We can then populate the prompt like this:
+
+[source, python]
+----
+prompt.format(
+    context="Gentlemen's singles Carlos Alcaraz def. Serbia Novak Djokovic 1–6, 7–6(8–6), 6–1, 3–6, 6–4",
+    input="Who won the men's singles at Wimbledon 2023?"
+)
+----
+
+.Output
+[source, text]
+----
+You are a bot that answers user questions about Wimbledon using only the context provided.
+If you don't know the answer, simply state that you don't know.
+
+Gentlemen's singles Carlos Alcaraz def. Serbia Novak Djokovic 1–6, 7–6(8–6), 6–1, 3–6, 6–4
+
+Question: Who won the men's singles at Wimbledon 2023?
+----
+
+We can then feed that prompt into the LLM like this:
+
+[source, python]
+----
+llm.invoke(
+    prompt.format(
+        context="Gentlemen's singles Carlos Alcaraz def. Serbia Novak Djokovic 1–6, 7–6(8–6), 6–1, 3–6, 6–4",
+        input="Who won the men's singles at Wimbledon 2023?"
+    )
+)
+----
+
+.Output
+[source, text]
+----
+Based on the provided context, Carlos Alcaraz of Spain won the Gentlemen's singles at Wimbledon in 2023. He defeated Novak Djokovic of Serbia with a score of 1–6, 7–6(8–6), 6–1, 3–6, 6–4.
+----
+
+And there we go, now we have the correct answer.
+But our solution so far requires us to find the appropriate information and feed it to the LLM - it would be better if we could automate that part of the process.
+
+== An introduction to vector search
+
+The most popular way to do this is to use vector search.
+At a high level, this involves the following steps:
+
+* Create embeddings (arrays of numbers) for each of the chunks of text on our page using an embedding algorithm. Those are our *chunk embeddings*.
+* Store those embeddings somewhere
+* Use that same embedding algorithm to create an embedding for our search query. This is our *search query embedding*.
+* Search the embedding storage system to find the `k` most similar of the *chunk embeddings* to the *search query embedding*.
+* Retrieve the text for the matching *chunk embedding* and put that text into the prompt as the context
+
+=== Generate embeddings
+
+Let's start by creating embeddings of the Wimbledon 2023 page. 
+We can retrieve the page using the `WikipediaLoader`:
+
+[source, python]
+----
+from langchain.document_loaders import WikipediaLoader
+
+search_term = "2023 Wimbledon Championships"
+docs = WikipediaLoader(query=search_term, load_max_docs=1).load()
+----
+
+This gives us back a LangChain `Document` that contains the whole page.
+As we discussed above, we're going to break the page up into chunks.
+One way to do this is using the `RecursiveCharacterTextSplitter` which goes through the text and extracts chunks of a certain length with optional overlap between each chunk:
+
+[source, python]
+----
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size = 150,
+    chunk_overlap  = 50,
+    length_function = len,
+    is_separator_regex = False,
+)
+
+chunks = text_splitter.split_documents(docs)
+chunks[0]
+----
+
+.Output
+[source, text]
+----
+Document(
+    page_content='The 2023 Wimbledon Championships was a Grand Slam tennis tournament that took place at the All England Lawn Tennis and Croquet Club in Wimbledon, London, United Kingdom.',
+    metadata={
+        'title': '2023 Wimbledon Championships',
+        'summary': 'The 2023 Wimbledon Championships was a Grand Slam tennis tournament that took place at the All England Lawn Tennis and Croquet Club in Wimbledon, London, United Kingdom.',
+        'source': 'https://en.wikipedia.org/wiki/2023_Wimbledon_Championships'
+    }
+)
+----
+
+=== Generate and Store embeddings
+
+Next, we're going to generate embeddings for each chunk of text using OpenAI and then store the embedding and the text in ChromaDB.
+
+[source, python]
+----
+from langchain.vectorstores import Chroma
+from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
+
+embeddings = FastEmbedEmbeddings(model_name="BAAI/bge-base-en-v1.5")
+
+store = Chroma.from_documents(
+    chunks, 
+    embeddings, 
+    ids = [f"{item.metadata['source']}-{index}" for index, item in enumerate(chunks)],
+    collection_name="Wimbledon-Embeddings",
+    persist_directory='db',
+)
+store.persist()
+----
+
+=== Querying the embeddings
+
+Now we're going to query the embeddings.
+For some reason that I haven't quite figured out, the similarity search doesn't return the right chunk unless I increase the value of `k`.
+I've tried some different embedding algorithms, but it doesn't seem to change the result, so we'll work around this for now.
+
+[source, python]
+----
+result = store.similarity_search(
+    query="Who won the men's singles at Wimbledon 2023?", 
+    k=10
+)
+[doc.page_content for doc in result]
+----
+
+.Output
+[source, text]
+----
+[
+    'The 2023 Wimbledon Championships was a Grand Slam tennis tournament that took place at the All England Lawn Tennis and Croquet Club in Wimbledon,',
+    'two decades since he won the tournament for the first time in 2003.',
+    'The tournament was played on grass courts, with all main draw matches played at the All England Lawn Tennis and Croquet Club, Wimbledon, from 3 to 16',
+    'Tennis and Croquet Club, Wimbledon, from 3 to 16 July 2023. Qualifying matches were played from 26 to 29 June 2023 at the Bank of England Sports',
+    "singles & doubles events for men's and women's wheelchair tennis players. This edition features gentlemen's and ladies' invitational doubles",
+    "=== Ladies' singles ===\n\n Markéta Vondroušová def.  Ons Jabeur, 6–4, 6–4\n\n\n=== Gentlemen's doubles ===",
+    '26 to 29 June 2023 at the Bank of England Sports Ground in Roehampton.',
+    'Tour calendars under the Grand Slam category, as well as the 2023 ITF tours for junior and wheelchair competitions respectively.',
+    "=== Gentlemen's doubles ===\n\n Wesley Koolhof /  Neal Skupski def.  Marcel Granollers /  Horacio Zeballos, 6–4, 6–4\n\n\n=== Ladies' doubles ===",
+    "== Events ==\n\n\n=== Gentlemen's singles ===\n\n Carlos Alcaraz def.  Novak Djokovic 1–6, 7–6(8–6), 6–1, 3–6, 6–4\n\n\n=== Ladies' singles ==="
+]
+----
+
+We can see that the chunk that has the answer is in last place. 
+As I said, it's not clear to me why those other chunks are ranking higher, but that's what's happening!
+
+== Retrieval Augmented Generation
+
+We've now got all the pieces in place to do Retrieval Augmented Generation, so the final step is to glue them all together.
+In LangChain's terminology, we need to create a _chain_ that combines the vector store with the LLM. 
+We can do this with the following code:
+
+[source, python]
+----
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
+
+retriever = store.as_retriever(search_kwargs={
+      'k': 10
+})
+combine_docs_chain = create_stuff_documents_chain(llm, prompt)
+chain = create_retrieval_chain(retriever, combine_docs_chain)
+----
+
+Which we can then call like this:
+
+[source, python]
+----
+result = chain.invoke({
+  "input": "Who won the men's singles at Wimbledon 2023?"
+})
+----
+
+.Output
+[source, text]
+----
+Carlos Alcaraz of Spain won the men's singles at Wimbledon 2023. He defeated Novak Djokovic in the final with a score of 1–6, 7–6(8–6), 6–1, 3–6, 6–4.
+----
+
