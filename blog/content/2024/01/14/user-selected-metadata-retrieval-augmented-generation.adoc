@@ -1,0 +1,11 @@
++++
+draft = false
+date="2024-01-14 00:44:37"
+title="An introduction to Retrieval Augmented Generation"
+tag=['retrieval-augmented-generation', 'rag', 'generative-ai', 'qdrant', 'langchain', 'til']
+category=['TIL']
+description="In this post, we'll learn how user-selected/provided metadata can be used to optimise a Retrieval Augmented Generation application."
+image="uploads/2024/01/rag-banner.png"
++++
+
+When building Retrieval Augmented Generation (RAG) applications, the simplest approach when it comes to retrieval is to 
