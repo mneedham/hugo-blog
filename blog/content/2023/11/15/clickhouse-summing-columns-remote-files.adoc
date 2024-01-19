@@ -2,7 +2,7 @@
 draft = false
 date="2023-11-15 00:44:37"
 title="Summing columns in remote Parquet files using ClickHouse"
-tag=['clickhouse', 'parquet', 'til']
+tag=['clickhouse', 'clickhouse-local', 'parquet', 'til']
 category=['TIL']
 description="In this post, we'll learn how to sum columns in remote Parquet files using ClickHouse."
 image="uploads/2023/11/clickhouse-summing-remote-parquet-files.png"
