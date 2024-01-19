@@ -1,0 +1,126 @@
++++
+draft = false
+date="2024-01-19 00:44:37"
+title="ClickHouse: Configure default output format"
+tag=['clickhouse', 'til']
+category=['TIL']
+description="In this post, we'll learn how to configure the default output format used by ClickHouse."
+image="uploads/2024/01/nvim-banner.png"
++++
+
+:icons: font
+
+When running queries with https://clickhouse.com/docs/en/operations/utilities/clickhouse-local[ClickHouse Local^], the results are rendered back to the screen in a table format in blocks.
+This default format is called https://clickhouse.com/docs/en/interfaces/formats#prettycompact[`PrettyCompact`] and most of the time this works fine, but sometimes you can end up with multiple mini-tables. 
+In this blog post, we're going to learn how to change the default format so that all the results show in one table.
+
+But first, let's see how the problem manifests.
+I've been playing around with the Kaggle https://www.kaggle.com/datasets/imperialwarrior/singapore-crypto?select=metadata.csv[Singaporean Cryptocurrency / Crypto Dataset^] and I wrote the following query after downloading the ZIP file that contains all the data.
+
+[source, sql]
+----
+from file('data/Singapore Crypto.zip :: metadata.csv', CSVWithNames)
+select *
+LIMIT 10;
+----
+
+.Output
+[source, text]
+----
+┌─Coin Pair Name──────┬─Coin Pair Symbol─┬─Filename──────┐
+│ Bitcoin SGD         │ BTC-SGD          │ BTC-SGD.csv   │
+│ Ethereum SGD        │ ETH-SGD          │ ETH-SGD.csv   │
+│ Tether USDt SGD     │ USDT-SGD         │ USDT-SGD.csv  │
+│ BNB SGD             │ BNB-SGD          │ BNB-SGD.csv   │
+│ USD Coin SGD        │ USDC-SGD         │ USDC-SGD.csv  │
+│ XRP SGD             │ XRP-SGD          │ XRP-SGD.csv   │
+│ Lido Staked ETH SGD │ STETH-SGD        │ STETH-SGD.csv │
+│ Cardano SGD         │ ADA-SGD          │ ADA-SGD.csv   │
+│ Dogecoin SGD        │ DOGE-SGD         │ DOGE-SGD.csv  │
+└─────────────────────┴──────────────────┴───────────────┘
+┌─Coin Pair Name───┬─Coin Pair Symbol─┬─Filename─────┐
+│ Wrapped TRON SGD │ WTRX-SGD         │ WTRX-SGD.csv │
+└──────────────────┴──────────────────┴──────────────┘
+----
+
+You can see that the results are rendered in two different tables. 
+We can fix that by specifying `FORMAT PrettyMonoBlock` at the end of the query, like this:
+
+[source, sql]
+----
+from file('data/Singapore Crypto.zip :: metadata.csv', CSVWithNames)
+select *
+LIMIT 10
+FORMAT PrettyMonoBlock;
+----
+
+We then get a single table result:
+
+.Output
+[source, text]
+----
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Coin Pair Name      ┃ Coin Pair Symbol ┃ Filename      ┃
+┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ Bitcoin SGD         │ BTC-SGD          │ BTC-SGD.csv   │
+├─────────────────────┼──────────────────┼───────────────┤
+│ Ethereum SGD        │ ETH-SGD          │ ETH-SGD.csv   │
+├─────────────────────┼──────────────────┼───────────────┤
+│ Tether USDt SGD     │ USDT-SGD         │ USDT-SGD.csv  │
+├─────────────────────┼──────────────────┼───────────────┤
+│ BNB SGD             │ BNB-SGD          │ BNB-SGD.csv   │
+├─────────────────────┼──────────────────┼───────────────┤
+│ USD Coin SGD        │ USDC-SGD         │ USDC-SGD.csv  │
+├─────────────────────┼──────────────────┼───────────────┤
+│ XRP SGD             │ XRP-SGD          │ XRP-SGD.csv   │
+├─────────────────────┼──────────────────┼───────────────┤
+│ Lido Staked ETH SGD │ STETH-SGD        │ STETH-SGD.csv │
+├─────────────────────┼──────────────────┼───────────────┤
+│ Cardano SGD         │ ADA-SGD          │ ADA-SGD.csv   │
+├─────────────────────┼──────────────────┼───────────────┤
+│ Dogecoin SGD        │ DOGE-SGD         │ DOGE-SGD.csv  │
+├─────────────────────┼──────────────────┼───────────────┤
+│ Wrapped TRON SGD    │ WTRX-SGD         │ WTRX-SGD.csv  │
+└─────────────────────┴──────────────────┴───────────────┘
+----
+
+So far, so good. 
+But how can we make `PrettyMonoBlock` the default format? 
+
+When using ClickHouse Local or the ClickHouse Client, we can provide a config file in XML or YAML format.
+The setting we need to define is `format` and the value should be `PrettyMonoBlock`:
+
+.config-local.xml
+[source, xml]
+----
+<?xml version="1.0" ?>
+<clickhouse>
+        <format>PrettyMonoBlock</format>
+</clickhouse>
+----
+
+or
+
+.config-local.yaml
+[source, xml]
+----
+format: PrettyMonoBlock
+----
+
+We can then have ClickHouse Local/Client use the config by passing the file using the `-C` parameter.
+
+[source, bash]
+----
+./clickhouse local -m -C config-local.xml
+----
+
+or
+
+[source, bash]
+----
+./clickhouse client -m -C config-local.yaml
+----
+
+In addition, if you're using ClickHouse Local, it will automatically use a config file named `config.xml`.
+
+Once we've got that config setup, we can re-run the query and it will return us a single table without needing to specify the format in the query.

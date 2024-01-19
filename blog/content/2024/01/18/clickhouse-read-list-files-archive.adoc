@@ -1,0 +1,11 @@
++++
+draft = true
+date="2024-01-19 00:44:37"
+title="ClickHouse: Reading the list of files from an archive file"
+tag=['clickhouse', 'clickhouse-local', 'til']
+category=['TIL']
+description="In this post, we'll learn how to read the list of files in an archive file using ClickHouse."
+image="uploads/2024/01/nvim-banner.png"
++++
+
+:icons: font
