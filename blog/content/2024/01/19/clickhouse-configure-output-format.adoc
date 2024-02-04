@@ -5,7 +5,7 @@ title="ClickHouse: Configure default output format"
 tag=['clickhouse', 'til']
 category=['TIL']
 description="In this post, we'll learn how to configure the default output format used by ClickHouse."
-image="uploads/2024/01/nvim-banner.png"
+image="uploads/2024/01/clickhouse-default-format-banner.png"
 +++
 
 :icons: font
