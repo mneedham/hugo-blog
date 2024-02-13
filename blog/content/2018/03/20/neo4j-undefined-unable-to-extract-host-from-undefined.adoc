@@ -1,11 +1,11 @@
----
-draft: false
-date: "2018-03-20 17:51:10"
-title: "Neo4j Desktop: undefined: Unable to extract host from undefined"
-description: Learn how to work around a weird message in the Neo4j browser.
-tag: ['neo4j', 'neo4j-desktop']
-category: ['Neo4j']
----
++++
+draft = false
+date = "2018-03-20 17:51:10"
+title = "Neo4j Desktop: undefined: Unable to extract host from undefined"
+description = "Learn how to work around a weird message in the Neo4j browser."
+tag = [ "neo4j", "neo4j-desktop",]
+category = [ "Neo4j",]
++++
 
 During a training session I facilitated today one of the attendees got the following error message while trying to execute a query inside the Neo4j Desktop.
 

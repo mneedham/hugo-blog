@@ -22,7 +22,7 @@ The following code does what we want:
   important text
 ----
 
-This generates the following HTML is +++<cite>+++correct+++</cite>+++ is true:
+This generates the following HTML if +++<cite>+++correct+++</cite>+++ is true:
 
 [source,html4strict]
 ----

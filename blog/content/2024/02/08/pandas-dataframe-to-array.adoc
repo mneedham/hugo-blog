@@ -1,0 +1,27 @@
++++
+draft = true
+date="2024-02-04 00:44:37"
+title="LLaVA 1.5 vs. 1.6"
+tag=['ollama','generative-ai', 'llava', 'til']
+category=['TIL']
+description="In this post, we'll learn about LLaVA, an open source large multi-modal model."
+image="uploads/2024/02/llava-banner.png"
++++
+
+:icons: font
+
+[source, python]
+----
+operation_info = client.upsert(
+    collection_name=collection_name,
+    wait=True,
+    points = [
+        PointStruct(
+            id=str(uuid.uuid4()), 
+            vector=page['embeddings_small_en'], 
+            payload={'title': page['title'], 'date': page['date']}
+        ) 
+        for idx, page in df.iterrows()
+    ]
+)
+----

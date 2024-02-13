@@ -1,0 +1,538 @@
++++
+draft = false
+date="2024-02-11 00:44:37"
+title="Qdrant/FastEmbed: Content discovery for my blog posts"
+tag=['qdrant', 'fastembed', 'til']
+category=['TIL']
+description="In this post, we'll learn how to do content discovery with FastEmbed and Qdrant."
+image="uploads/2024/02/qdrant-fastembed-banner.png"
++++
+
+I was recently reading Simon Willison's https://simonwillison.net/2023/Oct/23/embeddings/[blog post about embedding algorithms^] in which he described how he'd used them to create a 'related posts' section on his blog post.
+So, of course, I wanted to see whether I could do the same for my blog as well.
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/1mMLVQE11Io?si=vuvGWG7pKykfBWlV" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+++++
+====
+
+I've created a Hugging Face dataset at https://huggingface.co/datasets/markhneedham/blog[mneedham/blog^] that contains all my blog posts (and pre-computed embeddings, but don't worry about those for now!)
+We'll be using the FastEmbed library to generate embeddings.
+I like this library because it has minimal dependencies and also saves me from having to mess around with PyTorch dependencies!
+You can install that and the Hugging Face datasets library by running the following:
+
+[source, bash]
+----
+pip install fastembed datasets
+----
+
+Next, let's download the blog posts:
+
+[source, bash]
+----
+from datasets import load_dataset
+df = load_dataset("markhneedham/blog")['train'].to_pandas()
+----
+
+And let's have a look at one row, excluding the embeddings columns:
+
+[source, python]
+----
+df.loc[:, ~df.columns.str.contains("embeddings")].head(n=1).T
+----
+
+.Output
+[source, text]
+----
+                                                             0
+draft                                                    False
+date                                       2013-03-02 22:19:11
+title        Ruby/Haml: Maintaining white space/indentation...
+tag                                               [ruby, haml]
+category                                                [Ruby]
+body         I've been writing a little web app in which I ...
+description                                               None
+image                                                     None
+slug         rubyhaml-maintaining-white-spaceindentation-in...
+url          https://markhneedham.com/blog/2013/03/02/rubyh...
+----
+
+The `body` column is the one that we're going to use to create embeddings.
+
+== Generate embeddings with FastEmbed
+
+Let's import FastEmbed and create embeddings for that blog post:
+
+[source, python]
+----
+from fastembed.embedding import TextEmbedding
+----
+
+There are many available embedding algorithms, which we can return by calling the `list_supported_models` function:
+
+[source, python]
+----
+TextEmbedding.list_supported_models()[0]
+----
+
+.Output
+[source, python]
+----
+{
+    'model': 'BAAI/bge-base-en',
+    'dim': 768,
+    'description': 'Base English model',
+    'size_in_GB': 0.5,
+    'sources': {'url': 'https://storage.googleapis.com/qdrant-fastembed/fast-bge-base-en.tar.gz'}
+}
+----
+
+We can use the `TextEmbedding` class to download one of the models:
+
+[source, python]
+----
+embedding = TextEmbedding(model_name="BAAI/bge-base-en-v1.5")
+----
+
+Now to do some embeddings.
+The documentation suggests using `passage_embed` to generate embeddings and the `query_embed` function when you want to search across the documents.
+This function takes in an array of documents, so we need to put our single document in a literal array before.
+Let's embed our first document:
+
+[source, python]
+----
+list(embedding.passage_embed([df.loc[0,].body]))
+----
+
+.Output
+[source, text]
+----
+[
+    array([-1.26377121e-02,  1.09390114e-02, -4.76283999e-03, -2.38385424e-03,
+        4.99239899e-02, -9.42708775e-02,  4.34419587e-02,  3.33596976e-03,
+       -2.74098408e-03, -5.37514053e-02, -4.07268815e-02, -1.99829023e-02,
+       -6.07004836e-02,  3.88273410e-02,  6.85754269e-02,  5.49215339e-02,
+        3.36120501e-02,  2.09630113e-02, -3.35722626e-03, -1.80117283e-02,
+       -7.96715822e-03, -1.21904677e-03, -7.61779174e-02,  4.61796857e-03,
+        5.65615669e-02,  1.82162703e-03, -1.60250776e-02, -7.89328292e-03,
+       -5.49851619e-02,  2.13082507e-02,  5.55031970e-02, -1.26061318e-02,
+        5.63205555e-02, -4.20863591e-02, -1.75371300e-02, -1.34237288e-02,
+       -6.78273663e-02,  2.90437061e-02, -4.01997790e-02,  6.11413550e-03,
+       -1.95555408e-02,  3.73533764e-03,  9.20406450e-03,  1.92737877e-02,
+       -1.52898384e-02,  1.06226904e-02, -5.08743823e-02,  4.79526445e-02,
+       -2.26484369e-02, -3.11299935e-02, -1.01379089e-01, -8.59037228e-03,
+        2.07045153e-02,  7.89965410e-03,  1.90919114e-03,  1.65527798e-02,
+        4.77929339e-02, -6.25633448e-02,  1.32804329e-03, -1.59874763e-02,
+        8.46908614e-03,  4.89653349e-02, -1.04082376e-03,  2.52271760e-02,
+        2.12324075e-02, -6.37769103e-02, -1.76114645e-02,  4.18305881e-02,
+       -3.20891030e-02, -4.68339585e-02,  2.47655809e-02,  4.16389033e-02,
+       -3.08201797e-02, -1.73925925e-02,  6.40823320e-02,  2.66514532e-02,
+       -2.53838524e-02,  3.35280821e-02,  4.39991020e-02,  4.02518436e-02,
+       -1.83042549e-02,  2.68527344e-02,  2.88087968e-02,  3.39268073e-02,
+        3.28596197e-02,  1.02257752e-03, -4.11721207e-02, -3.45160477e-02,
+       -1.35186268e-02,  7.05703944e-02,  2.00515967e-02, -5.34740798e-02,
+        4.23804894e-02, -4.37485687e-02,  2.62838528e-02,  1.31580010e-02,
+        1.94750316e-02,  4.38789930e-03,  1.52923563e-03, -5.88378832e-02,
+       -4.90436517e-02, -4.02061008e-02,  1.21131288e-02, -7.51889646e-02,
+       -7.65434578e-02, -7.97748752e-03, -4.94307652e-02, -1.86706409e-02,
+        5.67331538e-02, -1.97518077e-02, -3.52318175e-02, -1.48038287e-02,
+       -2.91017499e-02, -4.88014380e-03, -1.77240036e-02,  7.01208264e-02,
+        3.05175968e-02,  1.59856100e-02, -2.65408885e-02,  6.11835271e-02,
+       -1.98053545e-04,  4.91987541e-02,  3.35851833e-02,  9.44852307e-02,
+        6.46155700e-03,  3.59237231e-02,  8.38378724e-03,  2.03001630e-02,
+       -6.43907040e-02, -5.83645888e-02,  3.34833935e-02,  8.54900554e-02,
+       -1.72320120e-02,  4.93075252e-02, -3.62626351e-02,  2.59263217e-02,
+        4.17223666e-03, -4.04150374e-02,  2.97222268e-02,  1.37072001e-02,
+        1.04144979e-02, -3.01196724e-02,  5.77509450e-03, -7.23273447e-03,
+        5.72637096e-03, -1.43797202e-02, -1.13875410e-02, -2.62987912e-02,
+        3.56883183e-02,  4.52921130e-02,  4.12235186e-02, -3.18157743e-03,
+        4.95950580e-02,  1.99322347e-02,  2.36084815e-02,  4.83395532e-02,
+        5.10508381e-02, -4.70909057e-03,  1.15165701e-02, -1.82133205e-02,
+        2.09315005e-03,  4.89225285e-03,  1.32754482e-02,  7.09460154e-02,
+       -2.23844126e-02,  4.28567864e-02,  1.71830354e-03, -4.44259681e-03,
+       -2.61809006e-02, -6.08763844e-03,  3.17309215e-03, -1.81168243e-02,
+        9.80928391e-02, -3.17970254e-02,  1.78296696e-02,  5.04491366e-02,
+        4.80638333e-02, -6.29624259e-03,  2.55090687e-02, -1.00673167e-02,
+       -4.92507815e-02,  9.62234219e-04, -9.49081406e-03,  2.11898778e-02,
+       -3.63745540e-02, -2.00608447e-02,  9.04076993e-02,  1.63715705e-02,
+       -5.39030321e-02,  7.72801321e-03, -1.07612483e-01, -4.07991931e-02,
+        5.98467477e-02, -2.80960500e-02,  8.66623595e-02, -3.78092602e-02,
+        2.50607375e-02,  2.83949338e-02,  6.68875454e-03,  2.85871290e-02,
+        6.68415986e-03,  3.94853018e-03, -1.76586509e-02, -2.80296225e-02,
+       -6.68382049e-02,  2.66341846e-02,  3.50448377e-02, -6.32368177e-02,
+       -7.12013990e-02,  2.51888279e-02,  6.14879001e-03,  1.28980177e-02,
+        3.17872651e-02,  2.97152717e-02,  1.08751431e-02,  4.96686958e-02,
+        3.60443927e-02, -2.08048038e-02, -3.10546369e-03, -2.51786001e-02,
+        3.76948677e-02,  4.32443693e-02,  1.36993686e-02, -4.77038249e-02,
+       -3.85261178e-02,  1.10969037e-01,  4.52348217e-02, -4.70844619e-02,
+       -3.93228456e-02,  8.32265895e-03, -3.27874273e-02, -4.37411526e-03,
+        1.93580166e-02, -4.47370075e-02, -5.87568991e-02, -7.64214247e-02,
+       -1.35700163e-02, -2.11706646e-02,  6.87312859e-04, -3.09232660e-02,
+        7.39147933e-03,  4.79571149e-02, -6.93632150e-03, -5.79741737e-03,
+       -1.24075674e-02,  2.07491536e-02,  3.66098247e-02, -1.37329204e-02,
+       -2.15082653e-02,  4.01558578e-02,  1.29973246e-02,  1.49539206e-02,
+        2.51768399e-02, -3.27598602e-02, -4.25737426e-02, -9.93488822e-04,
+       -2.22472809e-02, -3.48084047e-03,  8.52091063e-04,  6.88379481e-02,
+        3.88505347e-02,  2.23494638e-02, -4.17503864e-02, -2.39614979e-03,
+       -4.90574613e-02, -8.00938308e-02, -2.37213615e-02, -2.54030507e-02,
+        5.51038608e-02, -2.04555970e-02,  3.50867063e-02,  1.37460744e-02,
+       -1.17515735e-02, -1.38218664e-02,  1.44583627e-03,  1.79111082e-02,
+        1.09234024e-02,  5.21285599e-03,  3.05359177e-02, -1.02020176e-02,
+       -1.47500047e-02,  3.76405977e-02, -4.79716733e-02, -4.14847508e-02,
+       -8.05409476e-02, -1.53381797e-03,  1.72094442e-02, -5.61590604e-02,
+       -3.28476541e-02,  1.41693428e-02,  6.58718571e-02,  7.01691955e-02,
+        1.09168899e-03,  6.60369918e-02,  6.15400895e-02, -1.24728810e-02,
+        2.46541724e-02,  3.52766290e-02, -2.85321139e-02,  5.72503358e-02,
+       -5.19473455e-04,  5.97840622e-02,  5.50661571e-02, -3.27259041e-02,
+       -5.20402938e-03, -2.44590850e-03, -7.81822528e-05, -1.96961686e-02,
+       -2.53033936e-01,  4.73612361e-02, -2.59375218e-02, -4.12170514e-02,
+        4.70928673e-04, -3.00037488e-02, -1.23414462e-02, -2.33248901e-02,
+       -9.59714781e-03,  1.15475813e-02,  9.39202029e-03, -7.86273740e-03,
+       -2.33525247e-03,  4.11062641e-03,  3.76072340e-02,  3.72319296e-02,
+       -4.90306062e-04, -3.42259556e-02, -2.27805367e-03, -1.60716251e-02,
+       -4.15679328e-02, -3.23449783e-02, -1.46247381e-02,  2.47251224e-02,
+        2.22511142e-02,  8.13581143e-03, -6.98921159e-02, -6.47173915e-03,
+       -3.28588374e-02, -2.38444302e-02,  6.89447578e-03, -3.43506783e-02,
+       -2.14499850e-02, -3.28847353e-04, -3.17349173e-02, -5.41821774e-03,
+        3.24360169e-02,  1.87821407e-02,  4.19177376e-02,  6.00885004e-02,
+       -2.38566659e-02, -2.42824703e-02, -1.88150443e-02, -3.01224031e-02,
+        9.36607197e-02, -1.59139615e-02, -5.32318167e-02, -8.79595347e-04,
+       -4.31552529e-03,  5.14297560e-02,  1.27943819e-02, -2.03925408e-02,
+       -1.98376421e-02, -1.06179900e-02, -1.26810605e-03, -4.97353338e-02,
+        7.21457414e-03, -2.05454770e-02, -3.91357467e-02, -1.26680154e-02,
+       -2.03470606e-02, -4.25181612e-02,  6.57020928e-03, -6.99539483e-03,
+        8.46384652e-03, -4.24135849e-02, -8.46979953e-03, -4.51804437e-02,
+        2.24823579e-02,  2.99731474e-02, -2.71144193e-02,  1.75013840e-02,
+       -6.31328346e-03, -8.22056085e-02,  2.84688286e-02, -4.04026173e-02,
+        3.54546607e-02, -1.99971981e-02, -1.28389150e-02,  3.89526575e-03,
+       -1.85824577e-02, -3.39882076e-02,  1.20384432e-02,  7.80516630e-03,
+        1.25209419e-02,  3.31269503e-02,  1.10996766e-02, -2.60149688e-02,
+       -3.87171805e-02, -9.76503361e-03,  5.96495122e-02, -2.80941278e-02,
+       -2.81709787e-02,  5.78576773e-02, -7.38759805e-03,  3.61005515e-02,
+        1.94145925e-02, -4.76169810e-02,  3.47008109e-02,  3.17963809e-02,
+        5.83294705e-02, -2.74795182e-02,  2.15785895e-02, -1.05404286e-02,
+       -5.53571060e-03,  3.00476700e-02, -2.17455458e-02, -4.31898749e-03,
+        4.53252122e-02, -2.86498340e-03, -1.81713123e-02, -1.67748891e-02,
+       -3.72628644e-02, -5.35311177e-03,  2.05056579e-03, -2.24686898e-02,
+        2.37436742e-02, -2.88955821e-03,  3.91903520e-02, -5.70910797e-02,
+       -4.27635871e-02,  4.81446274e-03, -8.09021294e-03,  2.16999720e-03,
+       -7.73012638e-02, -1.36184813e-02,  7.66852964e-03, -2.95145391e-03,
+        4.61837091e-02,  5.39064454e-03, -8.75945576e-03,  3.18813995e-02,
+        1.04639102e-02, -2.28882264e-02,  7.65434206e-02, -4.90737613e-04,
+       -5.19941747e-03, -2.63530277e-02,  5.94293699e-03,  2.61761039e-03,
+        1.57433264e-02, -2.27245484e-02,  4.10448015e-02,  3.94164361e-02,
+        7.42355064e-02, -3.96274440e-02,  3.52097489e-03, -2.32931841e-02,
+        2.65374803e-03,  2.11305567e-03, -1.15373405e-02, -4.97756638e-02,
+        1.05099306e-02, -9.61607173e-02,  1.18163461e-02, -3.06739956e-02,
+        3.01739704e-02,  5.02481172e-03, -1.49702253e-02, -4.16409373e-02,
+        2.74083558e-02, -4.94093820e-02,  1.67755224e-02,  2.84874178e-02,
+       -2.51592346e-03,  6.29253015e-02, -1.02666169e-02,  2.03035418e-02,
+       -2.13496145e-02,  2.14875187e-03, -5.41830286e-02, -8.22758116e-03,
+       -6.63015293e-03,  1.54134827e-02, -4.18800600e-02,  8.32532905e-03,
+       -4.77331737e-03,  2.58041471e-02, -2.56665684e-02,  1.69641525e-02,
+        1.68041763e-04,  4.96890433e-02,  7.93581456e-03,  5.33398688e-02,
+        2.98153069e-02, -2.13010050e-02, -1.83894206e-02,  8.96078721e-03,
+       -3.15828472e-02, -8.35910067e-03,  6.47432683e-03, -2.26403736e-02,
+       -1.01939552e-02,  7.15289637e-03, -3.16775739e-02, -7.51423463e-02,
+       -7.25132599e-03,  4.66793291e-02,  6.06269925e-04, -1.05275027e-02,
+        8.58040061e-03, -1.99133884e-02, -3.58336419e-02, -5.80828683e-03,
+        2.90962998e-02, -4.90957201e-02,  2.94581614e-03, -2.42724502e-03,
+       -5.75394183e-02,  9.19973850e-03,  1.81919262e-02, -6.69691637e-02,
+       -4.09525409e-02, -4.58885357e-02,  7.43883662e-03, -7.65954470e-03,
+        4.92156483e-03,  6.31196238e-03,  4.48213564e-03, -3.72333475e-03,
+       -1.68830659e-02,  7.80900707e-03, -4.02721483e-03,  1.60082914e-02,
+       -2.50696745e-02,  8.02459661e-03,  2.67465748e-02, -1.87559705e-02,
+        3.03563643e-02, -2.93889921e-02,  7.59319887e-02,  3.59930075e-03,
+        6.65728226e-02,  5.54468818e-02,  3.31461430e-02,  1.06249535e-02,
+       -5.02992906e-02,  2.01338567e-02, -5.53070121e-02,  5.46423718e-02,
+        3.59986015e-02,  1.22496430e-02, -4.43985686e-03, -8.36280233e-04,
+        4.91463440e-03, -2.32467931e-02, -3.57507616e-02, -4.22504582e-02,
+       -1.84937846e-02,  3.38483453e-02,  1.21293515e-02,  2.96485145e-02,
+       -2.00453643e-02, -1.89479478e-02,  4.20626216e-02, -7.44217355e-03,
+       -4.72477637e-02,  3.66076306e-02, -4.97004017e-02,  1.03498865e-02,
+        1.63744017e-02,  3.01188435e-02, -3.75668481e-02,  7.96769336e-02,
+        8.22670385e-03,  2.59457082e-02, -4.37009521e-03, -5.14020510e-02,
+        3.92447673e-02, -4.84910123e-02,  2.59171985e-02, -4.21511121e-02,
+        5.33292517e-02,  7.10661113e-02,  1.04164639e-02, -5.17852865e-02,
+       -5.72039858e-02, -3.45693640e-02,  1.26189366e-02, -4.93989065e-02,
+       -5.53063527e-02, -3.88750201e-03,  4.88763861e-02, -7.38492655e-03,
+        3.27271819e-02, -4.21904288e-02,  7.62635143e-04,  3.85516062e-02,
+        1.34478007e-02, -5.80506101e-02, -5.09253927e-02,  2.84548495e-02,
+       -1.86510067e-02,  8.14390089e-03, -1.38334604e-02, -5.97428530e-03,
+        4.52837944e-02,  4.16533686e-02,  2.60461904e-02, -3.53994803e-03,
+       -1.78831164e-02,  1.52705619e-02,  3.55980098e-02,  2.12441524e-03,
+       -1.99867785e-02,  5.39086126e-02, -3.55770886e-02, -2.29230616e-02,
+       -1.38376048e-02,  1.21405618e-02, -1.29880868e-02, -2.39229146e-02,
+        5.59322350e-02,  4.63167857e-03, -2.93996409e-02,  2.74279881e-02,
+        3.38916332e-02, -3.47433239e-02, -1.85212977e-02, -3.39614861e-02,
+        1.24316122e-02, -1.50856869e-02,  4.83521111e-02,  6.70650648e-03,
+        1.20822592e-02,  5.60516901e-02, -5.87174064e-03,  2.00730450e-02,
+        1.33420117e-02,  6.80149049e-02,  1.04910396e-01,  2.03745738e-02,
+       -3.66118923e-02,  6.13825507e-02, -2.98285298e-02, -2.27855258e-02,
+       -4.07874361e-02, -1.27935251e-02,  1.75922494e-02,  1.39521053e-02,
+       -1.43120540e-02,  5.17716929e-02, -1.98208112e-02,  5.39265536e-02,
+       -1.12614268e-02, -3.55137400e-02,  2.15844847e-02,  1.22961320e-03,
+       -3.77083081e-03,  7.76230544e-02, -3.33400443e-04,  2.25877557e-02,
+       -1.60000636e-04, -2.43317243e-02,  1.38128186e-02, -4.04631086e-02,
+        9.41854995e-03,  2.43291687e-02, -1.12952841e-02, -4.89739627e-02,
+       -1.57520920e-02,  2.68185176e-02,  9.79312956e-02, -3.15789394e-02,
+       -4.06254232e-02,  3.19652520e-02,  3.99538456e-03,  8.37510976e-04,
+        1.06646419e-02,  2.28678882e-02, -1.53499087e-02, -1.91123988e-02,
+       -3.09732603e-03, -7.63165578e-03, -4.34444770e-02,  8.15448165e-03,
+        3.74818295e-02, -2.32820157e-02,  1.84609345e-03,  5.68565354e-03,
+       -1.08247343e-02, -1.21544600e-02, -7.67064542e-02, -3.90809439e-02,
+       -6.61820769e-02, -7.96023980e-02, -5.15527800e-02, -6.54233590e-05,
+       -2.97904704e-02, -5.36105111e-02,  9.50373337e-03, -7.34308455e-03,
+       -7.72696221e-03, -1.32030537e-02, -6.76768040e-03, -1.44202709e-02,
+        3.07431445e-02,  5.75371832e-02,  6.28935639e-03,  3.68872657e-02,
+       -4.04553255e-03,  1.94583356e-03,  2.48818323e-02, -1.92356128e-02,
+       -4.45888052e-03,  4.98601086e-02,  1.65831055e-02, -1.41131273e-02,
+       -5.55976517e-02, -6.33560820e-04,  1.21888192e-02,  1.48325376e-02,
+       -6.44838363e-02,  1.90999769e-02,  1.35166850e-03, -7.77362520e-03,
+        5.58920726e-02,  2.33480223e-02,  4.84733433e-02,  6.49412442e-03,
+        1.77723840e-02, -2.52549499e-02,  3.66636515e-02,  4.23828103e-02,
+       -3.03176157e-02,  5.99398538e-02, -1.27715049e-02,  2.22570952e-02,
+       -4.81858552e-02, -3.27669717e-02,  1.23148039e-02, -2.21996177e-02,
+       -6.39249459e-02, -5.01586720e-02, -5.85385263e-02, -3.69882546e-02,
+       -6.18899195e-03, -7.13911932e-03,  3.98317017e-02, -4.43440638e-02,
+       -3.44631709e-02,  3.55660841e-02, -5.15696816e-02,  2.34829132e-02,
+       -9.15301125e-03,  1.33779617e-02, -4.43348521e-03, -4.48801033e-02,
+       -4.33823094e-02,  7.45778857e-03,  2.46894229e-02, -7.01330882e-03,
+       -9.33031668e-04, -2.77379509e-02,  2.72110123e-02, -4.09927815e-02,
+       -1.74993780e-02, -4.54506930e-03,  2.43342109e-02,  2.31403951e-02],
+      dtype=float32)
+]
+----
+
+We then need to do that for all the blog posts instead of just one, which we can do by running the following:
+
+[source, python]
+----
+list(embedding.passage_embed(df.body.values))
+----
+
+This took about half an hour to run on my machine, which is why I uploaded all the embeddings to Hugging Face!
+We can see those embeddings by running this code:
+
+[source, python]
+----
+df.loc[:, df.columns.str.contains("embeddings")].head(n=1).T
+----
+
+.Output
+[source, text]
+----
+                                                                     0
+embeddings_base_en   [-0.0019903937, 0.008083187, -0.009668194, 0.0...
+embeddings_small_en  [-0.07897052, 0.009165875, -0.06180832, -0.013...
+embeddings_mini_lm   [0.0021232518, 0.046398316, 0.055325, 0.024826...
+----
+
+== Store embeddings in Qdrant
+
+At this point, we could compute related articles by running a similarity function over all the documents...or we could let the https://github.com/qdrant/qdrant[Qdrant^] database do it for us!
+Let's install the Qdrant client:
+
+[source, bash]
+----
+pip install qdrant-client
+----
+
+And now let's import some dependencies:
+
+[source, python]
+----
+from qdrant_client import QdrantClient
+from qdrant_client.http.models import Distance, VectorParams
+from qdrant_client.http.models import PointStruct
+from qdrant_client.http import models
+----
+
+Next up, initialise the client:
+
+[source, python]
+----
+client = QdrantClient(path="/tmp/blog")
+----
+
+Create a collection. 
+We need to specify the dimension of the embeddings when doing this.
+We'll use the `embeddings_small_en` column and compute the length for the first item in that column:
+
+
+[source, python]
+----
+collection_name = "blog_small_en"
+dimensions = len(df.embeddings_small_en[0])
+
+client.create_collection(
+  collection_name=collection_name,
+  vectors_config=VectorParams(size=dimensions, distance=Distance.COSINE),
+)
+----
+
+Now let's import those embeddings!
+
+[source, python]
+----
+import uuid
+
+client.upsert(
+  collection_name=collection_name,
+  wait=True,
+  points = [
+    PointStruct(
+      id=str(uuid.uuid4()), 
+      vector=page['embeddings_small_en'], 
+      payload={
+        'title': page['title'], 
+        'slug': page['slug'],
+        'url': page['url'],
+        'date': page['date'],
+      }
+    ) 
+    for idx, page in df.iterrows()
+  ]
+)
+----
+
+== Querying Qdrant to find related content
+
+And now for the fun part - querying the database!
+We're going to start with an article that I wrote about https://www.markhneedham.com/blog/2023/10/18/ollama-hugging-face-gguf-models/[running GGUF models on Hugging Face^].
+We'll pass in the embedding for that article and also add a query filter to make sure we don't get back ourselves:
+
+[source, python]
+----
+slug = 'ollama-hugging-face-gguf-models'
+response = client.search(
+  collection_name=collection_name,
+  query_vector=df[df.slug == slug].embeddings_small_en.to_numpy()[0],
+  query_filter=models.Filter(
+    must_not=[
+      models.FieldCondition(key="slug", match=models.MatchValue(value=slug)),
+    ]
+  ),
+  limit=5
+)
+----
+
+Let's have a look at the first result:
+
+[source, python]
+----
+response[0]
+----
+
+.Output
+[source, python]
+----
+ScoredPoint(
+    id='615986f7-30c4-426e-adbd-94ee7a759a00',
+    version=0,
+    score=0.93391470231598,
+    payload={
+        'title': 'Running a Hugging Face Large Language Model (LLM) locally on my laptop',
+        'slug': 'hugging-face-run-llm-model-locally-laptop',
+        'url': 'https://markhneedham.com/blog/2023/06/23/hugging-face-run-llm-model-locally-laptop',
+        'date': '2023-06-23 04:44:37'
+    },
+    vector=None,
+    shard_key=None
+)
+----
+
+The `score` and `payload.title` are the most useful things here, so let's just pull those out for all the results:
+
+[source, python]
+----
+[(r.payload['title'], r.score) for r in response]
+----
+
+.Output
+[source, python]
+----
+[
+    ('Running a Hugging Face Large Language Model (LLM) locally on my laptop', 0.93391470231598),
+    ('Running Mistral AI on my machine with Ollama', 0.9095529385828958),
+    ('Ollama is on PyPi', 0.90704959412579),
+    ('LLaVA 1.5 vs. 1.6', 0.9046453957890113),
+    ('GPT 3.5 Turbo vs GPT 3.5 Turbo Instruct', 0.9028761566347876)
+]
+----
+
+Those suggestions look pretty good to me.
+They're all LLM related and a few of them mention Ollama as well.
+
+Let's try another one - https://www.markhneedham.com/blog/2023/09/07/how-to-run-kotlin-script/[How to run a Kotlin script^]:
+
+[source, python]
+----
+slug = 'how-to-run-kotlin-script'
+response = client.search(
+  collection_name=collection_name,
+  query_vector=df[df.slug == slug].embeddings_small_en.to_numpy()[0],
+  query_filter=models.Filter(
+    must_not=[
+      models.FieldCondition(key="slug", match=models.MatchValue(value=slug)),
+    ]
+  ),
+  limit=5
+)
+[(r.payload['title'], r.score) for r in response]
+----
+
+.Output
+[source, python]
+----
+[
+    ('Puppeteer: Unsupported command-line flag: --enabled-blink-features=IdleDetection.', 0.872655674963102),
+    ('Generating sample JSON data in S3 with shadowtraffic.io', 0.8680684974405322),
+    ('litellm and llamafile -  APIError: OpenAIException - File Not Found', 0.8669283384453007),
+    ('Leiningen: Using goose via a local Maven repository', 0.864449850239156),
+    ('Racket: Wiring it up to a REPL ala SLIME/Swank', 0.8599085661485784)
+]
+----
+
+Those results aren't as good.
+I haven't written anything else about Kotlin though, so I'm surprised there's anything even vaguely in the same vector space as this article.
+
+Let's try one more - https://www.markhneedham.com/blog/2023/09/05/quix-streams-process-n-kafka-messages/[Quix Streams: Process certain number of Kafka messages^].
+
+[source, python]
+----
+slug = 'quix-streams-process-n-kafka-messages'
+response = client.search(
+  collection_name=collection_name,
+  query_vector=df[df.slug == slug].embeddings_small_en.to_numpy()[0],
+  query_filter=models.Filter(
+    must_not=[
+      models.FieldCondition(key="slug", match=models.MatchValue(value=slug)),
+    ]
+  ),
+  limit=5
+)
+[(r.payload['title'], r.score) for r in response]
+----
+
+.Output
+[source, python]
+----
+[
+    ('Kafka: Python Consumer - No messages with group id/consumer group', 0.9203105468221986),
+    ('Quix Streams: Consuming and Producing JSON messages', 0.9200380656608202),
+    ('Kafka: A basic tutorial', 0.9176789387821469),
+    ('Kafka: Writing data to a topic from the command line', 0.9108782496855492),
+    ('Flink SQL: Exporting nested JSON to a Kafka topic', 0.9033013201118649)
+]
+----
+
+Pretty good for this one I think!
+
+== Summary
+
+So this does look like a promising approach and I think I need to figure out how to add this to the blog and see if it gets used!

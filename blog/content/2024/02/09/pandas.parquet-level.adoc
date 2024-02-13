@@ -1,0 +1,42 @@
++++
+draft = true
+date="2024-02-04 00:44:37"
+title="LLaVA 1.5 vs. 1.6"
+tag=['ollama','generative-ai', 'llava', 'til']
+category=['TIL']
+description="In this post, we'll learn about LLaVA, an open source large multi-modal model."
+image="uploads/2024/02/llava-banner.png"
++++
+
+:icons: font
+
+__index_level_0__
+
+
+[source, sql]
+----
+⚫◗ describe from 'blog.parquet';
+┌─────────────────────┬─────────────┬─────────┬─────────┬─────────┬─────────┐
+│     column_name     │ column_type │  null   │   key   │ default │  extra  │
+│       varchar       │   varchar   │ varchar │ varchar │ varchar │ varchar │
+├─────────────────────┼─────────────┼─────────┼─────────┼─────────┼─────────┤
+│ draft               │ BOOLEAN     │ YES     │         │         │         │
+│ date                │ VARCHAR     │ YES     │         │         │         │
+│ title               │ VARCHAR     │ YES     │         │         │         │
+│ tag                 │ VARCHAR[]   │ YES     │         │         │         │
+│ category            │ VARCHAR[]   │ YES     │         │         │         │
+│ body                │ VARCHAR     │ YES     │         │         │         │
+│ description         │ VARCHAR     │ YES     │         │         │         │
+│ image               │ VARCHAR     │ YES     │         │         │         │
+│ embeddings_base_en  │ FLOAT[]     │ YES     │         │         │         │
+│ embeddings_small_en │ FLOAT[]     │ YES     │         │         │         │
+│ embeddings_mini_lm  │ FLOAT[]     │ YES     │         │         │         │
+│ __index_level_0__   │ BIGINT      │ YES     │         │         │         │
+├─────────────────────┴─────────────┴─────────┴─────────┴─────────┴─────────┤
+│ 12 rows                                                         6 columns │
+└───────────────────────────────────────────────────────────────────────────┘
+----
+
+p.reset_index(drop=True).to_parquet("blog.parquet")
+
+Only happened once I started filtering the DataFrame. When it was a DataFrame that I created directly it worked fine.
