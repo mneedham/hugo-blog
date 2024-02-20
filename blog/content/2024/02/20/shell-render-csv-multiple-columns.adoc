@@ -1,0 +1,100 @@
++++
+draft = true
+date="2024-02-20 00:44:37"
+title="Render a CSV across multiple columns on the terminal/shell"
+tag=['shell', 'til']
+category=['TIL']
+description="In this post, we'll learn how to render a CSV file across multiple columns on the terminal."
+image="uploads/2024/02/llava-banner.png"
++++
+
+:icons: font
+
+I was recently working with a CSV file that contained a bunch of words and I wanted to render them on the console so that you could see all of them at once without any scrolling.
+i.e. I wanted the rendering of the CSV file to wrap across columns.
+
+I learned that we can do exactly this using the `paste` command, so let's see how to do it.
+
+Imagine we have the CSV file shown below:
+
+.data/words.csv
+[format="csv", options="header"]
+|===
+include::content/2024/02/20/data/words.csv[]
+|===
+
+To render this file to the terminal, we could do the following:
+
+[source, bash]
+----
+cat data/words.csv
+----
+
+That renders each word on its own line:
+
+.Output
+[source, text]
+----
+hello
+goodbye
+house
+shell
+dog
+cat
+hat
+chat
+bottle
+phone
+----
+
+With the `paste` command, we can concatenate corresponding lines in a file. 
+The `paste` command usually takes a file name as argument, but we can tell it to use `stdin` by using the `-` parameter.
+So, the following, would render the contents of the file line-by-line:
+
+[source, bash]
+----
+cat data/words.csv | paste -
+----
+
+But, if we pass in more `-`, it will concatenate the lines together:
+
+[quote]
+____
+If ‘-’ is specified for one or more of the input files, the standard input is
+     used; standard input is read one line at a time, circularly, for each instance of
+     ‘-’.
+____
+
+So, if we want to create two columns of words, we'd do this:
+
+[source, bash]
+----
+cat data/words.csv | paste - -
+----
+
+.Output
+[source, text]
+----
+hello	goodbye
+house	shell
+dog	cat
+hat	chat
+bottle	phone
+----
+
+
+And if we want 5 columns, we'd instead pass `-` 5 times:
+
+[source, bash]
+----
+cat data/words.csv | paste - - - - -
+----
+
+.Output
+[source, text]
+----
+hello	goodbye	house	shell	dog
+cat	hat	chat	bottle	phone
+----
+
+Pretty neat!
