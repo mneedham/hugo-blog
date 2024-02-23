@@ -1,0 +1,55 @@
++++
+draft = false
+date="2024-02-23 00:44:37"
+title="Using environment variables in ClickHouse queries"
+tag=['clickhouse', 'til']
+category=['TIL']
+description="In this post, we'll learn how to make environment variables accessible to a ClickHouse Local query"
+image="uploads/2024/02/clickhouse-env-vars.png"
++++
+
+:icons: font
+
+For quite some time I've been wondering how to get access to an environment variable in a ClickHouse Local and finally today I have a solution, which we'll explore in this blog post.
+
+My reason for wanting to do this is so that I can pass through a ClickHouse Cloud password to use in a `remoteSecure` function call.
+I wanted to do this as part of a blog post I wrote showing how to do https://clickhouse.com/blog/hybrid-query-execution-experiment[Hybrid Query Execution^] with ClickHouse.
+
+The hook that lets us do this is named parameters, which I spotted at the bottom of the ClickHouse CLI help:
+
+[quote]
+____
+In addition, --param_name=value can be specified for substitution of parameters for parametrized queries.
+____
+
+So if we wanted to pass in a literal value we could do this:
+
+[source, bash]
+----
+./clickhouse --param_variable="Mark" -q "SELECT {variable:String}"
+----
+
+.Output
+[source, text]
+----
+Mark
+----
+
+And then it's only a small extra step to pass in an environment variable:
+
+[source, bash]
+----
+export MY_ENV_VAR="super_secret_value"
+./clickhouse \
+  --param_variable="Mark" \
+  --param_variable2=${MY_ENV_VAR} \
+  -q "SELECT {variable:String}, {variable2:String}"
+----
+
+.Output
+[source, text]
+----
+Mark	super_secret_value
+----
+
+Super simple, but super handy!
