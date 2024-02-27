@@ -1,0 +1,91 @@
++++
+draft = true
+date="2024-02-27 00:44:37"
+title="Clustering YouTube comments using Ollama Embeddings"
+tag=['ollama', 'til', 'plotly']
+category=['TIL']
+description="In this post, we'll learn how to cluster YouTube comments."
+image="uploads/2024/02/clickhouse-env-vars.png"
++++
+
+:icons: font
+
+
+. Get the comments for a YouTube video
+. Generate an embedding for each comment
+. Visualise the embeddings using tSNE
+. Cluster the embeddings using hierarchical/agglomerative clustering.
+
+https://ollama.com/library/nomic-embed-text
+https://blog.nomic.ai/posts/nomic-embed-text-v1
+
+
+[source, toml]
+----
+
+----
+
+[source, python]
+----
+from pyyoutube import Api
+import os
+----
+
+
+[source, python]
+----
+VIDEO_ID = 'RXDWkiuXtG0'
+ct_by_video = api.get_comment_threads(
+    video_id=VIDEO_ID, 
+    count=10
+)
+----
+
+One of my favourite tools in the LLM space is https://ollama.ai/[Ollama^] and if you want to learn how to use it, there's no better place than https://www.youtube.com/@technovangelist[Matt Williams' YouTube channel^].
+Matt recently did a video about embeddings and I thought it'd be fun to analyse the comments, but first I needed to get those comments.
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Ml179HQoy9o?si=600-v3zcVlksDU8o" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+++++
+
+
+
+Go to https://console.developers.google.com/ create a project and enable YouTube Data API v3.
+
+.YouTube Data API
+image::{{<siteurl>}}/uploads/2024/02/youtube-data-api.png[width=500]
+
+Once you've done that, you'll need to create an API key.
+
+.Creating an API key
+image::{{<siteurl>}}/uploads/2024/02/create-api-key.png[width=500]
+
+[source, bash]
+----
+pip install python-youtube
+----
+
+[source, python]
+----
+from pyyoutube import Api
+import os
+----
+
+Initialise the API:
+
+[source, python]
+----
+API_KEY = os.environ.get("YOUTUBE_API_KEY")
+api = Api(api_key=API_KEY)
+----
+
+Now we need to pick a video to explore.
+
+[source, python]
+----
+VIDEO_ID = 'RXDWkiuXtG0'
+ct_by_video = api.get_comment_threads(
+    video_id=VIDEO_ID, 
+    count=10
+)
+----

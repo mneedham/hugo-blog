@@ -1,11 +1,11 @@
 +++
-draft = true
+draft = false
 date="2024-02-20 00:44:37"
 title="Render a CSV across multiple columns on the terminal/shell"
 tag=['shell', 'til']
 category=['TIL']
 description="In this post, we'll learn how to render a CSV file across multiple columns on the terminal."
-image="uploads/2024/02/llava-banner.png"
+image="uploads/2024/02/csv-columns-banner.png"
 +++
 
 :icons: font

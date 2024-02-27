@@ -1,0 +1,127 @@
++++
+draft = true
+date="2024-02-21 00:44:37"
+title="llmware: ValueError: Model path does not exist"
+tag=['llmware','generative-ai', 'til']
+category=['TIL']
+description="In this post, we'll learn how to render a CSV file across multiple columns on the terminal."
+image="uploads/2024/02/llava-banner.png"
++++
+
+:icons: font
+
+[source, python]
+----
+from llmware.agents import LLMfx
+
+
+llm_fx = LLMfx(verbose=False)
+llm_fx.load_tool("ner")
+
+llm_fx.ner("Here is some text to analyse")
+----
+
+.Output
+[source, text]
+----
+File ~/projects/learndatawithmark/llmware-chain/.venv/lib/python3.11/site-packages/llmware/agents.py:632, in LLMfx.ner(self, text, params)
+    629 if isinstance(params, str):
+    630     params = [params]
+--> 632 return self.exec_function_call("ner", text=text, params=params)
+
+File ~/projects/learndatawithmark/llmware-chain/.venv/lib/python3.11/site-packages/llmware/agents.py:438, in LLMfx.exec_function_call(self, tool_type, text, function, params, get_logits)
+    436 #   if model not yet loaded, then load in-line
+    437 if not model:
+--> 438     model = self.load_tool(tool_type)
+    440 function_call = getattr(model, "function_call")
+    442 journal_update = f"executing function call - deploying - {tool_type} "
+
+File ~/projects/learndatawithmark/llmware-chain/.venv/lib/python3.11/site-packages/llmware/agents.py:371, in LLMfx.load_tool(self, tool_type)
+    367 journal_update = f"loading tool - {tool_type}"
+    368 self.write_to_journal(journal_update)
+    370 setattr(self, tool_type + "_model",
+--> 371         ModelCatalog().load_model(self._default_tool_map[tool_type],api_key=self.api_key))
+    373 model = getattr(self, tool_type + "_model")
+    375 if tool_type not in self.tools_deployed:
+
+File ~/projects/learndatawithmark/llmware-chain/.venv/lib/python3.11/site-packages/llmware/models.py:682, in ModelCatalog.load_model(self, selected_model, api_key)
+    680 if model_card["model_location"] == "llmware_repo":
+    681     loading_directions = self.locate_and_retrieve_model_bits(model_card, api_key=api_key)
+--> 682     my_model = my_model.load_model_for_inference(loading_directions, model_card=model_card)
+    683 else:
+    684     # if api_key passed, save as environ variable
+    685     # TODO - look at this
+    686     if api_key:
+
+File ~/projects/learndatawithmark/llmware-chain/.venv/lib/python3.11/site-packages/llmware/models.py:4572, in GGUFGenerativeModel.load_model_for_inference(self, file_loading_path, model_card)
+   4569 model_file = os.path.join(file_loading_path, self.gguf_file)
+   4571 if not Path(model_file).is_file():
+-> 4572     raise ValueError(f"Model path '{model_file}' doesn't exist.")
+   4574 self.model_type = "gguf"
+   4576 # self.gpu_layers = 50
+
+ValueError: Model path '/Users/markhneedham/llmware_data/model_repo/slim-ner-tool/slim-ner.gguf' doesn't exist.
+
+In [20]: from llmware.models import ModelCatalog
+    ...:
+    ...: # to load the model and make a basic inference
+    ...: model = ModelCatalog().load_model("slim-ner-tool")
+---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+Cell In[20], line 4
+      1 from llmware.models import ModelCatalog
+      3 # to load the model and make a basic inference
+----> 4 model = ModelCatalog().load_model("slim-ner-tool")
+
+File ~/projects/learndatawithmark/llmware-chain/.venv/lib/python3.11/site-packages/llmware/models.py:682, in ModelCatalog.load_model(self, selected_model, api_key)
+    680 if model_card["model_location"] == "llmware_repo":
+    681     loading_directions = self.locate_and_retrieve_model_bits(model_card, api_key=api_key)
+--> 682     my_model = my_model.load_model_for_inference(loading_directions, model_card=model_card)
+    683 else:
+    684     # if api_key passed, save as environ variable
+    685     # TODO - look at this
+    686     if api_key:
+
+File ~/projects/learndatawithmark/llmware-chain/.venv/lib/python3.11/site-packages/llmware/models.py:4572, in GGUFGenerativeModel.load_model_for_inference(self, file_loading_path, model_card)
+   4569 model_file = os.path.join(file_loading_path, self.gguf_file)
+   4571 if not Path(model_file).is_file():
+-> 4572     raise ValueError(f"Model path '{model_file}' doesn't exist.")
+   4574 self.model_type = "gguf"
+   4576 # self.gpu_layers = 50
+
+ValueError: Model path '/Users/markhneedham/llmware_data/model_repo/slim-ner-tool/slim-ner.gguf' doesn't exist.
+----
+
+
+[source, bash]
+----
+ls -alh /Users/markhneedham/llmware_data/model_repo/slim-ner-tool
+----
+
+.Output
+[source, text]
+----
+total 48
+drwxr-xr-x@  5 markhneedham  staff   160B 17 Feb 10:45 .
+drwxrwxrwx@ 14 markhneedham  staff   448B 17 Feb 22:23 ..
+-rw-r--r--@  1 markhneedham  staff   1.5K 17 Feb 10:45 .gitattributes
+-rw-r--r--@  1 markhneedham  staff   1.6K 17 Feb 10:45 README.md
+-rw-r--r--@  1 markhneedham  staff    15K 17 Feb 10:45 config.json
+----
+
+[source, python]
+----
+from llmware.models import ModelCatalog
+
+model = ModelCatalog().load_model("slim-ner-tool")
+----
+
+.Output
+[source, text]
+----
+README.md: 100%|███████████████████████████████████████████████████████████████████████████████████████████████| 1.68k/1.68k [00:00<00:00, 16.3MB/s]
+config.json: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 15.8k/15.8k [00:00<00:00, 36.5MB/s]
+.gitattributes: 100%|██████████████████████████████████████████████████████████████████████████████████████████| 1.57k/1.57k [00:00<00:00, 18.9MB/s]
+slim-ner.gguf: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 669M/669M [00:26<00:00, 25.1MB/s]
+Fetching 4 files: 100%|███████████████████████████████████████████████████████████████████████████████████████████████| 4/4 [00:27<00:00,  6.76s/it]
+----
