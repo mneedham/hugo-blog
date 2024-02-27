@@ -163,16 +163,16 @@ It's probably best to create a function to handle the paging for us and return a
 def get_all_comment_threads(api, video_id, per_page=10):
     threads = []
     token = None
-    keep_going = True
-    while keep_going:
-        ct_by_video = api.get_comment_threads(
+    while True:
+        response = api.get_comment_threads(
             video_id=video_id, 
-            count=per_page,
+            count=per_page, 
             page_token=token
         )
-        threads.append(ct_by_video)
-        token = ct_by_video.nextPageToken
-        keep_going = token is not None
+        threads.append(response)
+        token = response.nextPageToken
+        if not token:
+            break
     return threads
 ----
 
