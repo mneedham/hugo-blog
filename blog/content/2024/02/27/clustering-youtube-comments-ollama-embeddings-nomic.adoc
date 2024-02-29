@@ -28,7 +28,16 @@ In this blog post, we're going to do just that, following these steps:
 == Getting YouTube comments
 
 In https://www.markhneedham.com/blog/2024/02/26/python-youtube-data-page-token/[a previous blog post^], I wrote a function that gets all the top-level comments for a given video, so we're going to reuse that function in this post.
-You'll also need to create an API key, which I describe in that post as well.
+To use this function, you'll need to first go to https://console.developers.google.com/[console.developers.google.com^], create a project and enable YouTube Data API v3.
+
+.YouTube Data API
+image::{{<siteurl>}}/uploads/2024/02/youtube-data-api.png[width=500]
+
+Once you've done that, create an API key.
+
+.Creating an API key
+image::{{<siteurl>}}/uploads/2024/02/create-api-key.png[width=500]
+
 Once you've done that create an environment variable that contains the API key:
 
 [source, bash]
@@ -449,7 +458,7 @@ fig.show()
 You can see an animated version of the clusters below:
 
 .Clusters of comments
-image::{{<siteurl>}}/uploads/2024/02/cluster.gif[width=500]
+image::{{<siteurl>}}/uploads/2024/02/clusters.gif[width=500]
 
 And then I've done some manual annotation of the clusters in the following diagram:
 
