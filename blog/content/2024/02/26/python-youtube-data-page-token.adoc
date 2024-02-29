@@ -32,7 +32,7 @@ export YOUTUBE_API_KEY="your-api-key-goes-here"
 
 Now we're ready to go!
 
-You can call the YouTube API via HTTP requests, but I find it's slightly easier to use the `python-youtube` library, which we can install like this:
+You can call the YouTube API via HTTP requests, but I find it's slightly easier to use the https://sns-sdks.lkhardy.cn/python-youtube/installation/[`python-youtube`^] library, which we can install like this:
 
 [source, bash]
 ----
