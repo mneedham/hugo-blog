@@ -38,7 +38,7 @@ Once you've done that, create an API key.
 .Creating an API key
 image::{{<siteurl>}}/uploads/2024/02/create-api-key.png[width=500]
 
-Once you've done that create an environment variable that contains the API key:
+And then create an environment variable that contains the API key:
 
 [source, bash]
 ----
