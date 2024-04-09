@@ -1,0 +1,193 @@
++++
+draft = false
+date="2024-03-31 00:44:37"
+title="llama.cpp - ValueError: Failed to create llama_context - ggml-common.h file not found"
+tag=['llama.cpp', 'generative-ai', 'til']
+category=['TIL']
+description="In this post, we'll learn how to install llama.cpp with GPU support on a Mac M1."
+image="uploads/2024/03/llamacpp-banner.png"
++++
+
+:icons: font
+
+I've been playing around with the https://github.com/outlines-dev/outlines[outlines^] library and needed to install https://github.com/abetlen/llama-cpp-python[llama.cpp^] as a result.
+I ran into trouble when trying to offload model layers to the GPU and in this post, I'll explain how to install llama.cpp so that you don't have the same issues.
+
+This was how I installed the library initially:
+
+[source, bash]
+----
+CMAKE_ARGS="-DLLAMA_METAL=on" pip install llama-cpp-python
+----
+
+And then let's try to load a GGUF model with some layers offloaded to the GPU:
+
+[source, python]
+----
+from llama_cpp import Llama
+model_name = "mixtral-8x7b-instruct-v0.1.Q4_K_M.gguf"
+Llama(
+    model_path=model_name,
+    n_ctx=2048,
+    n_gpu_layers=-1
+)
+----
+
+We'll get the following error:
+
+.Output
+[source, text]
+----
+llama_model_loader: loaded meta data with 26 key-value pairs and 995 tensors from mixtral-8x7b-instruct-v0.1.Q4_K_M.gguf (version GGUF V3 (latest))
+llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.
+llama_model_loader: - kv   0:                       general.architecture str              = llama
+llama_model_loader: - kv   1:                               general.name str              = mistralai_mixtral-8x7b-instruct-v0.1
+llama_model_loader: - kv   2:                       llama.context_length u32              = 32768
+llama_model_loader: - kv   3:                     llama.embedding_length u32              = 4096
+llama_model_loader: - kv   4:                          llama.block_count u32              = 32
+llama_model_loader: - kv   5:                  llama.feed_forward_length u32              = 14336
+llama_model_loader: - kv   6:                 llama.rope.dimension_count u32              = 128
+llama_model_loader: - kv   7:                 llama.attention.head_count u32              = 32
+llama_model_loader: - kv   8:              llama.attention.head_count_kv u32              = 8
+llama_model_loader: - kv   9:                         llama.expert_count u32              = 8
+llama_model_loader: - kv  10:                    llama.expert_used_count u32              = 2
+llama_model_loader: - kv  11:     llama.attention.layer_norm_rms_epsilon f32              = 0.000010
+llama_model_loader: - kv  12:                       llama.rope.freq_base f32              = 1000000.000000
+llama_model_loader: - kv  13:                          general.file_type u32              = 15
+llama_model_loader: - kv  14:                       tokenizer.ggml.model str              = llama
+llama_model_loader: - kv  15:                      tokenizer.ggml.tokens arr[str,32000]   = ["<unk>", "<s>", "</s>", "<0x00>", "<...
+llama_model_loader: - kv  16:                      tokenizer.ggml.scores arr[f32,32000]   = [0.000000, 0.000000, 0.000000, 0.0000...
+llama_model_loader: - kv  17:                  tokenizer.ggml.token_type arr[i32,32000]   = [2, 3, 3, 6, 6, 6, 6, 6, 6, 6, 6, 6, ...
+llama_model_loader: - kv  18:                tokenizer.ggml.bos_token_id u32              = 1
+llama_model_loader: - kv  19:                tokenizer.ggml.eos_token_id u32              = 2
+llama_model_loader: - kv  20:            tokenizer.ggml.unknown_token_id u32              = 0
+llama_model_loader: - kv  21:            tokenizer.ggml.padding_token_id u32              = 0
+llama_model_loader: - kv  22:               tokenizer.ggml.add_bos_token bool             = true
+llama_model_loader: - kv  23:               tokenizer.ggml.add_eos_token bool             = false
+llama_model_loader: - kv  24:                    tokenizer.chat_template str              = {{ bos_token }}{% for message in mess...
+llama_model_loader: - kv  25:               general.quantization_version u32              = 2
+llama_model_loader: - type  f32:   65 tensors
+llama_model_loader: - type  f16:   32 tensors
+llama_model_loader: - type q8_0:   64 tensors
+llama_model_loader: - type q4_K:  833 tensors
+llama_model_loader: - type q6_K:    1 tensors
+llm_load_vocab: special tokens definition check successful ( 259/32000 ).
+llm_load_print_meta: format           = GGUF V3 (latest)
+llm_load_print_meta: arch             = llama
+llm_load_print_meta: vocab type       = SPM
+llm_load_print_meta: n_vocab          = 32000
+llm_load_print_meta: n_merges         = 0
+llm_load_print_meta: n_ctx_train      = 32768
+llm_load_print_meta: n_embd           = 4096
+llm_load_print_meta: n_head           = 32
+llm_load_print_meta: n_head_kv        = 8
+llm_load_print_meta: n_layer          = 32
+llm_load_print_meta: n_rot            = 128
+llm_load_print_meta: n_embd_head_k    = 128
+llm_load_print_meta: n_embd_head_v    = 128
+llm_load_print_meta: n_gqa            = 4
+llm_load_print_meta: n_embd_k_gqa     = 1024
+llm_load_print_meta: n_embd_v_gqa     = 1024
+llm_load_print_meta: f_norm_eps       = 0.0e+00
+llm_load_print_meta: f_norm_rms_eps   = 1.0e-05
+llm_load_print_meta: f_clamp_kqv      = 0.0e+00
+llm_load_print_meta: f_max_alibi_bias = 0.0e+00
+llm_load_print_meta: f_logit_scale    = 0.0e+00
+llm_load_print_meta: n_ff             = 14336
+llm_load_print_meta: n_expert         = 8
+llm_load_print_meta: n_expert_used    = 2
+llm_load_print_meta: causal attn      = 1
+llm_load_print_meta: pooling type     = 0
+llm_load_print_meta: rope type        = 0
+llm_load_print_meta: rope scaling     = linear
+llm_load_print_meta: freq_base_train  = 1000000.0
+llm_load_print_meta: freq_scale_train = 1
+llm_load_print_meta: n_yarn_orig_ctx  = 32768
+llm_load_print_meta: rope_finetuned   = unknown
+llm_load_print_meta: ssm_d_conv       = 0
+llm_load_print_meta: ssm_d_inner      = 0
+llm_load_print_meta: ssm_d_state      = 0
+llm_load_print_meta: ssm_dt_rank      = 0
+llm_load_print_meta: model type       = 7B
+llm_load_print_meta: model ftype      = Q4_K - Medium
+llm_load_print_meta: model params     = 46.70 B
+llm_load_print_meta: model size       = 24.62 GiB (4.53 BPW)
+llm_load_print_meta: general.name     = mistralai_mixtral-8x7b-instruct-v0.1
+llm_load_print_meta: BOS token        = 1 '<s>'
+llm_load_print_meta: EOS token        = 2 '</s>'
+llm_load_print_meta: UNK token        = 0 '<unk>'
+llm_load_print_meta: PAD token        = 0 '<unk>'
+llm_load_print_meta: LF token         = 13 '<0x0A>'
+llm_load_tensors: ggml ctx size =    0.76 MiB
+ggml_backend_metal_buffer_from_ptr: allocated buffer, size = 25145.58 MiB, (75437.11 / 49152.00)ggml_backend_metal_log_allocated_size: warning: current allocated size is greater than the recommended max working set size
+llm_load_tensors: offloading 32 repeating layers to GPU
+llm_load_tensors: offloading non-repeating layers to GPU
+llm_load_tensors: offloaded 33/33 layers to GPU
+llm_load_tensors:        CPU buffer size =    70.31 MiB
+llm_load_tensors:      Metal buffer size = 25145.56 MiB
+....................................................................................................
+llama_new_context_with_model: n_ctx      = 2048
+llama_new_context_with_model: n_batch    = 512
+llama_new_context_with_model: n_ubatch   = 512
+llama_new_context_with_model: freq_base  = 1000000.0
+llama_new_context_with_model: freq_scale = 1
+ggml_metal_init: allocating
+ggml_metal_init: found device: Apple M1 Max
+ggml_metal_init: picking default device: Apple M1 Max
+ggml_metal_init: default.metallib not found, loading from source
+ggml_metal_init: GGML_METAL_PATH_RESOURCES = nil
+ggml_metal_init: loading '/Users/markhneedham/projects/learndatawithmark/outlines-playground/.venv/lib/python3.11/site-packages/llama_cpp/ggml-metal.metal'
+ggml_metal_init: error: Error Domain=MTLLibraryErrorDomain Code=3 "program_source:3:10: fatal error: 'ggml-common.h' file not found
+#include "ggml-common.h"
+         ^~~~~~~~~~~~~~~
+" UserInfo={NSLocalizedDescription=program_source:3:10: fatal error: 'ggml-common.h' file not found
+#include "ggml-common.h"
+         ^~~~~~~~~~~~~~~
+}
+llama_new_context_with_model: failed to initialize Metal backend
+---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+Cell In[29], line 3
+      1 from llama_cpp import Llama
+----> 3 Llama(
+      4     model_path=model_name,
+      5     n_ctx=2048,
+      6     n_gpu_layers=-1
+      7 )
+
+File ~/projects/learndatawithmark/outlines-playground/.venv/lib/python3.11/site-packages/llama_cpp/llama.py:328, in Llama.__init__(self, model_path, n_gpu_layers, split_mode, main_gpu, tensor_split, vocab_only, use_mmap, use_mlock, kv_overrides, seed, n_ctx, n_batch, n_threads, n_threads_batch, rope_scaling_type, pooling_type, rope_freq_base, rope_freq_scale, yarn_ext_factor, yarn_attn_factor, yarn_beta_fast, yarn_beta_slow, yarn_orig_ctx, logits_all, embedding, offload_kqv, last_n_tokens_size, lora_base, lora_scale, lora_path, numa, chat_format, chat_handler, draft_model, tokenizer, verbose, **kwargs)
+    325     self.context_params.n_ctx = self._model.n_ctx_train()
+    326     self.context_params.n_batch = self.n_batch
+--> 328 self._ctx = _LlamaContext(
+    329     model=self._model,
+    330     params=self.context_params,
+    331     verbose=self.verbose,
+    332 )
+    334 self._batch = _LlamaBatch(
+    335     n_tokens=self.n_batch,
+    336     embd=0,
+    337     n_seq_max=self.context_params.n_ctx,
+    338     verbose=self.verbose,
+    339 )
+    341 if self.lora_path:
+
+File ~/projects/learndatawithmark/outlines-playground/.venv/lib/python3.11/site-packages/llama_cpp/_internals.py:265, in _LlamaContext.__init__(self, model, params, verbose)
+    260 self.ctx = llama_cpp.llama_new_context_with_model(
+    261     self.model.model, self.params
+    262 )
+    264 if self.ctx is None:
+--> 265     raise ValueError("Failed to create llama_context")
+
+ValueError: Failed to create llama_context
+----
+
+I came across https://github.com/abetlen/llama-cpp-python/issues/1285[this GitHub issue^] which had a few suggestions.
+The one that worked for me was this:
+
+[source, bash]
+----
+CMAKE_ARGS="-DLLAMA_METAL_EMBED_LIBRARY=ON -DLLAMA_METAL=on" pip install -U llama-cpp-python --no-cache-dir
+----
+
+The extra argument that we need to set is `LLAMA_METAL_EMBED_LIBRARY=ON`.
+My impression is that this argument will eventually be redundant, but as of now you still need it!
