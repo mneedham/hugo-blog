@@ -1,0 +1,229 @@
++++
+draft = false
+date="2024-05-11 00:44:37"
+title="Side by side LLMs with Ollama and Streamlit"
+tag=['llms', 'generative-ai', 'ollama', 'streamlit', 'til']
+category=['TIL']
+description="In this post, we'll learn how to use Semantic Router to stop LLM-based chatbots going off the rails"
+image="uploads/2024/05/streamlit-ollama.png"
++++
+
+:icons: font
+
+The recent 0.1.33[https://github.com/ollama/ollama/releases^] release of Ollama added experimental support for running multiple LLMs or the same LLM in parallel.
+But, to compare models on the same prompt we need a UI and that's what we're going to build in this blog post.
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Cd6f86zsAyg?si=c4q4w7FBNvmyfH8u" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+++++
+====
+
+
+Since my front-end skills are minimal, we'll be using https://streamlit.io/[Streamlit^], which lets you build interactive web applications in Python.
+Streamlit is awesome, but it's not exactly designed for this type of UI - its sweet spot is single-threaded programs that update one part of the screen at the same time.
+But for our app to be useful, we need to be able to run multiple API calls at the same time and render the results as they arrive.
+
+I spent ages searching around for a way to do this before coming across https://github.com/gabrielchua[Gabriel Chua's] https://github.com/gabrielchua/async-stream-openai-st/blob/main/app.py[awesome script^].
+Gabriel's script makes it possible to send two different topics to the OpenAI API and have it generate essays in parallel before rendering them to the screen.
+
+[NOTE]
+====
+The full code for the solution we're going to work through is available at https://github.com/mneedham/LearnDataWithMark/blob/main/ollama-parallel/app.py[mneedham/LearnDataWithMark/blob/main/ollama-parallel/app.py^] so head over there if you just want to get the code!
+====
+
+== Parallel LLM calls in Streamlit
+
+Let's install and import the necessary libraries in a file called `app.py`:
+
+[source, bash]
+----
+pip install openai ollama token-count
+----
+
+[source, python]
+----
+import ollama
+import streamlit as st
+import asyncio
+import time
+from openai import AsyncOpenAI
+from token_count import TokenCount
+----
+
+We'll give our page a title and a run button:
+
+[source, python]
+----
+title = "Running LLMs in parallel with Ollama"
+st.set_page_config(page_title=title, layout="wide")
+st.title(title)
+
+generate = st.button("Generate", type="primary")
+----
+
+And now we'll work through the code starting from the bottom of the script.
+
+[source, python]
+----
+async def main():
+    await asyncio.gather(
+        run_prompt(body_1, meta_1, prompt=prompt, model=model_1),
+        run_prompt(body_2, meta_2, prompt=prompt, model=model_2)
+    )
+
+if generate:
+    if prompt == "":
+        st.warning("Please enter a prompt")
+    else:
+        asyncio.run(main())
+----
+
+Here we have a `main` method that's an awaitable object and right at the bottom of the script we pass it into `asyncio.run`, which kicks everything off.
+We also have `run_prompt` awaitable object that we are going to call twice - `asyncio.gather` makes sure that these calls execute almost simultaneously and, as long as we don't have any exceptions, it will then return the results of the calls to the `run_prompt` function.
+We're not doing anything with the result of `asyncio.gather`, so it doesn't matter to us what gets returned.
+
+Now, let's create a basic version of the `run_prompt` function that concurrently runs two models.
+We're going to hard-code the prompt and model names for now:
+
+[source, python]
+----
+model_1 = "phi3"
+model_2 = "llama3"
+prompt = "Can a python eat a lion?"
+
+col1, col2 = st.columns(2)
+col1.write(f"# :blue[{model_1}]")
+col2.write(f"# :red[{model_2}]")
+
+meta_1, meta_2 = None*2
+
+body_1 = col1.empty()
+body_2 = col2.empty()
+
+async def run_prompt(placeholder, meta, prompt, model):
+    stream = await client.chat.completions.create( # <.>
+        model=model,
+        messages=[{"role": "system", "content": "You are a helpful assistant."},
+                  {"role": "user", "content": prompt},],
+        stream=True
+    )
+    streamed_text = ""
+    async for chunk in stream:
+        chunk_content = chunk.choices[0].delta.content
+        if chunk_content is not None:
+            streamed_text = streamed_text + chunk_content # <.>
+            placeholder.write(streamed_text) # <.>
+----
+<.> Call Ollama via the OpenAI client
+<.> Concatenate the latest chunk onto all the text that we've seen so far
+<.> Render all the text into the Streamlit empty container for that column
+
+== Running Ollama for parallel LLMs
+
+Before we run our script, we need to make sure we have the Ollama Server running with the following environment variables:
+
+[source, bash]
+----
+export OLLAMA_MAX_LOADED_MODELS=2  # <.>
+export OLLAMA_NUM_PARALLEL=2  # <.>
+ollama serve
+----
+<.> Lets us load two different models and run them at the same time.
+<.> Lets us run the same model twice concurrently.
+
+== Running the Streamlit app
+
+We can start our Streamlit app like this:
+
+[source, bash]
+----
+streamlit run app.py --server.headless True
+----
+
+And then let's open http://localhost:8501 and press the `Generate` button. 
+We'll see something like the following:
+
+.Running two LLMs in parallel
+image::{{<siteurl>}}/uploads/2024/05/simple-chat.png[width=500]
+
+== Adding metadata
+
+So that's the simple version, but it would be cool if we could also render metadata that shows how quickly each model is rendering and how many tokens are rendered.
+Let's update `run_prompt` to do that:
+
+[source, python]
+----
+meta_1 = col1.empty() # <.>
+meta_2 = col2.empty()
+
+async def run_prompt(placeholder, meta, prompt, model):
+    tc = TokenCount(model_name="gpt-3.5-turbo") # <.>
+    start = time.time()
+    stream = await client.chat.completions.create(
+        model=model,
+        messages=[{"role": "system", "content": "You are a helpful assistant."},
+                  {"role": "user", "content": prompt},],
+        stream=True
+    )
+    streamed_text = ""
+    async for chunk in stream:
+        chunk_content = chunk.choices[0].delta.content
+        if chunk_content is not None:
+            streamed_text = streamed_text + chunk_content
+            placeholder.write(streamed_text)
+            end = time.time()
+            time_taken = end-start
+            tokens = tc.num_tokens_from_string(streamed_text) # <.>
+
+            # <.>
+            meta.info(f"""**Duration: :green[{time_taken:.2f} secs]** 
+            **Eval count: :green[{tokens} tokens]**
+            **Eval rate: :green[{tokens / time_taken:.2f} tokens/s]**
+            """)
+----
+<.> Create Streamlit empty containers (above the body containers) for metadata
+<.> Initialise token counter 
+<.> Compute the number of tokens generated
+<.> Render metadata content to the metadata container
+
+If we run our Streamlit app again, we'll see the following output:
+
+.Metadata from running two LLMs in parallel
+image::{{<siteurl>}}/uploads/2024/05/metadata.png[width=500]
+
+And then to tidy everything up, let's make the prompt and models configurable:
+
+[source, python]
+----
+models = [ # <.>
+    m['name'] 
+    for m in ollama.list()["models"]  
+    if m["details"]["family"] in ["llama", "gemma"]
+]
+
+with st.sidebar:
+    prompt = st.text_area("Prompt")
+    model_1_index = models.index("phi3:latest")
+    model_1 = st.selectbox("Model 1", options=models, index=model_1_index)
+    model_2_index = models.index("llama3:latest")
+    model_2 = st.selectbox("Model 2", options=models, index=model_2_index)
+    generate = st.button("Generate", type="primary")
+----
+<.> Iterate over the models so that embedding models aren't returned
+
+We can then ask another question of phi3 and Gemma:7B:
+
+.Running phi3 and Gemma:7B
+image::{{<siteurl>}}/uploads/2024/05/final-solution.png[width=500]
+
+== Next Steps
+
+This version of the app only lets you ask one question and it then renders the answer over any previous answers.
+It would be neat if we could keep the chat history for both models side by side.
+It's a bit trickier, but that's the next thing I want to figure out!
+
+And if you want to grab all the code that we covered in this blog post, it's https://github.com/mneedham/LearnDataWithMark/blob/main/ollama-parallel/app.py[over here^].
