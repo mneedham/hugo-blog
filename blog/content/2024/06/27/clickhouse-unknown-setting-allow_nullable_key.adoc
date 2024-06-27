@@ -1,0 +1,98 @@
++++
+draft = false
+date="2024-06-27 00:44:37"
+title="ClickHouse: Unknown setting 'allow_nullable_key'"
+tag=['clickhouse, 'til']
+category=['TIL']
+description="In this post, we'll learn how to use ClickHouse's allow_nullable_key setting."
+image="uploads/2024/05/streamlit-ollama.png"
++++
+
+:icons: font
+
+I've been playing around with ClickHouse's https://clickhouse.com/docs/en/getting-started/example-datasets/amazon-reviews[Amazon reviews dataset^] and ran into an interesting problem when trying to set the `allow_nullable_key` setting.
+In this blog post, we'll learn how and why we might choose to set it.
+
+I started off with the following SQL statement to create a table called `reviews` based on the structure of the Parquet file:
+
+[source, sql]
+----
+CREATE TABLE reviews
+ENGINE = MergeTree
+ORDER BY review_date EMPTY AS (
+    SELECT *
+    FROM s3(concat(
+        'https://datasets-documentation.s3.eu-west-3.amazonaws.com/',
+        'amazon_reviews/amazon_reviews_2015.snappy.parquet'
+    ))
+);
+----
+
+This throws the following exception:
+
+.Output
+[source, text]
+----
+Received exception:
+Code: 44. DB::Exception: Sorting key contains nullable columns, but merge tree setting `allow_nullable_key` is disabled. (ILLEGAL_COLUMN)
+----
+
+The problem is that the Parquet file allows null values in every column, so all the columns are nullable.
+But, by default, the sorting key of a ClickHouse table can't be nullable.
+
+[NOTE]
+====
+You used to be able to override this nullable issue using the `schema_inference_make_columns_nullable` property, but a recent change means that's not possible anymore if the underlying column is nullable.
+====
+
+So we try to set `allow_nullable_key`:
+
+[source, sql]
+----
+CREATE TABLE reviews
+ENGINE = MergeTree
+ORDER BY review_date EMPTY AS (
+    SELECT *
+    FROM s3(concat(
+        'https://datasets-documentation.s3.eu-west-3.amazonaws.com/',
+        'amazon_reviews/amazon_reviews_2015.snappy.parquet'
+    ))
+)
+SETTINGS allow_nullable_key = 1;
+----
+
+.Output
+[source, sql]
+----
+Received exception:
+Code: 115. DB::Exception: Unknown setting 'allow_nullable_key'. (UNKNOWN_SETTING)
+----
+
+That can't be right - I'm certain it does exist, and I https://clickhouse.com/docs/en/operations/settings/settings#allow-nullable-key[can find it] in the documentation.
+After flailing around for a bit, https://www.linkedin.com/in/ilya-yatsishin-9495b535/[Ilya] showed me the errors of my ways.
+This setting applies to the `CREATE TABLE` statement rather than the whole query, so we need to specify it further up the query, like this:
+
+[source, sql]
+----
+CREATE TABLE reviews
+ENGINE = MergeTree
+ORDER BY review_date 
+SETTINGS allow_nullable_key = 1
+EMPTY AS (
+    SELECT *
+    FROM s3(concat(
+        'https://datasets-documentation.s3.eu-west-3.amazonaws.com/',
+        'amazon_reviews/amazon_reviews_2015.snappy.parquet'
+    ))
+);
+----
+
+And now, it's happy!
+
+.Output
+[source, sql]
+----
+Ok.
+
+0 rows in set. Elapsed: 0.120 sec.
+----
