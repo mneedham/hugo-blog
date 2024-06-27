@@ -5,7 +5,7 @@ title="ClickHouse: Unknown setting 'allow_nullable_key'"
 tag=['clickhouse, 'til']
 category=['TIL']
 description="In this post, we'll learn how to use ClickHouse's allow_nullable_key setting."
-image="uploads/2024/05/streamlit-ollama.png"
+image="uploads/2024/06/ch-allow-nullable.png"
 +++
 
 :icons: font
