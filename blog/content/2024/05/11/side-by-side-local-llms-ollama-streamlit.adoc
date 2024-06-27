@@ -10,7 +10,7 @@ image="uploads/2024/05/streamlit-ollama.png"
 
 :icons: font
 
-The recent 0.1.33[https://github.com/ollama/ollama/releases^] release of Ollama added experimental support for running multiple LLMs or the same LLM in parallel.
+The recent https://github.com/ollama/ollama/releases[0.1.33^] release of Ollama added experimental support for running multiple LLMs or the same LLM in parallel.
 But, to compare models on the same prompt we need a UI and that's what we're going to build in this blog post.
 
 [NOTE]

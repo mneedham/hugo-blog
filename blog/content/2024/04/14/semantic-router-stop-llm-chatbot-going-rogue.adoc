@@ -5,7 +5,7 @@ title="Semantic Router: Stop LLM chatbots going rogue"
 tag=['semantic-router', 'llama.cpp', 'generative-ai', 'til']
 category=['TIL']
 description="In this post, we'll learn how to use Semantic Router to stop LLM-based chatbots going off the rails"
-image="uploads/2024/04/semantic-router.png"
+image="uploads/2024/06/mistral-llamacpp.png"
 +++
 
 :icons: font

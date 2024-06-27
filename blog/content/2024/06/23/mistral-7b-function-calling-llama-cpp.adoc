@@ -1,0 +1,251 @@
++++
+draft = false
+date="2024-06-23 00:44:37"
+title="Mistral 7B function calling with llama.cpp"
+tag=['llms', 'generative-ai', 'mistralai', 'llama.cpp', 'til']
+category=['TIL']
+description="In this post, we'll learn how to do function calling with Mistral 7B and llama.cpp."
+image="uploads/2024/05/streamlit-ollama.png"
++++
+
+:icons: font
+
+Mistral AI recently released version 3 of their popular 7B model and this one is fine-tuned for function calling.
+Function calling is a confusing name because the LLM isn't doing any function calling itself.
+Instead, it takes a prompt and can then tell you which function you should call in your code and with which parameters.
+
+In this blog post, we're going to learn how to use this functionality with llama.cpp[https://github.com/ggerganov/llama.cpp^].
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/J5N7MB0_19g?si=ycJhdE_ZdcCmpi9x" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+++++
+====
+
+== Installing llama.cpp
+
+Let's get llama.cpp installed on our machine. 
+It can run on your CPU or GPU, but if you want text to be rendered quickly, you'll want to have it use the GPU.
+
+We're going to install the Python library, which is called `llama-cpp-python`.
+The docs have https://llama-cpp-python.readthedocs.io/en/latest/#installation[installation instructions^] for different platforms.
+I'm using a Mac M1, so the following sets it up for me:
+
+[source, bash]
+----
+CMAKE_ARGS="-DLLAMA_METAL=on" \
+pip install -U llama-cpp-python --no-cache-dir
+----
+
+You can also optionally install an OpenAI API-compatible server using the following command:
+
+[source, bash]
+----
+pip install 'llama-cpp-python[server]'
+----
+
+== Downloading Mistral 7B v3.0
+
+llama.cpp works with LLMs in GGUF format, so we need to find a version of Mistral in that format.
+https://huggingface.co/MaziyarPanahi/Mistral-7B-Instruct-v0.3-GGUF[MaziyarPanahi/Mistral-7B-Instruct-v0.3-GGUF^] on Hugging Face is exactly that and we're going to download it using https://github.com/bodaay/HuggingFaceModelDownloader[the Hugging Face Model Downloader].
+
+[source, bash]
+----
+hfdownloader \
+  -f -m MaziyarPanahi/Mistral-7B-Instruct-v0.3-GGUF:Q4_K_M
+----
+
+We're passing in the model name, as well as a file filter (`Q4_K_M`), which tells it to only download files that match that value.
+That filter ensures that we only download one of the 4-bit quantised models.
+
+Once that command completes, it'll be installed in the following location:
+
+[source, bash]
+----
+tree downloads
+----
+
+.Download location
+[source, text]
+----
+downloads
+└── MaziyarPanahi_Mistral-7B-Instruct-v0.3-GGUF_f_Q4_K_M
+    ├── Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
+    ├── README.md
+    └── config.json
+
+2 directories, 3 files
+----
+
+
+== Function calling with Mistral 7B
+
+It's time to do some function calling!
+Let's initialise the LLM:
+
+[source, python]
+----
+from llama_cpp import Llama
+
+llm = Llama(
+  model_path=model, 
+  chat_format="chatml-function-calling"
+)
+----
+
+We'll define a system message:
+
+[source, python]
+----
+SYSTEM_MESSAGE="""
+You are a helpful assistant.
+You can call functions with appropriate input when necessary
+"""
+----
+
+And then, let's create a function to call the LLM:
+
+[source, python]
+----
+def ask_llm(question, functions, tool_choice):
+  return llm.create_chat_completion(
+    messages = [
+      {"role": "system", "content": SYSTEM_MESSAGE},
+      {"role": "user", "content": question}
+    ],
+    tools=functions,
+    tool_choice={ "type": "function", "function": {"name": tool_choice}}
+)
+----
+
+* `functions` will be a list of function definitions in JSON schema format. 
+* `tool_choice` defines the specific function that we want to be used, which means that effectively we can only use one function/tool at a time.
+
+We're going to ask the LLM the weather in a certain location while providing it with a function that can look up weather data.
+The function definition is as follows:
+
+[source, python]
+----
+weather = {
+  "type": "function",
+  "function": {
+    "name": "get_current_weather",
+    "description": "Get the current weather in a given latitude and longitude",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "latitude": {
+          "type": "number",
+          "description": "The latitude of a place",
+        },
+        "longitude": {
+          "type": "number",
+          "description": "The longitude of a place",
+        },
+      },
+      "required": ["latitude", "longitude"],
+    },
+  },
+}
+----
+
+It's time to call the LLM:
+
+[source, python]
+----
+response = ask_llm(
+  question="What's the weather like in Mauritius?", 
+  functions=[weather], 
+  tool_choice="get_current_weather"
+)
+----
+
+We can check the function/tool call output like this:
+
+[source, python]
+----
+response['choices'][0]['message']['tool_calls']
+----
+
+.Output
+[source, text]
+----
+[
+    {
+        'id': 'call__0_get_current_weather_cmpl-39156ac7-7e00-4087-a432-3f3686cc7c47',
+        'type': 'function',
+        'function': {
+            'name': 'get_current_weather',
+            'arguments': '{"latitude": -20.3487, "longitude": 57.5598}'
+        }
+    }
+]
+----
+
+Success! And that location is indeed in the middle of Mauritius.
+
+== llama.cpp's OpenAI API Compatible Server
+
+As mentioned earlier, we can also run llama.cpp as a server rather than in-process.
+We can launch the server like this:
+
+[source, bash]
+----
+model="downloads/"
+model+="MaziyarPanahi_Mistral-7B-Instruct-v0.3-GGUF_f_Q4_K_M/"
+model+="Mistral-7B-Instruct-v0.3.Q4_K_M.gguf"
+
+python -m llama_cpp.server \
+  --model ${model} \
+  --n_gpu_layers -1 \
+  --chat_format chatml-function-calling \
+  --verbose False
+----
+
+And then the equivalent code to the example above would be this:
+
+[source, python]
+----
+question = "What's the weather like in Sydney?"
+messages = [
+  {"role": "system", "content": SYSTEM_MESSAGE},
+  {"role": "user", "content": question}
+]
+
+response = client.chat.completions.create(
+model="anything-goes-here",
+messages=messages,
+tools=[weather],
+tool_choice={
+    "type": "function", 
+    "function": {"name": "get_current_weather"}
+},
+)
+----
+
+And then to check the tool calls:
+
+[source, python]
+----
+response.choices[0].message.tool_calls
+----
+
+.Output
+[source, text]
+----
+[
+    ChatCompletionMessageToolCall(
+        id='call__0_get_current_weather_cmpl-c2deba1d-83dc-45e4-8ae1-153bfbffd56f',
+        function=Function(
+            arguments='{ "latitude": -33.8688, "longitude": 151.2093 }',
+            name='get_current_weather'
+        ),
+        type='function'
+    )
+]
+----
+
+Interestingly it has the wrong latitude - it shouldn't have a negative sign.
