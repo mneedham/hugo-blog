@@ -1,0 +1,126 @@
++++
+draft = false
+date="2024-08-08 00:44:37"
+title="ClickHouse: Specifying config settings"
+tag=['clickhouse, 'til']
+category=['TIL']
+description="In this post, we'll learn how to configure ClickHouse config settings."
+image="uploads/2024/06/ch-allow-nullable.png"
++++
+
+:icons: font
+
+We recently had a question on https://clickhouse.com/slack[ClickHouse Community Slack^] about configuring the `network_compression_method` on an individual query basis and across all requests.
+Let's see how to do just that in this blog post.
+
+== Set up
+
+Let's start by downloading and running the ClickHouse Server:
+
+[source, bash]
+----
+curl https://clickhouse.com/ | sh
+./clickhouse server
+----
+
+.Output
+[source, text]
+----
+2024.08.05 12:01:54.701406 [ 85587882 ] {} <Information> Application: Listening for http://[::1]:8123
+2024.08.05 12:01:54.701426 [ 85587882 ] {} <Information> Application: Listening for native protocol (tcp): [::1]:9000
+2024.08.05 12:01:54.701435 [ 85587882 ] {} <Information> Application: Listening for MySQL compatibility protocol: [::1]:9004
+2024.08.05 12:01:54.701446 [ 85587882 ] {} <Information> Application: Listening for http://127.0.0.1:8123
+2024.08.05 12:01:54.701455 [ 85587882 ] {} <Information> Application: Listening for native protocol (tcp): 127.0.0.1:9000
+2024.08.05 12:01:54.701466 [ 85587882 ] {} <Information> Application: Listening for MySQL compatibility protocol: 127.0.0.1:9004
+2024.08.05 12:01:54.701469 [ 85587882 ] {} <Information> Application: Ready for connections.
+----
+
+== Settings as arguments to ClickHouse Client
+
+The config setting that we're interested in configuring is `network_compression_method`.
+So let's query the `system.settings` table to return the default value:
+
+[source, bash]
+----
+./clickhouse client \
+  --query "select name, value 
+  FROM system.settings 
+  WHERE name = 'network_compression_method'"
+----
+
+.Output
+[source, text]
+----
+   ┌─name───────────────────────┬─value─┐
+1. │ network_compression_method │ LZ4   │
+   └────────────────────────────┴───────┘
+----
+
+Let's say we want to change this to `ZSTD`. 
+One way to do this is to pass it as a parameter to ClickHouse Client, like this:
+
+[source, bash]
+----
+./clickhouse client \
+  --network_compression_method='zstd' \
+  --query "select name, value 
+  FROM system.settings 
+  WHERE name = 'network_compression_method'"
+----
+
+.Output
+[source, text]
+----
+   ┌─name───────────────────────┬─value─┐
+1. │ network_compression_method │ zstd  │
+   └────────────────────────────┴───────┘
+----
+
+This approach is fine if we want to do it on a query-by-query basis, but what if we want this compression method to be used every time.
+
+== Settings in ClickHouse Server config file
+
+In that case, we can instead configure the setting on the server.
+Let's create a file in the `config.d` directory called `settings.xml`, but you can name it differently.
+Config files must be XML or YAML though, so keep that in mind.
+
+.config.d/settings.xml
+[source, xml]
+----
+<clickhouse>
+  <profiles>
+    <default>
+      <network_compression_method>ZSTD</network_compression_method>
+    </default>
+  </profiles>
+</clickhouse>
+----
+
+If we then restart the server, we should see the following lines:
+
+.Output
+[source, text]
+----
+Processing configuration file 'config.xml'.
+There is no file 'config.xml', will use embedded config.
+Merging configuration file 'config.d/settings.xml'.
+2024.08.05 12:08:22.633434 [ 85613712 ] {} <Information> Application: Starting ClickHouse 24.8.1.1347 (revision: 54489, git hash: 1e194596106c727ab3731cc74eab6759969f275d, build id: <unknown>), PID 69015
+----
+
+And we can then re-run our query on the client:
+
+[source, bash]
+----
+./clickhouse client \
+  --query "select name, value
+  FROM system.settings
+  WHERE name = 'network_compression_method'"
+----
+
+.Output
+[source, text]
+----
+   ┌─name───────────────────────┬─value─┐
+1. │ network_compression_method │ ZSTD  │
+   └────────────────────────────┴───────┘
+----
