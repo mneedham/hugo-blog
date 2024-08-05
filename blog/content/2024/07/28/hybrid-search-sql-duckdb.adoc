@@ -1,0 +1,484 @@
++++
+draft = false
+date="2024-07-28 01:44:37"
+title="Hybrid Search in SQL with DuckDB"
+tag=['duckdb', 'til']
+category=['TIL']
+description="In this post, we'll learn how to do a simple version of hybrid search in SQL with DuckDB"
+image="uploads/2024/07/hybrid-duckdb.png"
++++
+
+:icons: font
+
+I've been playing around with different approaches for Retrieval Augmented Generation (RAG) recently and came across a blog post describing https://medium.com/@devalshah1619/mathematical-intuition-behind-reciprocal-rank-fusion-rrf-explained-in-2-mins-002df0cc5e2a[Reciprocal Rank Fusion^], a hybrid search technique.
+In this blog post, we're going to explore how to apply this method in SQL using DuckDB.
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Phg91R_RLLE?si=NQH9faZnKWTJbRte" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+++++
+====
+
+## Install libraries
+
+Let's start by installing a bunch of libraries:
+
+[source, bash]
+----
+pip install pandas pyarrow duckdb ipython rich
+----
+
+[source, bash]
+----
+CMAKE_ARGS="-DLLAMA_METAL=on" pip install -U llama-cpp-python --no-cache-dir
+----
+
+I'm going to use `ipython` to run the rest of the commands, but you can use whichever Python environment you like best.
+Let's import Pandas and the Rich console:
+
+[source, python]
+----
+import pandas as pd
+from rich.console import Console
+c = Console()
+----
+
+And now we're going to read https://github.com/mneedham/LearnDataWithMark/blob/main/hybrid-search/olympics.parquet[a Parquet file^] that contains text and embeddings from a BBC article about the https://www.bbc.com/sport/olympics/articles/cw4yepmknkpo[Olympics opening ceremony^].
+
+[source, python]
+----
+df = pd.read_parquet("olympics.parquet")
+----
+
+Let's have a look at the data:
+
+[source, python]
+----
+with pd.option_context('display.max_columns', None):
+    c.print(df.head(3).T)
+----
+
+.Output
+[source, text]
+----
+                                                            0  \
+url         https://www.bbc.com/sport/olympics/articles/cw...
+title       Paris 2024 Olympic opening ceremony kicks off ...
+index                                                       0
+text        The 2024 Olympics opened in Paris in spectacul...
+embeddings  [-0.6567886471748352, 0.37583300471305847, -0....
+
+                                                            1  \
+url         https://www.bbc.com/sport/olympics/articles/cw...
+title       Paris 2024 Olympic opening ceremony kicks off ...
+index                                                       1
+text        Swapping a stadium for a waterway for the firs...
+embeddings  [-0.33718910813331604, 0.25818386673927307, 0....
+
+                                                            2
+url         https://www.bbc.com/sport/olympics/articles/cw...
+title       Paris 2024 Olympic opening ceremony kicks off ...
+index                                                       2
+text        Blue, white and red fireworks had raised the T...
+embeddings  [-0.831717848777771, 0.10039660334587097, -0.0...
+----
+
+The most interesting fields are `text`, which contains one sentence from the article, and `embeddings`, which contains the embedding of that text using the https://huggingface.co/mixedbread-ai/mxbai-embed-large-v1[Mixed Bread embedding algorithm^].
+
+## Import data into DuckDB
+
+We're going to import the Parquet file into DuckDB:
+
+[source, python]
+----
+import duckdb
+
+con = duckdb.connect("olympics.duckdb")
+con.sql("""CREATE OR REPLACE TABLE olympics AS 
+(SELECT index,
+        CAST(embeddings AS FLOAT[1024]) AS embeddings,
+        text, url, title
+FROM df)
+""")
+----
+
+And now, let's add a Full-Text index to the `text` column:
+
+[source, python]
+----
+con.sql("INSTALL fts")
+con.sql("LOAD fts")
+
+con.sql("""
+PRAGMA create_fts_index(
+  'olympics', 'index', 'text', overwrite=1
+);
+""")
+----
+
+## Full-Text Search
+
+Now we're going to write a function that executes some SQL to do Full-Text search:
+
+[source, python]
+----
+def fts(query, limit=3):
+  return con.sql("""
+    SELECT text, index, fts_main_olympics.match_bm25(
+            index,
+            $searchTerm
+        ) AS score
+    FROM olympics
+    WHERE score IS NOT NULL
+    ORDER BY score DESC
+    LIMIT $limit
+    """, params={"searchTerm": query, "limit": limit})
+----
+
+
+## Vector Search
+
+And now let's do the same for vector search, but first, we'll initialise the Mixed Bread LLM using llama.cpp:
+
+[source, python]
+----
+import llama_cpp
+
+llm = llama_cpp.Llama(
+  model_path="./models/mxbai-embed-large-v1-f16.gguf", 
+  embedding=True, 
+  verbose=False
+)
+----
+
+And here's a function to run vector search against our dataset:
+
+[source, python]
+----
+def vector_search(query, limit=3):
+  search_vector = llm.create_embedding([query])['data'][0]['embedding']
+  return con.sql("""
+    SELECT text, index, 
+           array_cosine_similarity(
+             embeddings, $searchVector::FLOAT[1024]
+           ) AS score
+    FROM olympics
+    ORDER BY score DESC
+    LIMIT $limit
+    """, params={"searchVector": search_vector, "limit": limit})
+----
+
+## Querying the Olympics Opening Ceremony
+
+It's time to write some queries.
+We'll start by asking where the opening ceremony was held:
+
+[source, python]
+----
+query = "Where was the opening ceremony held?"
+fts_result = fts(query, limit=3)
+vec_result = vector_search(query, limit=3)
+with c.pager(styles=True):
+  c.print("FTS", style="Yellow")
+  c.print(fts_result.arrow())
+  c.print("\nVector Search", style="Yellow")
+  c.print(vec_result.arrow())
+----
+
+The results are show below:
+
+.Output
+[source, text]
+....
+FTS
+pyarrow.Table
+text: string
+index: int64
+score: double
+----
+text: [["The 2024 Olympics opened in Paris in spectacular style with thousands of athletes sailing along the River 
+Seine past lively performers on bridges, banks and rooftops in an ambitious take on an opening ceremony.   ","The 
+peace anthem, part of all Olympic opening ceremonies, is aligned with the message of unity and tolerance conveyed 
+by the Games. ","When organisers first revealed plans to hold the opening ceremony along the river in the heart of 
+the city, rather than in a stadium as is usual, there were some raised eyebrows and questions over how they would 
+manage such a huge security operation."]]
+index: [[0,29,10]]
+score: [[1.2849869504117142,1.2657966698946463,1.0903075295241433]]
+
+Vector Search
+pyarrow.Table
+text: string
+index: int64
+score: float
+----
+text: [["The 2024 Olympics opened in Paris in spectacular style with thousands of athletes sailing along the River 
+Seine past lively performers on bridges, banks and rooftops in an ambitious take on an opening ceremony.   ","When 
+organisers first revealed plans to hold the opening ceremony along the river in the heart of the city, rather than 
+in a stadium as is usual, there were some raised eyebrows and questions over how they would manage such a huge 
+security operation.","The peace anthem, part of all Olympic opening ceremonies, is aligned with the message of 
+unity and tolerance conveyed by the Games. "]]
+index: [[0,10,29]]
+score: [[0.6754388,0.6741786,0.6653353]]
+....
+
+Both methods have got the correct chunk of text.
+How about if we ask which important people watched?
+
+[source, python]
+----
+query = "Which important people were there?"
+fts_result = fts(query, limit=3)
+vec_result = vector_search(query, limit=3)
+with c.pager(styles=True):
+  c.print("FTS", style="Yellow")
+  c.print(fts_result.arrow())
+  c.print("\nVector Search", style="Yellow")
+  c.print(vec_result.arrow())
+----
+
+Results below:
+
+.Output
+[source, text]
+....
+FTS
+pyarrow.Table
+text: string
+index: int64
+score: double
+----
+text: []
+index: []
+score: []
+
+Vector Search
+pyarrow.Table
+text: string
+index: int64
+score: float
+----
+text: [["More than 100 heads of state and government were in attendance, including Prime Minister Sir Keir Starmer 
+and French President Emmanuel Macron.","When organisers first revealed plans to hold the opening ceremony along the
+river in the heart of the city, rather than in a stadium as is usual, there were some raised eyebrows and questions
+over how they would manage such a huge security operation.","Some of the loudest cheers of the evening were for the
+athletes of the Refugee Olympic Team and the Palestine Olympic Committee."]]
+index: [[32,10,31]]
+score: [[0.5986507,0.5145753,0.5049896]]
+....
+
+Full-Text Search doesn't come up with any results.
+Vector Search has done a decent job though, identifying Macron and Starmer.
+
+One more, let's ask about Serena:
+
+[source, python]
+----
+query = "I heard Serena was there?"
+fts_result = fts(query, limit=3)
+vec_result = vector_search(query, limit=3)
+with c.pager(styles=True):
+  c.print("FTS", style="Yellow")
+  c.print(fts_result.arrow())
+  c.print("\nVector Search", style="Yellow")
+  c.print(vec_result.arrow())
+----
+
+And again, results are below:
+
+.Output
+[source, text]
+....
+FTS
+pyarrow.Table
+text: string
+index: int64
+score: double
+----
+text: [["The ceremony ended in the Trocadero, where the nearby Eiffel Tower lit up, with the flame - which had been
+on an elaborate journey with a masked torchbearer and a mechanical horse - being passed back to Zidane, who handed 
+it to Rafael Nadal, Nadia Comaneci, Serena Williams and Carl Lewis."]]
+index: [[22]]
+score: [[1.1850373717871072]]
+
+Vector Search
+pyarrow.Table
+text: string
+index: int64
+score: float
+----
+text: [["There were surprise performances through the ceremony, including a cabaret number from US 
+singer-songwriter Lady Gaga, as well as an emotional return of Canadian icon Celine Dion. ","At times it was 
+bizarre - one moment Lady Gaga surrounded by pink and black feathers was singing in French, the next Bangladesh's 
+athletes were being introduced on their boat. ","But there was one more magical moment to come, with Dion thrilling
+the crowds at the Eiffel Tower with a powerful rendition of Edith Piaf’s L’Hymne a l’amour in her first performance
+since revealing a serious neurological condition in December 2022. "]]
+index: [[3,13,25]]
+score: [[0.5316562,0.5201369,0.50306535]]
+....
+
+This time it's Full-Text Search that gets the answer.
+The results from Vector Search aren't relevant.
+
+## Reciprocal Rank Fusion
+ 
+https://medium.com/@devalshah1619/mathematical-intuition-behind-reciprocal-rank-fusion-rrf-explained-in-2-mins-002df0cc5e2a[[Reciprocal Rank Fusion^] is a rank aggregation method that combines rankings from multiple sources into a single, unified ranking. 
+In the context of RAG, these sources typically use different retrieval models or approaches.
+We're going to use this method to combine the scores from Full-Text Search and Vector Search.
+
+The core of RRF is captured in its formula: 
+
+[blockquote]
+____
+RRF(d) = Σ(r ∈ R) 1 / (k + r(d))
+
+Where:
+
+* d is a document
+* R is the set of rankers (retrievers)
+* k is a constant (typically 60)
+* r(d) is the rank of document d in ranker r
+____
+
+We can create the following macro/function to compute the score for a given rank:
+
+[source, python]
+----
+con.sql("""
+CREATE OR REPLACE MACRO rrf(rank, k:=60) AS
+  coalesce((1 / (k + rank)), 0)
+""")
+----
+
+And let's give it a try:
+
+[source, python]
+----
+con.sql("""
+SELECT rrf(1) AS a, rrf(2) AS b,
+       a-b AS diff1,
+       rrf(100) AS c, rrf(101) AS d,
+       c-d AS diff2
+""").arrow()
+----
+
+.Output
+[source, text]
+....
+pyarrow.Table
+a: double
+b: double
+diff1: double
+c: double
+d: double
+diff2: double
+----
+a: [[0.01639344262295082]]
+b: [[0.016129032258064516]]
+diff1: [[0.00026441036488630484]]
+c: [[0.00625]]
+d: [[0.006211180124223602]]
+diff2: [[0.00003881987577639828]]
+....
+
+Now let's define a function that calls Full-Text Search and Vector search, before combining their results using the `rrf` function:
+
+[source, python]
+----
+def hybrid(query, limit=3, base_limit=20):
+  fts_result = (fts(query, limit=base_limit)
+    .select("*, rank() OVER (ORDER BY score DESC) AS rank")
+  )
+  vec_result = (vector_search(query, limit=base_limit)
+    .select("*, rank() OVER (ORDER BY score DESC) AS rank")
+  )
+
+  return con.sql("""
+  FROM fts_result
+  FULL OUTER JOIN vec_result ON fts_result.text = vec_result.text
+
+  SELECT coalesce(fts_result.text, vec_result.text) AS text, 
+         coalesce(fts_result.index, vec_result.index) AS index, 
+         rrf(vec_result.rank) + rrf(fts_result.rank) AS hybridScore,
+         fts_result.rank as ftsRank, vec_result.rank AS vecRank
+
+  ORDER BY hybridScore DESC
+  LIMIT $limit
+  """, params={"limit": limit})
+----
+
+And let's go back to the Serena query and run it with all three methods:
+
+[source, python]
+----
+query = "I heard Serena was there?"
+fts_result = fts(query, limit=3)
+vec_result = vector_search(query, limit=3)
+hybrid_result = hybrid(query, limit=3, base_limit=20)
+with c.pager(styles=True):
+  c.print("FTS", style="Yellow")
+  c.print(fts_result.arrow())
+
+  c.print("\nVector Search", style="Yellow")
+  c.print(vec_result.arrow())
+
+  c.print("\nHybrid Search", style="Yellow")
+  c.print(hybrid_result.arrow())
+----
+
+The results are shown below:
+
+.Output
+[source, text]
+....
+FTS
+pyarrow.Table
+text: string
+index: int64
+score: double
+----
+text: [["The ceremony ended in the Trocadero, where the nearby Eiffel Tower lit up, with the flame - which had been
+on an elaborate journey with a masked torchbearer and a mechanical horse - being passed back to Zidane, who handed 
+it to Rafael Nadal, Nadia Comaneci, Serena Williams and Carl Lewis."]]
+index: [[22]]
+score: [[1.1850373717871072]]
+
+Vector Search
+pyarrow.Table
+text: string
+index: int64
+score: float
+----
+text: [["There were surprise performances through the ceremony, including a cabaret number from US 
+singer-songwriter Lady Gaga, as well as an emotional return of Canadian icon Celine Dion. ","At times it was 
+bizarre - one moment Lady Gaga surrounded by pink and black feathers was singing in French, the next Bangladesh's 
+athletes were being introduced on their boat. ","But there was one more magical moment to come, with Dion thrilling
+the crowds at the Eiffel Tower with a powerful rendition of Edith Piaf’s L’Hymne a l’amour in her first performance
+since revealing a serious neurological condition in December 2022. "]]
+index: [[3,13,25]]
+score: [[0.5316562,0.5201369,0.50306535]]
+
+Hybrid Search
+pyarrow.Table
+text: string
+index: int64
+hybridScore: double
+ftsRank: int64
+vecRank: int64
+----
+text: [["The ceremony ended in the Trocadero, where the nearby Eiffel Tower lit up, with the flame - which had been
+on an elaborate journey with a masked torchbearer and a mechanical horse - being passed back to Zidane, who handed 
+it to Rafael Nadal, Nadia Comaneci, Serena Williams and Carl Lewis.","There were surprise performances through the 
+ceremony, including a cabaret number from US singer-songwriter Lady Gaga, as well as an emotional return of 
+Canadian icon Celine Dion. ","At times it was bizarre - one moment Lady Gaga surrounded by pink and black feathers 
+was singing in French, the next Bangladesh's athletes were being introduced on their boat. "]]
+index: [[22,3,13]]
+hybridScore: [[0.032018442622950824,0.01639344262295082,0.016129032258064516]]
+ftsRank: [[1,null,null]]
+vecRank: [[4,1,2]]
+....
+
+As expected, Full-Text Search has the correct chunk of text and Vector Search's results aren't relevant.
+Hybrid Search has got the Serena chunk in first place and a couple of the Vector Search chunks after that.

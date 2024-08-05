@@ -1,0 +1,57 @@
++++
+draft = false
+date="2024-07-28 00:44:37"
+title="DuckDB: Create a function in SQL"
+tag=['duckdb', 'til']
+category=['TIL']
+description="In this post, we'll learn how to create a function using SQL in DuckDB."
+image="uploads/2024/07/duckdb-function-sql.png"
++++
+
+:icons: font
+
+I've been learning about Hybrid Search via https://medium.com/@devalshah1619/mathematical-intuition-behind-reciprocal-rank-fusion-rrf-explained-in-2-mins-002df0cc5e2a[this blog post^], which describes the Reciprocal Rank Fusion algorithm, and I wanted to implement and use it in a DuckDB query.
+
+The formula for the function is shown below:
+
+[blockquote]
+____
+RRF(d) = Σ(r ∈ R) 1 / (k + r(d))
+
+Where:
+
+* d is a document
+* R is the set of rankers (retrievers)
+* k is a constant (typically 60)
+* r(d) is the rank of document d in ranker r
+____
+
+This isn't too tricky to implement in SQL, but I didn't realise that in DuckDB it's https://duckdb.org/docs/sql/statements/create_macro.html[called a MACRO^].
+We can write the following query to create the function:
+
+[source, sql]
+----
+CREATE OR REPLACE MACRO rrf(rank, k:=60) AS
+  coalesce((1 / (k + rank)), 0)
+----
+
+And then we can call it like this:
+
+[source, sql]
+----
+SELECT rrf(1).round(5) as "1", 
+       rrf(2).round(5) as "2", 
+       rrf(100).round(5) as "100", 
+       rrf(101).round(5) as "101";
+----
+
+.Output
+[source, text]
+----
+┌─────────┬─────────┬─────────┬─────────┐
+│    1    │    2    │   100   │   101   │
+│ double  │ double  │ double  │ double  │
+├─────────┼─────────┼─────────┼─────────┤
+│ 0.01639 │ 0.01613 │ 0.00625 │ 0.00621 │
+└─────────┴─────────┴─────────┴─────────┘
+----

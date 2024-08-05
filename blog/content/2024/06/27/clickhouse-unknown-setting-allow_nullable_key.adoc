@@ -2,7 +2,7 @@
 draft = false
 date="2024-06-27 00:44:37"
 title="ClickHouse: Unknown setting 'allow_nullable_key'"
-tag=['clickhouse, 'til']
+tag=['clickhouse', 'til']
 category=['TIL']
 description="In this post, we'll learn how to use ClickHouse's allow_nullable_key setting."
 image="uploads/2024/06/ch-allow-nullable.png"
