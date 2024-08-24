@@ -1,11 +1,11 @@
 +++
 draft = false
-date="2024-08-08 00:44:37"
+date="2024-08-05 00:44:37"
 title="ClickHouse: Specifying config settings"
-tag=['clickhouse, 'til']
+tag=['clickhouse', 'til']
 category=['TIL']
 description="In this post, we'll learn how to configure ClickHouse config settings."
-image="uploads/2024/06/ch-allow-nullable.png"
+image="uploads/2024/08/config-settings.png"
 +++
 
 :icons: font
