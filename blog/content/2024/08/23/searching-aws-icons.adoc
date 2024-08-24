@@ -1,14 +1,19 @@
 +++
 draft = false
 date="2024-08-08 00:44:37"
-title="ClickHouse: Specifying config settings"
-tag=['clickhouse, 'til']
+title="Searching through AWS Icons"
+tag=['aws', 'til']
 category=['TIL']
-description="In this post, we'll learn how to configure ClickHouse config settings."
-image="uploads/2024/06/ch-allow-nullable.png"
+description="In this post, we'll learn how to search AWS icons."
+image="uploads/2024/08/aws-icons.png"
 +++
 
 :icons: font
+
+I recently needed to search for an icon in the AWS [asset package](https://aws.amazon.com/architecture/icons/) and wanted to share a little script that I wrote.
+You wouldn't think that searching for icons should be that hard, but they're spread across so many folders and sub-folders that you can spend forever trying to find what you want.
+
+First, let's import some modules:
 
 [source, python]
 ----
@@ -18,6 +23,8 @@ import glob
 import os
 ----
 
+And then I'm using the following function to render images in the terminal:
+
 [source, python]
 ----
 def display_image(image_path):
@@ -25,6 +32,8 @@ def display_image(image_path):
         encoded_string = base64.b64encode(image_file.read()).decode()
         print(f'\x1b]1337;File=inline=1:{encoded_string}\a', end="")
 ----
+
+Next, we have a function that does a recursive glob search of the unpacked asset package and returns matching files and what the icon looks like:
 
 [source, python]
 ----
@@ -35,10 +44,11 @@ def search_icons(search_term):
         display_image(file); print(file)
 ----
 
+Let's give ie a try:
 
 [source, python]
 ----
 search_icons("[Vv]irtual-Machine")
 ----
 
-image::search-aws-icons.png[]
+image::{{<siteurl>}}/uploads/2024/08/search-aws-icons.png[]
