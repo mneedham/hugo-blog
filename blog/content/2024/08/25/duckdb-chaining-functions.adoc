@@ -1,0 +1,119 @@
++++
+draft = false
+date="2024-08-25 00:44:37"
+title="DuckDB: Chaining functions"
+tag=['duckdb', 'til']
+category=['TIL']
+description="In this post, we'll learn how to use DuckDB function chaining."
+image="uploads/2024/08/function-chaining-duckdb.png"
++++
+
+:icons: font
+
+One of my favourite things about DuckDB is the https://duckdb.org/docs/sql/dialect/friendly_sql.html[innovations it's made in SQL^].
+A recent discovery (for me at least) is that you can https://duckdb.org/docs/sql/functions/overview.html#function-chaining-via-the-dot-operator[chain functions using the dot operator^], in the same way you can in many general purpose programming languages.
+In this blog, we're going to explore that functionality.
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/CqH2MZ_tojY?si=MzeEabCCzp3hlksy" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+++++
+====
+
+We'll start with a heavily nested query:
+
+[source, sql]
+----
+FROM (SELECT unnest(range(1,50,5)) AS num)
+SELECT 
+  num,
+  factorial(
+    CAST(
+      log2(
+        power(
+          sqrt(num), 
+          3
+        )
+      ) AS INTEGER
+    )
+  ) AS val;
+----
+
+What does this query do? 
+For numbers from 1 to 50 in steps of 5:
+
+* Compute the square root
+* Put that to the power of 3
+* Compute the log of that value
+* Cast it to an integer
+* So that we can compute the factorial
+
+For me, this is quite difficult to read, especially if it wasn't formatted on individual lines.
+You have to start from the middle and work your way out to figure out what's going on.
+
+I find it much easier to read code from left to right, which is what function chaining lets us do.
+Effectively it rewrites:
+
+[source, text]
+----
+fn(arg1, arg2, arg3, ...)
+----
+
+to:
+
+[source, text]
+----
+arg1.fn(arg2, arg3, ...)
+----
+
+So this technique only works if the result from one function can be passed in as the first parameter to the next function.
+In DuckDB, the signature of most functions makes this possible.
+
+If we were to rewrite the above query to use function chaining, we'd get this far reasonably easily:
+
+[source, sql]
+----
+FROM (SELECT range(1,50,5).unnest() AS num)
+SELECT 
+  num,
+  num.sqrt().power(3).log2()
+----
+
+But now we get a bit stuck because we can't chain the `CAST` function.
+We could instead write the `CAST` like normal and then call `factorial`:
+
+[source, sql]
+----
+FROM (SELECT range(1,50,5).unnest() AS num)
+SELECT 
+  num,
+  CAST(num.sqrt().power(3).log2() AS INTEGER).factorial() AS val;
+----
+
+It's not terrible, but it'd still be cool if we could chain everything.
+Unnfortunatley there isn't a function where you can dynamically cast values, which is kinda frustrating.
+But what we could do instead is create ourselves a function that's just for casting to integers:
+
+
+[source, sql]
+----
+CREATE OR REPLACE MACRO asInt(value) AS 
+  CAST(value AS INTEGER);
+----
+
+And then we can chain the whole query, like this:
+
+
+[source, sql]
+----
+FROM (SELECT range(1,50,5).unnest() AS num)
+SELECT 
+  num,
+  num.sqrt().power(3).log2().asInt().factorial() AS val;
+----
+
+A bit overkill?
+Maybe, but I kinda like it!

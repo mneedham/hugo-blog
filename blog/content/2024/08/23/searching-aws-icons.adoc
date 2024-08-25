@@ -1,6 +1,6 @@
 +++
 draft = false
-date="2024-08-08 00:44:37"
+date="2024-08-23 00:44:37"
 title="Searching through AWS Icons"
 tag=['aws', 'til']
 category=['TIL']
