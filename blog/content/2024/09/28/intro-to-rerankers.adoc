@@ -10,7 +10,7 @@ image="uploads/2024/09/intro-rerankers.png"
 
 :icons: font
 
-rerankers[https://github.com/answerdotai/rerankers^] provides a unified API for various reranking models, including any that use transformers, FlashRank, RankGPT, RankLLM, and more.
+https://github.com/answerdotai/rerankers[rerankers^] provides a unified API for various reranking models, including any that use transformers, FlashRank, RankGPT, RankLLM, and more.
 In this blog, we'll take it for a spin.
 
 [NOTE]
@@ -18,7 +18,7 @@ In this blog, we'll take it for a spin.
 I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
 
 ++++
-<iframe width="560" height="315" src="https://www.youtube.com/embed/ekUvkhD2OlQ?si=EbEnJzIlETVF5-LV" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/cKI7yjxW87Q?si=IO1EgsRjoT2twrJ0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 ++++
 ====
 
