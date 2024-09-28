@@ -1,0 +1,272 @@
++++
+draft = false
+date="2024-09-22 00:44:37"
+title="DuckDB 1.1: Dynamic Column Selection gets even better"
+tag=['duckdb', 'til']
+category=['TIL']
+description="In this post, we'll learn about dynamic column selection in DuckDB 1.1"
+image="uploads/2024/09/duckdb-dynamic-column-selection.png"
++++
+
+:icons: font
+
+https://duckdb.org/2024/09/09/announcing-duckdb-110[DuckDB 1.1^] was released a couple of weeks ago and there are a couple of features that make dynamic column selection even better.
+We're going to explore those features in this blog.
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/ekUvkhD2OlQ?si=EbEnJzIlETVF5-LV" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+++++
+====
+
+== Kaggle's FIFA 2022 Dataset
+
+To demonstrate dynamic column selection, we need a dataset that has a lot of columns, ideally one containing lots of numeric values as well.
+Kaggle came to the rescue here with the https://www.kaggle.com/datasets/stefanoleone992/fifa-22-complete-player-dataset[FIFA 22 complete player dataset^].
+I downloaded one of the CSV file and created a table called `players` from the DuckDB CLI:
+
+[source, sql]
+----
+create table players AS 
+select * 
+FROM read_csv('*.csv', ignore_errors=true);
+----
+
+Let's have a quick look at what columns we'll be working with by querying the output of `DESCRIBE players`, which is a pretty cool DuckDB feature in itself.
+
+[source, sql]
+----
+.mode jsonlines
+FROM (DESCRIBE players)
+SELECT 
+  MAP {column_name: column_type}
+    .array_agg() AS column_info;
+----
+
+We can see the columns and their types below:
+
+.Output
+[source, text]
+----
+{"column_info":"[{player=VARCHAR}, {country=VARCHAR}, {height=BIGINT}, {weight=BIGINT}, {age=BIGINT}, {club=VARCHAR}, {ball_control=BIGINT}, {dribbling=BIGINT}, {marking=VARCHAR}, {slide_tackle=BIGINT}, {stand_tackle=BIGINT}, {aggression=BIGINT}, {reactions=BIGINT}, {att_position=BIGINT}, {interceptions=BIGINT}, {vision=BIGINT}, {composure=BIGINT}, {crossing=BIGINT}, {short_pass=BIGINT}, {long_pass=BIGINT}, {acceleration=BIGINT}, {stamina=BIGINT}, {strength=BIGINT}, {balance=BIGINT}, {sprint_speed=BIGINT}, {agility=BIGINT}, {jumping=BIGINT}, {heading=BIGINT}, {shot_power=BIGINT}, {finishing=BIGINT}, {long_shots=BIGINT}, {curve=BIGINT}, {fk_acc=BIGINT}, {penalties=BIGINT}, {volleys=BIGINT}, {gk_positioning=BIGINT}, {gk_diving=BIGINT}, {gk_handling=BIGINT}, {gk_kicking=BIGINT}, {gk_reflexes=BIGINT}, {value=VARCHAR}]"}
+----
+
+== Querying with COLUMNS()
+
+It's time to do some querying. 
+We'll start by using `COLUMNS(*)`, which returns all the columns from the table, the same way as `*` does:
+
+[source, sql]
+----
+select COLUMNS(*)
+FROM players
+LIMIT 1;
+----
+
+.Output
+[source, text]
+----
+{"player":"Cristian Castro Devenish","country":"Colombia","height":192,"weight":84,"age":22,"club":"Atl. Nacional ","ball_control":55,"dribbling":43,"marking":null,"slide_tackle":68,"stand_tackle":73,"aggression":72,"reactions":68,"att_position":30,"interceptions":65,"vision":30,"composure":50,"crossing":33,"short_pass":64,"long_pass":49,"acceleration":41,"stamina":55,"strength":86,"balance":40,"sprint_speed":52,"agility":43,"jumping":51,"heading":64,"shot_power":54,"finishing":30,"long_shots":31,"curve":32,"fk_acc":34,"penalties":41,"volleys":33,"gk_positioning":10,"gk_diving":11,"gk_handling":6,"gk_kicking":7,"gk_reflexes":9,"value":"$1.400.000"}
+----
+
+Where it gets more interesting is when we use a regular expression to filter the columns that get returned. 
+The following query returns fields that start with `gk_`, end with `_pass`, contain `shot`, and contain `ing` but not proceeded by `mark`!
+
+[source, sql]
+----
+select COLUMNS('gk_.*|.*_pass|.*shot.*|[^mark]ing')
+FROM players
+LIMIT 1;
+----
+
+.Output
+[source, text]
+----
+{"dribbling":43,"crossing":33,"short_pass":64,"long_pass":49,"jumping":51,"heading":64,"shot_power":54,"finishing":30,"long_shots":31,"gk_positioning":10,"gk_diving":11,"gk_handling":6,"gk_kicking":7,"gk_reflexes":9}
+----
+
+== Excluding columns by name
+
+So far so good, but what if we want to exclude columns?
+DuckDB has the `SELECT * EXCLUDE()` syntax to manually exclude fields, but what if we want to programmatically create a list of fields to exclude?
+
+This is where the newly introduced variables come in handy.
+A variable can be a literal value or the result of a query, as long as it returns a single value e.g. an array of column names!
+I create the following variable to get a list of all the columns that start with `gk_`:
+
+[source, sql]
+----
+SET VARIABLE gk_fields = (
+  FROM (DESCRIBE players) 
+  SELECT list(column_name) 
+  WHERE column_name LIKE 'gk%'
+);
+----
+
+We can then get the variable back by calling the `getvariable` function, passing the name of the variable as as string argument:
+
+[source, sql]
+----
+SELECT getvariable('gk_fields');
+----
+
+.Output
+[source, text]
+----
+{"getvariable('gk_fields')":"[gk_positioning, gk_diving, gk_handling, gk_kicking, gk_reflexes]"}
+----
+
+To use it in the query, we will pass in a lambda expression to the `COLUMNS` clause.
+The expression that you provide will act as a filter applied to every column in the table.
+If the expression returns true, the column will be returned.
+
+I wrote the following query to return all the columns from our initial regular expression, but then exclude those in the `gk_fields` variable:
+
+[source, sql]
+----
+select COLUMNS(c ->   
+  regexp_matches(c, 'gk_.*|.*_pass|.*shot.*|[^mark]ing') AND
+  not list_contains(getvariable('gk_fields'), c)
+)
+FROM players
+LIMIT 1;
+----
+
+.Output
+[source, text]
+----
+{"dribbling":43,"crossing":33,"short_pass":64,"long_pass":49,"jumping":51,"heading":64,"shot_power":54,"finishing":30,"long_shots":31}
+----
+
+== Including columns by type
+
+That's pretty cool, but if we want to include fields based on their type.
+We can do that too, by filtering on `column_type` when querying the output of `DESCRIBE`.
+
+The following query returns only `BIGINT` columns, excluding height, weight, and age:
+
+[source, sql]
+----
+SET VARIABLE numeric_fields = (
+  FROM (DESCRIBE players) 
+  SELECT list(column_name) 
+  WHERE column_type = 'BIGINT' AND 
+  not regexp_matches(column_name, 'height|weight|age')  
+);
+----
+
+And let's see it in action:
+
+[source, sql]
+----
+select player, COLUMNS(c ->   
+  list_contains(getvariable('numeric_fields'), c)
+)
+FROM players
+LIMIT 1;
+----
+
+.Output
+[source, text]
+----
+{"player":"Cristian Castro Devenish","ball_control":55,"dribbling":43,"slide_tackle":68,"stand_tackle":73,"aggression":72,"reactions":68,"att_position":30,"interceptions":65,"vision":30,"composure":50,"crossing":33,"short_pass":64,"long_pass":49,"acceleration":41,"stamina":55,"strength":86,"balance":40,"sprint_speed":52,"agility":43,"jumping":51,"heading":64,"shot_power":54,"finishing":30,"long_shots":31,"curve":32,"fk_acc":34,"penalties":41,"volleys":33,"gk_positioning":10,"gk_diving":11,"gk_handling":6,"gk_kicking":7,"gk_reflexes":9}
+----
+
+
+== Filtering results by all the columns
+
+Another cool thing we can do is filter the results if every single column value meets the filter criteria.
+The following query only returns players that have a score of more than 10 for every metric:
+
+
+[source, sql]
+----
+select player, COLUMNS(c ->   
+  list_contains(getvariable('numeric_fields'), c)
+)
+FROM players
+WHERE COLUMNS(c ->
+  list_contains(getvariable('numeric_fields'), c)
+) > 10
+LIMIT 1;
+----
+
+.Output
+[source, text]
+----
+{"player":"Thomas Dähne","ball_control":25,"dribbling":12,"slide_tackle":13,"stand_tackle":16,"aggression":27,"reactions":65,"att_position":17,"interceptions":20,"vision":49,"composure":48,"crossing":14,"short_pass":35,"long_pass":18,"acceleration":46,"stamina":38,"strength":68,"balance":41,"sprint_speed":48,"agility":36,"jumping":60,"heading":17,"shot_power":51,"finishing":14,"long_shots":20,"curve":20,"fk_acc":15,"penalties":26,"volleys":16,"gk_positioning":64,"gk_diving":74,"gk_handling":65,"gk_kicking":68,"gk_reflexes":74}
+----
+
+== The splat operator
+
+That's pretty cool so far, but there's still one more cool thing to see.
+
+DuckDB 1.1 introduced the `*` operator, which you can apply to the output of `COLUMNS()`.
+It will unpack those columns so that you can pass them to any function that takes in a variable number of arguments.
+For example, we can use it to find the maximum metric score across all the metrics for each player, using the https://duckdb.org/docs/sql/functions/numeric.html#greatestx1-x2-[`greatest`^] function:
+
+[source, sql]
+----
+select player, greatest(*COLUMNS(c ->   
+  list_contains(getvariable('numeric_fields'), c)
+)) as maxMetric
+FROM players
+WHERE COLUMNS(c ->
+  list_contains(getvariable('numeric_fields'), c)
+) > 10
+ORDER BY maxMetric DESC
+LIMIT 10;
+----
+
+.Output
+[source, text]
+----
+{"player":"Matt Hatch","maxMetric":93}
+{"player":"Emmanuel Boateng","maxMetric":93}
+{"player":"Ramón Ábila","maxMetric":92}
+{"player":"Hiroshi Ibusuki","maxMetric":92}
+{"player":"Jamille Matt","maxMetric":92}
+{"player":"Raúl García","maxMetric":92}
+{"player":"Léandre Tawamba","maxMetric":92}
+{"player":"Ryan Tafazolli","maxMetric":91}
+{"player":"Lukas Görtler","maxMetric":91}
+{"player":"Felipe Aguilar","maxMetric":91}
+----
+
+We could also use the https://duckdb.org/docs/sql/functions/char.html#concat_wsseparator-string-[`concat_ws`^] function to get a list of all the scores:
+
+[source, sql]
+----
+select player, 
+       greatest(*COLUMNS(c ->   
+         list_contains(getvariable('numeric_fields'), c)
+       )) as maxMetric,
+       concat_ws(',', *COLUMNS(c ->   
+         list_contains(getvariable('numeric_fields'), c)
+       )) as allMetrics
+FROM players
+WHERE COLUMNS(c ->
+  list_contains(getvariable('numeric_fields'), c)
+) > 10
+ORDER BY maxMetric DESC
+LIMIT 10;
+----
+
+.Output
+[source, text]
+----
+{"player":"Matt Hatch","maxMetric":93,"allMetrics":"48,56,50,48,50,56,56,46,43,46,47,44,34,93,55,63,68,92,72,65,49,52,49,48,41,37,40,44,11,11,11,12,11"}
+{"player":"Emmanuel Boateng","maxMetric":93,"allMetrics":"68,72,33,35,69,70,71,37,60,69,57,66,46,92,81,76,80,91,90,93,74,76,73,66,59,53,64,73,14,15,13,13,12"}
+{"player":"Ramón Ábila","maxMetric":92,"allMetrics":"70,69,22,32,76,65,72,19,65,76,53,65,63,65,54,92,72,67,68,69,75,81,70,63,52,48,67,73,14,16,14,15,15"}
+{"player":"Hiroshi Ibusuki","maxMetric":92,"allMetrics":"63,56,18,22,47,66,65,14,45,59,48,58,42,42,59,92,29,38,30,45,78,64,66,58,54,39,59,72,11,13,13,16,11"}
+{"player":"Jamille Matt","maxMetric":92,"allMetrics":"63,58,16,22,69,63,67,12,53,64,40,59,43,55,75,92,31,51,43,76,66,68,67,56,56,40,64,61,13,11,13,15,12"}
+{"player":"Raúl García","maxMetric":92,"allMetrics":"84,80,57,59,86,83,85,69,83,83,80,84,82,38,74,87,61,33,51,92,90,85,81,86,78,68,85,73,16,14,16,14,15"}
+{"player":"Léandre Tawamba","maxMetric":92,"allMetrics":"75,69,14,15,59,68,80,16,66,76,40,66,49,53,84,92,33,69,60,80,75,78,75,69,50,44,71,70,12,14,13,12,14"}
+{"player":"Ryan Tafazolli","maxMetric":91,"allMetrics":"56,41,69,70,64,66,21,67,31,60,38,54,46,45,69,91,32,42,32,74,73,37,18,39,22,40,32,35,13,16,13,14,15"}
+{"player":"Lukas Görtler","maxMetric":91,"allMetrics":"72,66,51,55,74,72,70,60,81,67,74,74,79,65,91,75,68,68,70,78,64,67,63,63,67,48,64,62,13,11,15,14,14"}
+{"player":"Felipe Aguilar","maxMetric":91,"allMetrics":"61,42,65,76,66,66,43,78,51,61,33,56,59,46,79,91,35,50,38,32,77,59,33,43,29,34,39,22,14,12,15,12,16"}
+----
+
