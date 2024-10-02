@@ -1,0 +1,140 @@
++++
+draft = false
+date="2024-10-02 00:44:37"
+title="Running OpenAI Whisper Turbo on a Mac with insanely-fast-whisper"
+tag=['openai', 'whisper', 'insanely-fast-whisper', 'til', 'ai-experiments']
+category=['TIL']
+description="In this post, we'll learn about the rerankers library by the folks at Answer AI."
+image="uploads/2024/10/whisper-turbo.png"
++++
+
+:icons: font
+
+A couple of days ago OpenAI released a new version of Whisper, their audio to text model.
+It's called Turbo and we can run it on a Mac using the https://pypi.org/project/insanely-fast-whisper/[insanely-fast-whisper library^].
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/OIl4H2WgJxM?si=upuwmogJEsosJ1f_" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+++++
+====
+
+
+I like trying out this models on podcasts and a recent favourite is https://player.fm/series/the-ai-daily-brief-formerly-the-ai-breakdown-artificial-intelligence-news-and-analysis/whats-really-going-on-at-openai[The AI Daily Brief^], so we're going to https://anchor.fm/s/f7cac464/podcast/play/92312327/https%3A%2F%2Fd3ctxlq1ktw2nl.cloudfront.net%2Fstaging%2F2024-8-28%2F387196719-44100-2-f0f9be974d84c.mp3[download an MP3 file^] from a recent episode about some executive departures at OpenAI.
+
+I'm going to generate a transcript using `whisper-large-v3` and then do the same thing with `whisper-large-v3-turbo`
+
+## Whisper Turbo vs Large-V3
+
+First up, `whisper-large-v3`:
+
+[source, bash]
+----
+insanely-fast-whisper \
+  --file-name openai.mp3 \
+  --device-id mps \
+  --model-name openai/whisper-large-v3 \
+  --batch-size 4 \
+  --transcript-path openai.mp3-large.json
+----
+
+This takes just over 3 minutes.
+Now for `whisper-large-v3-turbo`:
+
+[source, bash]
+----
+insanely-fast-whisper \
+  --file-name openai.mp3 \
+  --device-id mps \
+  --model-name openai/whisper-large-v3-turbo \
+  --batch-size 4 \
+  --transcript-path openai.mp3-large.json
+----
+
+This finishes in just under two minutes.
+I tried it with a bunch of other podcasts of varying lengths and recorded the amount of time it took as shown in the diagram below:
+
+image::{{<siteurl>}}/uploads/2024/10/turbo.004.jpeg[]
+
+On average, Turbo seems to be a little over two times faster than Large-V3
+
+== Is the quality of Turbo any good?
+
+The generate transcripts look pretty much the same to the naked eye, but I thought I'd run them through a local LLM to see what it thought.
+
+[source, bash]
+----
+cat openai.mp3.json |
+jq -r '.text' |
+ollama run --verbose llama3.1 \
+"Above is a podcast transcript. What are your three main takeaways?"
+----
+
+.Output
+[source, text]
+----
+1. **The high turnover rate at OpenAI is not necessarily a protest or
+controversy**: The podcast discusses how many OpenAI leaders have left the
+company, including Mira Murati, and speculates that this might be due to human
+exhaustion rather than a big protest or controversy.
+2. **Investors in foundation models are willing to pay top dollar for credible
+competitors**: The transcript highlights that investors in foundation models like
+AGI are willing to pay whatever it takes to acquire credible competitors, with
+OpenAI's valuation reportedly at $150 billion.
+3. **Scrutiny and skepticism around OpenAI is warranted due to its significant
+impact**: The podcast notes that the implications of OpenAI's technology go beyond
+the company itself or its users, making it essential for the public and media to
+scrutinize and question their actions, even if it's frustrating for leadership.
+
+total duration:       14.108656458s
+load duration:        7.821015583s
+prompt eval count:    1026 token(s)
+prompt eval duration: 2.158732s
+prompt eval rate:     475.28 tokens/s
+eval count:           184 token(s)
+eval duration:        4.12727s
+eval rate:            44.58 tokens/s
+----
+
+And for the other one:
+
+[source, bash]
+----
+cat openai.mp3-large.json |
+jq -r '.text' |
+ollama run --verbose llama3.1 \
+"Above is a podcast transcript. What are your three main takeaways?"
+----
+
+.Output
+[source, text]
+----
+Here are my three main takeaways from the transcript:
+
+1. **Leadership changes at OpenAI may be due to exhaustion rather than
+controversy**: The podcast discusses how OpenAI's leadership team, including Mira
+Murati and Sam Altman, have been working tirelessly for five years, and it's
+possible that they're simply exhausted.
+2. **Investors are willing to pay a premium to acquire OpenAI-like technology**:
+With the potential value of AGI (Artificial General Intelligence) being so high,
+investors are willing to pay top dollar to acquire companies like OpenAI or their
+competitors, even if it means paying $150 billion or more.
+3. **The leadership change at OpenAI may not be a major controversy after all**:
+The podcast suggests that the abrupt departure of Mira Murati and Sam Altman may
+simply be a natural part of a company's growth, rather than a sign of some deeper
+issue within the organization.
+
+total duration:       6.554394833s
+load duration:        12.284167ms
+prompt eval count:    1026 token(s)
+prompt eval duration: 2.262678s
+prompt eval rate:     453.44 tokens/s
+eval count:           189 token(s)
+eval duration:        4.27847s
+eval rate:            44.17 tokens/s
+----
+
+Not much in it. At least as far as that question is concerned, the answers are pretty much the same.
