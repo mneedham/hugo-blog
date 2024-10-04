@@ -1,0 +1,240 @@
++++
+draft = false
+date="2024-10-02 00:44:37"
+title="Ollama: Multiple prompts on vision models"
+tag=['ollama', 'til', 'ai-experiments']
+category=['TIL']
+description="In this post, we'll learn how to have conversations with vision models in Ollama."
+image="uploads/2024/10/Blog Banners (7).png"
++++
+
+:icons: font
+
+In this blog post, we're going to learn how to send multiple prompts to vision models when using Ollama.
+This isn't super well documented, but it is possible!
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/aakHDLPGUvA?si=atLFqKyKU7KB4NVe" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+++++
+====
+
+Let's import Ollam:
+
+[source, python]
+----
+import ollama
+----
+
+We're going to call the `ollama.chat` function, which takes in a `messages` array.
+An image is represented by the following object:
+
+[source, json]
+----
+{"role": "user", "images": "[<image>]"}
+----
+
+where `<image>` is a path to an array of images or base 64 encoded images.
+The user prompt is the same as with text models;
+
+[source, json]
+----
+{"role": "user", "content": "<prompt>"}
+----
+
+As is the response that we get from the model, which we'll want to include in the `messages` array so that the model has the context of previous exchanges;
+
+[source, json]
+----
+{"role": "assistant", "content": "<prompt>"}
+----
+
+If we put that all together, an image + prompt and response would look like this:
+
+[source, json]
+----
+[
+    {"role": "user", "images": "[<image>]"},
+    {"role": "user", "content": "<prompt>"},
+    {"role": "assistant", "content": "<prompt>"}
+]
+----
+
+We can put that together into the following function:
+
+[source, python]
+----
+def ask_question(question, messages, model="minicpm-v"):
+  messages.append({"role": "user", "content": question})
+
+  stream = ollama.chat(
+    model=model, stream=True,
+    messages = messages
+  )
+
+  answer = ""
+  for chunk in stream:
+    content = chunk['message']['content']
+    answer += content
+    print(content, end='', flush=True)
+
+  messages.append({"role": "assistant", "content": answer})
+----
+
+This function takes care of everything apart from adding the image to `messages`.
+We can do that with the following code:
+
+[source, python]
+----
+image = "./images/carbon (93).png"
+
+messages = []
+messages.append({ "role": "user", "images": [image]})
+----
+
+This is the image:
+
+image::{{<siteurl>}}/uploads/2024/10/carbon (93).png[]
+
+We can then ask a question of the image:
+
+[source, python]
+----
+ask_question("What code is in this image?", messages)
+----
+
+The model takes 10-15 seconds to reply, but we'll get something like this in response:
+
+.Output
+[source, text]
+----
+The code in the image is a Python script that imports and initializes a Reranker model from the 'rerankers' module. It specifies various parameters for the Reranker class, including its name ('mixedbread-ai/mxbai-rank-large-v1'), type ('cross-encoder'), device ('mps'), and a query message with multiple documents to be ranked.
+
+Here's what each line of code does:
+```python
+from rerankers import Reranker  # Imports the Reranker class from the 'rerankers' module.
+```
+This imports the necessary function or class for using rank-based ranking models in Python scripts. 
+
+```python
+ranker = Reranker(
+    model_name='mixedbread-ai/mxbai-rank-large-v1',
+    model_type='cross-encoder',
+    device='mps'
+)
+```
+Instances a new 'Reranker' object with the specified parameters:
+  - `model_name`: The name of the model, which is "mixedbread-ai/mxbai-rank-large-v1". This indicates that we are using a pre-trained ranking model.
+  - `model_type`: Specifies the type of the model used by this class. In this case, it's 'cross-encoder'.
+  - `device`: The device on which the model will run.
+
+```python
+results = ranker.rank(
+    query="I love you",
+    docs=[
+        "I hate you",
+        "I really like you"
+    ],
+    doc_ids=[0,1]
+)
+```
+This calls the 'rank' method of the Reranker object to perform ranking based on a given query and documents:
+  - `query`: The user's input message.
+  - `docs`: A list containing multiple document messages that will be ranked against the query. In this case, it contains two documents: "I hate you" and "I really like you".
+  - `doc_ids`: Corresponding IDs for each document in 'docs', which are [0] and [1], respectively.
+
+The output of calling `rank` is stored in a variable called 'results', but the script doesn't print or use it here.
+----
+
+Not bad. A little bit of hallucination, but that's often the case with smaller models.
+https://ollama.com/library/minicpm-v[minicpm-v] is an 8 billion parameter model built on top of Qwen2-7B.
+
+Let's try a follow up question:
+
+[source, python]
+----
+ask_question("How would you install the package?", messages)
+----
+
+This answer isn't anywhere in the image, but it has a go at figuring it out:
+
+.Output
+[source, text]
+----
+To install the package referenced in the code, you would typically follow these steps:
+
+1. **Identify the Package**: The code snippet provided is using a model from 'rerankers', which might be an internal or private repository not available on public PyPI.
+
+2. **Use `pip` for Local Installation**:
+   - If this package was installed locally, you could use pip to install it.
+   
+3. **Command Line Example**: To install the package using pip in a local environment (e.g., a virtual environment), run:
+
+```bash
+pip install path/to/your/local/package
+```
+Replace `path/to/your/local/package` with the actual directory where your source code is stored.
+
+4. **Cloning from Git**:
+   - If you have access to it via GitHub or another hosting service, clone it locally using git.
+   
+```bash
+git clone https://github.com/researcher-name/rerankers.git
+```
+Replace `researcher-name` with your actual name if the repository is yours.
+
+5. **Navigate into Directory**:
+   - After cloning, navigate to the directory containing ' rerankers.py'. You can use:
+
+```bash
+cd rerankers/
+```
+
+6. **Run Setup Script (if exists)**:
+   - Some packages have a setup script that might be executed when you run `pip install` from within the repository.
+
+7. **Usage**:
+   ```python
+    import rerankers.Ranker as Reranker
+    # Rest of your code here...
+   ```
+
+If this package is not available on PyPI or GitHub, it's recommended to check with its official documentation for installation instructions or reach out to its maintainers for assistance.
+----
+
+We can also take out the image completely and ask a question:
+
+[source, python]
+----
+messages.pop(0)
+ask_question("What does the library do?", messages)
+----
+
+.Output
+[source, text]
+----
+The provided code snippet seems to be using a custom Reranker class within a Python script that is likely part of an information retrieval system, such as Elasticsearch's RankBoost.
+
+Here are some key points about what this specific piece of code might represent:
+
+1. **Model Initialization**:
+   The `Reranker` object is initialized with various parameters like the model name (`mixedbread-ai/mxbai-rank-large-v1`) and its type (`cross-encoder`). This indicates that it's using a pre-trained ranking model.
+
+2. **Ranking Query Against Documents**:
+   - A query message ("I love you") is provided.
+   - Multiple documents are specified for ranking, with their respective document IDs [0] and [1].
+   The `rank` method of the Reranker class processes this input to produce a ranked list.
+
+3. **Handling Multiple Documents**:
+   Each document's ID indicates which specific content it corresponds to in the provided query message context.
+
+4. **Local Environment Setup**:
+   If not installed via package manager, you might need to navigate through directories and possibly run installation scripts depending on how this particular Reranker model was packaged for distribution or use cases other than pip.
+
+In summary, while we cannot see all of what is happening beyond the provided snippet due to its limited scope; it's likely part of an information retrieval system where a pre-trained ranking model (e.g., cross-encoder) processes and ranks documents against user queries.
+----
+
+This works way faster, presumably because there's no longer an image in the array for it to process.
