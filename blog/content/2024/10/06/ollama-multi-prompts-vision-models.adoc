@@ -1,6 +1,6 @@
 +++
 draft = false
-date="2024-10-02 00:44:37"
+date="2024-10-06 00:44:37"
 title="Ollama: Multiple prompts on vision models"
 tag=['ollama', 'til', 'ai-experiments']
 category=['TIL']

@@ -1,0 +1,300 @@
++++
+draft = false
+date="2024-10-25 00:44:37"
+title="LLMs on the command line"
+tag=['ollama', 'til', 'ai-experiments']
+category=['TIL']
+description="In this post, we'll learn how to use LLMs on the command line with Simon Willison's llm library."
+image="uploads/2024/10/Blog Banners (9).png"
++++
+
+:icons: font
+
+I've been playing around with Simon Willison's https://llm.datasette.io/en/stable/usage.html[llm^] library over the last week and I have to say I love it!
+If you want to use LLMs on the command line, this is the tool you need.
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/aQuuJuCa0VM?si=woSjOJZu7A0eb3G0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+++++
+====
+
+## Installing llm
+
+Let's have a look at how to use it, starting with installation. 
+You can use `pip` or `pipx` if you want to install it in an isolate environment:
+
+[source, bash]
+----
+pipx install --force llm
+----
+
+.Output
+[source, text]
+----
+Installing to existing venv 'llm'
+  installed package llm 0.16, installed using Python 3.10.14
+  These apps are now globally available
+    - llm
+done! ✨ 🌟 ✨
+----
+
+## Listing llm models
+
+We can then list the models:
+
+[source, bash]
+----
+llm models
+----
+
+.Output
+[source, text]
+----
+OpenAI Chat: gpt-3.5-turbo (aliases: 3.5, chatgpt)
+OpenAI Chat: gpt-3.5-turbo-16k (aliases: chatgpt-16k, 3.5-16k)
+OpenAI Chat: gpt-4 (aliases: 4, gpt4)
+OpenAI Chat: gpt-4-32k (aliases: 4-32k)
+OpenAI Chat: gpt-4-1106-preview
+OpenAI Chat: gpt-4-0125-preview
+OpenAI Chat: gpt-4-turbo-2024-04-09
+OpenAI Chat: gpt-4-turbo (aliases: gpt-4-turbo-preview, 4-turbo, 4t)
+OpenAI Chat: gpt-4o (aliases: 4o)
+OpenAI Chat: gpt-4o-mini (aliases: 4o-mini)
+OpenAI Chat: o1-preview
+OpenAI Chat: o1-mini
+OpenAI Completion: gpt-3.5-turbo-instruct (aliases: 3.5-instruct, chatgpt-instruct)
+----
+
+As you can see, it starts out with only OpenAI models.
+We can check which one is the default:
+
+[source, bash]
+----
+llm models default
+----
+
+.Output
+[source, text]
+----
+gpt-4o-mini
+----
+
+## Using OpenAI models
+
+And then setup our OpenAI key the first time that we use it, like this:
+
+[source, bash]
+----
+llm keys set openai
+----
+
+Once we've done that, we can ask it to do something:
+
+[source, bash]
+----
+llm "Please can you write a poem about a unicorn and its pet lion"
+----
+
+[source, text]
+----
+In a glade where whispers weave through trees,
+A unicorn danced with grace on the breeze.
+Its coat like moonlight, sparkling and bright,
+With a shimmering horn that captured the light.
+
+Beside it pranced a lion, bold and proud,
+With a mane like gold that shone through the crowd.
+A friendship born in a realm of dreams,
+Where magic flows like laughter in streams.
+
+The unicorn twirled, with a flick of its tail,
+While the lion roared softly, a comforting gale.
+They explored the meadows and mountains so high,
+Painting the sky with their laughter, a sigh.
+
+Together they'd chase the sun’s golden rays,
+In a symphony woven of sunlight and praise.
+Through fields of wildflowers, they’d bound and they'd play,
+A duo of wonder, come what may.
+
+When the twilight kissed the horizon aglow,
+The unicorn whispered secrets only they’d know.
+With a flick of its horn, it scattered the stars,
+While the lion kept watch, with dreams reaching far.
+
+In the heart of the forest, they crafted their home,
+Where the wild winds sang and the moonlight would roam.
+For in this sweet haven, where magic is real,
+A unicorn and its lion found joy they could feel.
+
+So remember this tale of a love pure and bright,
+Of a unicorn’s grace and a lion’s bold light.
+In a world full of wonders, where dreams intertwine,
+True friendship endures, as timeless as time.
+----
+
+So far, so good.
+
+## Installing the Ollama plugin
+
+Using llm with OpenAI is cool, but what's even cooler is the https://llm.datasette.io/en/stable/plugins/directory.html[huge list of plugins^] you can install to use other models.
+Mistral, Gemini, Claude, Groq, Cohere, all the big names are there.
+And the local AI tools as well, including llama.cpp, llamafile, gpt4all, and of course, Ollama!
+
+I like Ollama best, so let's get that installed:
+
+[source, bash]
+----
+llm install llm-ollama
+----
+
+And then I'm going to change the default model to `llama3.2`
+
+[source, bash]
+----
+llm models default llama3.2
+----
+
+We can then pipe whichever commands we like into `llm` and provide a system prompt telling it what we want it to do.
+For example, we can summarise the state of our operating system:
+
+[source, bash]
+----
+system_profiler SPSoftwareDataType |
+llm -s "Tell me about my operating system"
+----
+
+Or we could have it describe a directory listing.
+
+[source, bash]
+----
+ls ~/projects/learndatawithmark | 
+llm -s "Describe the contents of the provided directory listing"
+----
+
+And if we're always using the save prompts, we can save them as templates:
+
+[source, bash]
+----
+llm \
+--system 'Summarize this directory and identify the main files.' \
+--save summarize-dir
+----
+
+Here's a list of my templates:
+
+[source, bash]
+----
+llm templates
+----
+
+.Output
+[source, text]
+----
+code            : system: Describe this code at a high level
+ls              : system: Describe the contents of the provided directory listing
+summarize-dir   : system: Summarize this directory and identify the main files.
+----
+
+== My scripts that use llm
+
+I found it a bit long winded having to type all these commands each time, so I asked Claude to convert the commands into shell scripts.
+These are the ones I've got so far:
+
+.llmtree
+[source, bash]
+----
+#!/usr/bin/env zsh
+
+if [[ $# -eq 0 ]]; then
+    echo "Please provide a directory path as an argument."
+    echo "Usage: $0 <directory_path>"
+    exit 1
+fi
+
+dir_path="$1"
+if [[ ! -d "$dir_path" ]]; then
+    echo "Error: '$dir_path' is not a valid directory."
+    exit 1
+fi
+
+tree_output=$(tree "$dir_path")
+char_count=$(echo -n "$tree_output" | wc -c)
+echo "$tree_output" | llm -t summarize-dir -o num_ctx "$char_count"
+----
+
+
+.llmexplain
+[source, bash]
+----
+#!/usr/bin/env zsh
+
+if [[ $# -eq 0 ]]; then
+    echo "Please provide a file path as an argument."
+    echo "Usage: $0 <file_path>"
+    exit 1
+fi
+
+file_path="$1"
+if [[ ! -f "$file_path" ]]; then
+    echo "Error: '$file_path' is not a valid file."
+    exit 1
+fi
+
+char_count=$(wc -c < "$file_path")
+cat "$file_path" | llm -t code -o num_ctx "$char_count"
+----
+
+
+.llmls
+[source, bash]
+----
+#!/usr/bin/env zsh
+
+if [[ $# -eq 0 ]]; then
+    echo "Please provide a directory path as an argument."
+    echo "Usage: $0 <directory_path>"
+    exit 1
+fi
+
+dir_path="$1"
+if [[ ! -d "$dir_path" ]]; then
+    echo "Error: '$dir_path' is not a valid directory."
+    exit 1
+fi
+
+ls "$dir_path" | llm -t ls
+----
+
+I put all of them on my path, which means I can then call them like this:
+
+[source, bash]
+----
+llmtree ~/projects/stomp-client-python
+----
+
+.Output
+[source, text]
+----
+**Directory Summary:**
+
+The directory is called "stomp-client-python" and it contains a Python project. The main components of the project are:
+
+* `PPv16.py`: This appears to be the main entry point for the project.
+* `_alm.py`, `_ct.py`, etc.: These files seem to contain various utility functions, likely related to data processing or parsing.
+* `opendata-nationalrail-client.py`: This file is likely responsible for interacting with an API or service provided by Open Data National Rail.
+* `requirements.txt`: This file lists the dependencies required for the project.
+
+**Main Files:**
+
+Based on their locations and contents, the following files are considered main:
+
+1. `PPv16.py`
+2. `opendata-nationalrail-client.py`
+
+These two files appear to be central to the project's functionality. The others files are likely supporting components or utility functions.
+----
