@@ -10,7 +10,7 @@ image="uploads/2024/11/whisper-turbo.png"
 
 :icons: font
 
-I really like https://duckdb.org/docs/sql/statements/pivot.html[DuckDB's PIVOT clause^] and along with some others[https://github.com/ClickHouse/ClickHouse/issues/50477^] wish that ClickHouse supported it too.
+I really like https://duckdb.org/docs/sql/statements/pivot.html[DuckDB's PIVOT clause^] and https://github.com/ClickHouse/ClickHouse/issues/50477[along with some others^] wish that ClickHouse supported it too.
 Sadly it doesn't, but we can get pretty close to this functionality using ClickHouse's https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators[aggregate function combinators^].
 In this blog post, I'm going to go through each of the examples in the DuckDB documentation and show how to do the equivalent in ClickHouse.
 
