@@ -1,0 +1,483 @@
++++
+draft = false
+date="2024-10-02 00:44:37"
+title="PIVOTing data in ClickHouse and DuckDB"
+tag=['duckdb', 'clickhouse', 'til']
+category=['TIL']
+description="In this post, we'll learn how to pivot data in ClickHouse and DuckDB.
+image="uploads/2024/11/whisper-turbo.png"
++++
+
+:icons: font
+
+I really like https://duckdb.org/docs/sql/statements/pivot.html[DuckDB's PIVOT clause^] and along with some others[https://github.com/ClickHouse/ClickHouse/issues/50477^] wish that ClickHouse supported it too.
+Sadly it doesn't, but we can get pretty close to this functionality using ClickHouse's https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators[aggregate function combinators^].
+In this blog post, I'm going to go through each of the examples in the DuckDB documentation and show how to do the equivalent in ClickHouse.
+
+== Set up
+
+First, we need to setup the sample data. 
+We'll run the following query in DuckDB:
+
+[source, sql]
+----
+CREATE TABLE cities (
+    country VARCHAR, name VARCHAR, year INTEGER, population INTEGER
+);
+----
+
+And a similar query in ClickHouse, but we need to specify a sorting key, which in this case is blank:
+
+[source, sql]
+----
+CREATE TABLE cities (
+    country VARCHAR, name VARCHAR, year INTEGER, population INTEGER
+)
+ORDER BY ();
+----
+
+Insert data into DuckDB and ClickHouse is the same:
+
+[source, sql]
+----
+INSERT INTO cities 
+VALUES
+    ('NL', 'Amsterdam', 2000, 1005),
+    ('NL', 'Amsterdam', 2010, 1065),
+    ('NL', 'Amsterdam', 2020, 1158),
+    ('US', 'Seattle', 2000, 564),
+    ('US', 'Seattle', 2010, 608),
+    ('US', 'Seattle', 2020, 738),
+    ('US', 'New York City', 2000, 8015),
+    ('US', 'New York City', 2010, 8175),
+    ('US', 'New York City', 2020, 8772);
+----
+
+This is what the data looks like:
+
+.Output
+[source, text]
+----
+┌─country─┬─name──────────┬─year─┬─population─┐
+│ NL      │ Amsterdam     │ 2000 │       1005 │
+│ NL      │ Amsterdam     │ 2010 │       1065 │
+│ NL      │ Amsterdam     │ 2020 │       1158 │
+│ US      │ Seattle       │ 2000 │        564 │
+│ US      │ Seattle       │ 2010 │        608 │
+│ US      │ Seattle       │ 2020 │        738 │
+│ US      │ New York City │ 2000 │       8015 │
+│ US      │ New York City │ 2010 │       8175 │
+│ US      │ New York City │ 2020 │       8772 │
+└─────────┴───────────────┴──────┴────────────┘
+----
+
+Now we're ready to roll!
+
+== PIVOT ON, USING, and GROUP BY
+
+The first query pivots on the `year` column.
+This means we'll get columns for `country`, `name`, and then each year individually.
+
+[source, sql]
+----
+PIVOT cities
+ON year
+USING sum(population);
+----
+
+.Output
+[source, text]
+----
+┌─────────┬───────────────┬────────┬────────┬────────┐
+│ country │     name      │  2000  │  2010  │  2020  │
+│ varchar │    varchar    │ int128 │ int128 │ int128 │
+├─────────┼───────────────┼────────┼────────┼────────┤
+│ US      │ New York City │   8015 │   8175 │   8772 │
+│ US      │ Seattle       │    564 │    608 │    738 │
+│ NL      │ Amsterdam     │   1005 │   1065 │   1158 │
+└─────────┴───────────────┴────────┴────────┴────────┘
+----
+
+To do the same in ClickHouse, we need to think about the problem kinda backwards.
+So we need to include `country` and `name` in the `SELECT` clause, and then we can use `sumMap` to sum the population by year:
+
+[source, sql]
+----
+SELECT
+    country, name,
+    sumMap(map(year, population))
+FROM cities
+GROUP BY ALL;
+----
+
+.Output
+[source, text]
+----
+┌─country─┬─name──────────┬─sumMap(map(year, population))───┐
+│ US      │ Seattle       │ {2000:564,2010:608,2020:738}    │
+│ NL      │ Amsterdam     │ {2000:1005,2010:1065,2020:1158} │
+│ US      │ New York City │ {2000:8015,2010:8175,2020:8772} │
+└─────────┴───────────────┴─────────────────────────────────┘
+----
+
+It's not quite the same as DuckDB's `PIVOT` function because all the year mappings are in a map within a single column, but it's not bad.
+
+== PIVOT ON, USING, and GROUP BY
+
+Time for example number two.
+This time we're again pivoting on the `year` column, but this time we're grouping by `country`:
+
+[source, sql]
+----
+PIVOT cities
+ON year
+USING sum(population)
+GROUP BY country;
+----
+
+.Output
+[source, text]
+----
+┌─────────┬────────┬────────┬────────┐
+│ country │  2000  │  2010  │  2020  │
+│ varchar │ int128 │ int128 │ int128 │
+├─────────┼────────┼────────┼────────┤
+│ NL      │   1005 │   1065 │   1158 │
+│ US      │   8579 │   8783 │   9510 │
+└─────────┴────────┴────────┴────────┘
+----
+
+So notice this time the `name` has gone away and the population has been bundled up under the country for each city.
+To do the same thing in ClickHouse, we remove `name` from the `SELECT` clause:
+
+
+[source, sql]
+----
+SELECT
+    country,
+    sumMap(map(year, population))
+FROM cities
+GROUP BY ALL;
+----
+
+.Output
+[source, text]
+----
+┌─country─┬─sumMap(map(year, population))───┐
+│ US      │ {2000:8579,2010:8783,2020:9510} │
+│ NL      │ {2000:1005,2010:1065,2020:1158} │
+└─────────┴─────────────────────────────────┘
+----
+
+All the numbers are the same as DuckDB, so onwards we go!
+
+== IN Filter for ON Clause
+
+If we want to filter on the pivoted column, we can use the `ON...IN` clause.
+In this case, we want to only include the years 2000 and 2010:
+
+[source, sql]
+----
+PIVOT cities
+ON year IN (2000, 2010)
+USING sum(population)
+GROUP BY country;
+----
+
+.Output
+[source, text]
+----
+┌─────────┬────────┬────────┐
+│ country │  2000  │  2010  │
+│ varchar │ int128 │ int128 │
+├─────────┼────────┼────────┤
+│ US      │   8579 │   8783 │
+│ NL      │   1005 │   1065 │
+└─────────┴────────┴────────┘
+----
+
+In ClickHouse we can do a filter in the `WHERE` clause:
+
+[source, sql]
+----
+SELECT
+    country,
+    sumMap(map(year, population))
+FROM cities
+WHERE year IN (2000, 2010)
+GROUP BY ALL;
+----
+
+.Output
+[source, text]
+----
+┌─country─┬─sumMap(map(year, population))─┐
+│ US      │ {2000:8579,2010:8783}         │
+│ NL      │ {2000:1005,2010:1065}         │
+└─────────┴───────────────────────────────┘
+----
+
+== Multiple ON Columns and ON Expressions
+
+What about if we want to pivot on multiple columns? 
+
+[source, sql]
+----
+PIVOT cities
+ON country, name
+USING sum(population);
+----
+
+.Output
+[source, text]
+----
+┌───────┬──────────────┬──────────────────┬────────────┬──────────────┬──────────────────┬────────────┐
+│ year  │ NL_Amsterdam │ NL_New York City │ NL_Seattle │ US_Amsterdam │ US_New York City │ US_Seattle │
+│ int32 │    int128    │      int128      │   int128   │    int128    │      int128      │   int128   │
+├───────┼──────────────┼──────────────────┼────────────┼──────────────┼──────────────────┼────────────┤
+│  2000 │         1005 │                  │            │              │             8015 │        564 │
+│  2010 │         1065 │                  │            │              │             8175 │        608 │
+│  2020 │         1158 │                  │            │              │             8772 │        738 │
+└───────┴──────────────┴──────────────────┴────────────┴──────────────┴──────────────────┴────────────┘
+----
+
+This does a cartesian product between `country` and `name`, which leaves us with several blank columns.
+If we only want to pivot on combinations of values that are present in the underlying data, we can provide an expression in the `ON` clause, which I think is more useful:
+
+[source, sql]
+----
+PIVOT cities
+ON country || '_' || name
+USING sum(population);
+----
+
+.Output
+[source, text]
+----
+┌───────┬──────────────┬──────────────────┬────────────┐
+│ year  │ NL_Amsterdam │ US_New York City │ US_Seattle │
+│ int32 │    int128    │      int128      │   int128   │
+├───────┼──────────────┼──────────────────┼────────────┤
+│  2000 │         1005 │             8015 │        564 │
+│  2010 │         1065 │             8175 │        608 │
+│  2020 │         1158 │             8772 │        738 │
+└───────┴──────────────┴──────────────────┴────────────┘
+----
+
+In ClickHouse we can do the concatenation in the map key that we pass to `sumMap`:
+
+
+[source, sql]
+----
+SELECT
+    year,
+    sumMap(map(country || '_' || name, population))
+FROM cities
+GROUP BY ALL;
+----
+
+.Output
+[source, text]
+----
+┌─year─┬─sumMap(map(concat(country, '_', name), population))────────────┐
+│ 2000 │ {'NL_Amsterdam':1005,'US_New York City':8015,'US_Seattle':564} │
+│ 2020 │ {'NL_Amsterdam':1158,'US_New York City':8772,'US_Seattle':738} │
+│ 2010 │ {'NL_Amsterdam':1065,'US_New York City':8175,'US_Seattle':608} │
+└──────┴────────────────────────────────────────────────────────────────┘
+----
+
+== Multiple USING Expressions
+
+Next up, multiple `USING` expressions.
+We're going to compute the maximum population and the sum of populations pivoted by year and grouped by country:
+
+[source, sql]
+----
+PIVOT cities
+ON year
+USING sum(population) AS total, max(population) AS max
+GROUP BY country;
+----
+
+.Output
+[source, text]
+----
+┌─────────┬────────────┬──────────┬────────────┬──────────┬────────────┬──────────┐
+│ country │ 2000_total │ 2000_max │ 2010_total │ 2010_max │ 2020_total │ 2020_max │
+│ varchar │   int128   │  int32   │   int128   │  int32   │   int128   │  int32   │
+├─────────┼────────────┼──────────┼────────────┼──────────┼────────────┼──────────┤
+│ US      │       8579 │     8015 │       8783 │     8175 │       9510 │     8772 │
+│ NL      │       1005 │     1005 │       1065 │     1065 │       1158 │     1158 │
+└─────────┴────────────┴──────────┴────────────┴──────────┴────────────┴──────────┘
+----
+
+In ClickHouse we can use the `maxMap` function to compute the max values:
+
+[source, sql]
+----
+SELECT
+    country,
+    sumMap(map(year, population)) AS sum,
+    maxMap(map(year, population)) AS max
+FROM cities
+GROUP BY ALL;
+----
+
+.Output
+[source, text]
+----
+┌─country─┬─sum─────────────────────────────┬─max─────────────────────────────┐
+│ US      │ {2000:8579,2010:8783,2020:9510} │ {2000:8015,2010:8175,2020:8772} │
+│ NL      │ {2000:1005,2010:1065,2020:1158} │ {2000:1005,2010:1065,2020:1158} │
+└─────────┴─────────────────────────────────┴─────────────────────────────────┘
+----
+
+== Multiple GROUP BY Columns
+
+What about grouping by multiple columns?
+
+[source, sql]
+----
+PIVOT cities
+ON year
+USING sum(population)
+GROUP BY country, name;
+----
+
+At least on this dataset, the output is the same as when we didn't group by any columns.
+If we had more columns, it'd be more obvious that only the grouped by columns are included in the result set:
+
+.Output
+[source, text]
+----
+┌─────────┬───────────────┬────────┬────────┬────────┐
+│ country │     name      │  2000  │  2010  │  2020  │
+│ varchar │    varchar    │ int128 │ int128 │ int128 │
+├─────────┼───────────────┼────────┼────────┼────────┤
+│ US      │ Seattle       │    564 │    608 │    738 │
+│ US      │ New York City │   8015 │   8175 │   8772 │
+│ NL      │ Amsterdam     │   1005 │   1065 │   1158 │
+└─────────┴───────────────┴────────┴────────┴────────┘
+----
+
+In ClickHouse we specify the fields that we want to group by in the `SELECT` clause:
+
+[source, sql]
+----
+SELECT
+    country,
+    name,
+    sumMap(map(year, population))
+FROM cities
+GROUP BY ALL;
+----
+
+.Output
+[source, text]
+----
+┌─country─┬─name──────────┬─sumMap(map(year, population))───┐
+│ US      │ Seattle       │ {2000:564,2010:608,2020:738}    │
+│ NL      │ Amsterdam     │ {2000:1005,2010:1065,2020:1158} │
+│ US      │ New York City │ {2000:8015,2010:8175,2020:8772} │
+└─────────┴───────────────┴─────────────────────────────────┘
+----
+
+== Using PIVOT within a SELECT Statement
+
+We can create a CTE from a pivot statement and then query it as if it was a table:
+
+[source, sql]
+----
+WITH pivot_alias AS (
+    PIVOT cities
+    ON year
+    USING sum(population)
+    GROUP BY country
+)
+SELECT * FROM pivot_alias;
+----
+
+.Output
+[source, text]
+----
+┌─────────┬────────┬────────┬────────┐
+│ country │  2000  │  2010  │  2020  │
+│ varchar │ int128 │ int128 │ int128 │
+├─────────┼────────┼────────┼────────┤
+│ US      │   8579 │   8783 │   9510 │
+│ NL      │   1005 │   1065 │   1158 │
+└─────────┴────────┴────────┴────────┘
+----
+
+And here's the ClickHouse equivalent:
+
+[source, sql]
+----
+WITH pivot_alias AS (
+    SELECT
+        country,
+        sumMap(map(year, population))
+    FROM cities
+    GROUP BY ALL
+)
+SELECT * FROM pivot_alias;
+----
+
+.Output
+[source, text]
+----
+┌─country─┬─sumMap(map(year, population))───┐
+│ US      │ {2000:8579,2010:8783,2020:9510} │
+│ NL      │ {2000:1005,2010:1065,2020:1158} │
+└─────────┴─────────────────────────────────┘
+----
+
+## Multiple PIVOT Statements
+
+We can also join pivot statements, which is quite neat:
+
+[source, sql]
+----
+SELECT *
+FROM (PIVOT cities ON year USING sum(population) GROUP BY country) year_pivot
+JOIN (PIVOT cities ON name USING sum(population) GROUP BY country) name_pivot
+USING (country);
+----
+
+.Output
+[source, text]
+----
+┌─────────┬────────┬────────┬────────┬───────────┬───────────────┬─────────┐
+│ country │  2000  │  2010  │  2020  │ Amsterdam │ New York City │ Seattle │
+│ varchar │ int128 │ int128 │ int128 │  int128   │    int128     │ int128  │
+├─────────┼────────┼────────┼────────┼───────────┼───────────────┼─────────┤
+│ NL      │   1005 │   1065 │   1158 │      3228 │               │         │
+│ US      │   8579 │   8783 │   9510 │           │         24962 │    1910 │
+└─────────┴────────┴────────┴────────┴───────────┴───────────────┴─────────┘
+----
+
+[source, sql]
+----
+WITH year_pivot AS (
+    SELECT country, sumMap(map(year, population)) AS yearMap
+    FROM cities
+    GROUP BY ALL
+), name_pivot AS (
+    SELECT country, sumMap(map(name, population)) AS nameMap
+    FROM cities
+    GROUP BY ALL
+)
+SELECT country, yearMap, nameMap
+FROM year_pivot
+JOIN name_pivot ON name_pivot.country = year_pivot.country;
+----
+
+.Output
+[source, text]
+----
+┌─country─┬─yearMap─────────────────────────┬─nameMap────────────────────────────────┐
+│ US      │ {2000:8579,2010:8783,2020:9510} │ {'New York City':24962,'Seattle':1910} │
+│ NL      │ {2000:1005,2010:1065,2020:1158} │ {'Amsterdam':3228}                     │
+└─────────┴─────────────────────────────────┴────────────────────────────────────────┘
+----
+
