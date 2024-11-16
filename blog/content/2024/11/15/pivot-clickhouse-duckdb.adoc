@@ -99,7 +99,7 @@ USING sum(population);
 ----
 
 To do the same in ClickHouse, we need to think about the problem kinda backwards.
-So we need to include `country` and `name` in the `SELECT` clause, and then we can use `sumMap` to sum the population by year:
+So we need to include `country` and `name` in the `SELECT` clause, and then we can use https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators#-map[`sumMap`^] to sum the population by year:
 
 [source, sql]
 ----
@@ -109,6 +109,10 @@ SELECT
 FROM cities
 GROUP BY ALL;
 ----
+
+As you can see in the query above, `sumMap` takes in a map as an argument. 
+It then aggregates the values of each key of the map separately using the `sum` aggregate function.
+These `-Map` function combinators exist for many other aggregate functions, including avg (`avgMap`), median (`medianMap`), max (`maxMap`), and so on.
 
 .Output
 [source, text]
@@ -480,4 +484,3 @@ JOIN name_pivot ON name_pivot.country = year_pivot.country;
 │ NL      │ {2000:1005,2010:1065,2020:1158} │ {'Amsterdam':3228}                     │
 └─────────┴─────────────────────────────────┴────────────────────────────────────────┘
 ----
-
