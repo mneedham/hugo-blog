@@ -1,0 +1,148 @@
++++
+draft = false
+date="2024-10-25 00:44:37"
+title="ClickHouse: A hacky way to default parameters in a view"
+tag=['clickhouse', 'til']
+category=['TIL']
+description="In this post, we'll learn how to pivot data in ClickHouse and DuckDB.
+image="uploads/2024/11/whisper-turbo.png"
++++
+
+:icons: font
+
+ClickHouse recently added support for runtime provided parameters in views, so I wanted to try it when querying the https://huggingface.co/datasets/vivym/midjourney-messages[MidJourney messages dataset^].
+It worked pretty well, but I ran into problems when trying to define default parameters, which is what we're going to explore in this blog post.
+
+Let's launch ClickHouse Local:
+
+[source, bash]
+----
+clickhouse -m --max_http_get_redirects=10 --output_format_pretty_row_numbers=0
+----
+
+We need to set `max_http_get_redirects` so that it can handle redirects in the Hugging Face URL, and `output_format_pretty_row_numbers` is so that it won't put numbers in front of each result row.
+
+I initially wrote the following view to query the data:
+
+[source, sql]
+----
+CREATE OR REPLACE VIEW midJourneyRemote AS
+SELECT *, _file, _path
+FROM url(
+  'https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/' || {file:String},
+  Parquet
+);
+----
+
+If we pass in a file name or wild card pattern, it works:
+
+[source, sql]
+----
+SELECT count()
+FROM midJourneyRemote(file = '00000{0..1}.parquet');
+----
+
+.Output
+[source, text]
+----
+┌─count()─┐
+│ 2000000 │ -- 2.00 million
+└─────────┘
+
+1 row in set. Elapsed: 1.109 sec. Processed 1.00 million rows, 159.31 MB (901.97 thousand rows/s., 143.69 MB/s.)
+Peak memory usage: 9.94 MiB.
+----
+
+But it doesn't work if I don't want to provide a `file` parameter:
+
+[source, sql]
+----
+SELECT count()
+FROM midJourneyRemote();
+----
+
+.Output
+[source, text]
+----
+Received exception:
+Code: 456. DB::Exception: Substitution `file` is not set. (UNKNOWN_QUERY_PARAMETER)
+----
+
+Or if I set `file` to `null`:
+
+[source, sql]
+----
+SELECT count()
+FROM midJourneyRemote(file=null);
+----
+
+.Output
+[source, text]
+----
+Received exception:
+Code: 86. DB::HTTPException: Received error from remote server https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data. HTTP status code: 404 'Not Found', body length: 18446744073709551615 bytes: The table structure cannot be extracted from a Parquet format file. You can specify the structure manually. (RECEIVED_ERROR_FROM_REMOTE_IO_SERVER)
+----
+
+But it occurred to me that if I made the parameter `Nullable`, I could then use the `coalesce` function to set a default value.
+This resulted in the following function definition:
+
+[source, sql]
+----
+CREATE OR REPLACE VIEW midJourneyRemote AS
+SELECT *, _file, _path
+FROM url(
+  'https://huggingface.co/datasets/vivym/midjourney-messages/resolve/main/data/' || coalesce({file:Nullable(String)}, '0000{00..55}.parquet'),
+  Parquet
+);
+----
+
+Now, if we call the view with `file` set to `null`, it counts the rows in all the Parquet files:
+
+[source, sql]
+----
+SELECT count()
+FROM midJourneyRemote(file=null);
+----
+
+.Output
+[source, text]
+----
+┌──count()─┐
+│ 55082563 │ -- 55.08 million
+└──────────┘
+
+1 row in set. Elapsed: 7.352 sec. Processed 54.08 million rows, 8.48 GB (7.36 million rows/s., 1.15 GB/s.)
+Peak memory usage: 25.82 MiB.
+----
+
+And if we want to only query a subset of the Parquet files, we can still do that:
+
+[source, sql]
+----
+SELECT _file, count()
+FROM midJourneyRemote(file='00000{0..9}.parquet')
+GROUP BY ALL
+ORDER BY _file;
+----
+
+.Output
+[source, text]
+----
+┌─_file──────────┬─count()─┐
+│ 000000.parquet │ 1000000 │
+│ 000001.parquet │ 1000000 │
+│ 000002.parquet │ 1000000 │
+│ 000003.parquet │ 1000000 │
+│ 000004.parquet │ 1000000 │
+│ 000005.parquet │ 1000000 │
+│ 000006.parquet │ 1000000 │
+│ 000007.parquet │ 1000000 │
+│ 000008.parquet │ 1000000 │
+│ 000009.parquet │ 1000000 │
+└────────────────┴─────────┘
+
+10 rows in set. Elapsed: 0.388 sec. Processed 9.00 million rows, 0.00 B (23.21 million rows/s., 0.00 B/s.)
+Peak memory usage: 1.30 MiB.
+----
+
+Not perfect, but job done!
