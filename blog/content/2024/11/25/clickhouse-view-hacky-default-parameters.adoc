@@ -4,8 +4,8 @@ date="2024-10-25 00:44:37"
 title="ClickHouse: A hacky way to default parameters in a view"
 tag=['clickhouse', 'til']
 category=['TIL']
-description="In this post, we'll learn how to pivot data in ClickHouse and DuckDB.
-image="uploads/2024/11/whisper-turbo.png"
+description="In this post, we'll learn how to create default parameters in a ClickHouse view."
+image="uploads/2024/11/ch-hacky-views.png"
 +++
 
 :icons: font
