@@ -1,0 +1,282 @@
++++
+draft = false
+date="2025-02-09 00:44:37"
+title="DuckDB 1.2: SQL gets even friendlier"
+tag=['duckdb', 'til']
+category=['TIL']
+description="In this post, we'll learn about the SQL friendliness features added in DuckDB 1.2"
+image="uploads/2025/02/duck-banner.png"
++++
+
+:icons: font
+
+DuckDB 1.2 is here, packed with new features to make SQL even more user-friendly.
+We’re going to explore these features with help from Jeff Sackmann’s tennis dataset. Let’s launch DuckDB and then create a variable referring to one of the CSV files.
+
+[NOTE]
+====
+I've created a video showing how to do this on https://www.youtube.com/@learndatawithmark[my YouTube channel, Learn Data with Mark^], so if you prefer to consume content through that medium, I've embedded it below:
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/rwIiw7HZa1M?si=r-yBR0ZN1TSB-0yz" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+++++
+====
+
+
+== Setting up our data
+
+First, let's create a variable pointing to our data source:
+
+[source, sql]
+----
+SET VARIABLE uri = 'https://raw.githubusercontent.com/JeffSackmann/tennis_wta/refs/heads/master/wta_players.csv';
+----
+
+Let's examine the structure of our data:
+
+[source, sql]
+----
+DESCRIBE (
+  FROM read_csv(getvariable('uri'))
+);
+----
+
+[source, text]
+----
+┌─────────────┬─────────────┬─────────┬─────────┬─────────┬─────────┐
+│ column_name │ column_type │  null   │   key   │ default │  extra  │
+│   varchar   │   varchar   │ varchar │ varchar │ varchar │ varchar │
+├─────────────┼─────────────┼─────────┼─────────┼─────────┼─────────┤
+│ player_id   │ BIGINT      │ YES     │ NULL    │ NULL    │ NULL    │
+│ name_first  │ VARCHAR     │ YES     │ NULL    │ NULL    │ NULL    │
+│ name_last   │ VARCHAR     │ YES     │ NULL    │ NULL    │ NULL    │
+│ hand        │ VARCHAR     │ YES     │ NULL    │ NULL    │ NULL    │
+│ dob         │ BIGINT      │ YES     │ NULL    │ NULL    │ NULL    │
+│ ioc         │ VARCHAR     │ YES     │ NULL    │ NULL    │ NULL    │
+│ height      │ BIGINT      │ YES     │ NULL    │ NULL    │ NULL    │
+│ wikidata_id │ VARCHAR     │ YES     │ NULL    │ NULL    │ NULL    │
+└─────────────┴─────────────┴─────────┴─────────┴─────────┴─────────┘
+----
+
+This shows us our dataset contains player information including IDs, names, physical attributes, and more.
+
+
+== CREATE TABLE AS with named columns
+
+The first feature is support for column names when using the Create Table AS clause
+
+[source, sql]
+----
+CREATE OR REPLACE TABLE players
+AS
+SELECT *
+FROM read_csv_auto(getvariable('uri'));
+----
+
+In 1.2 we can add column names just after the table name. We can use the same names  as the source data or we can use our own names. 
+
+[source, sql]
+----
+CREATE OR REPLACE TABLE players(id, name_f, name_l, hand, dob, ioc, height, wiki_id)
+AS
+SELECT *
+FROM read_csv_auto(getvariable('uri'));
+----
+
+Values in the source file are mapped in order to the table column names. So the first column is `id``, the second is `name_f`, and so on
+
+We can explicitly define only some column names if we want, but the assigned names always start from the beginning of the source data.
+The remaining columns will use the names from the source data.
+
+[source, sql]
+----
+CREATE OR REPLACE TABLE players(id, name_f, name_l, hand, dob, ioc)
+AS
+SELECT *
+FROM read_csv_auto(getvariable('uri'));
+----
+
+One thing to keep in mind is you can’t define more column names than there are values in the source data.
+
+[source, sql]
+----
+CREATE OR REPLACE TABLE players(id, name_f, name_l, hand, dob, ioc, x, y, z)
+AS
+SELECT *
+FROM read_csv_auto(getvariable('uri'));
+----
+
+[source, text]
+----
+Binder Error:
+Target table has more colum names than query result.
+----
+
+== SELECT * SIMILAR TO / SELECT * LIKE
+
+DuckDB 1.2 introduces new ways to select columns using pattern matching.
+Before this release, if we wanted to only select name columns, we could do this:
+
+[source, sql]
+----
+FROM players
+SELECT COLUMNS('name.*')
+ORDER BY height DESC
+LIMIT 5;
+----
+
+[source, text]
+----
+┌─────────┬──────────────┐
+│ name_f  │    name_l    │
+│ varchar │   varchar    │
+├─────────┼──────────────┤
+│ Or      │ Sasson       │
+│ Akgul   │ Amanmuradova │
+│ Lindsay │ Davenport    │
+│ Elena   │ Bovina       │
+│ Naomi   │ Broady       │
+└─────────┴──────────────┘
+----
+
+Now, we can use `* SIMILAR To`
+
+[source, sql]
+----
+FROM players
+SELECT * SIMILAR TO 'name.*'
+ORDER BY height DESC
+LIMIT 5;
+----
+
+There's also `* LIKE`, which uses SQL wildcard syntax:
+
+[source, sql]
+----
+FROM players
+SELECT * LIKE 'name%'
+ORDER BY height DESC
+LIMIT 5;
+----
+
+`* NOT LIKE` returns columns except name:
+
+[source, sql]
+----
+FROM players
+SELECT * NOT LIKE 'name%'
+ORDER BY height DESC
+LIMIT 5;
+----
+
+[source, text]
+----
+┌────────┬─────────┬──────────┬─────────┬────────┬─────────────┐
+│   id   │  hand   │   dob    │   ioc   │ height │ wikidata_id │
+│ int64  │ varchar │  int64   │ varchar │ int64  │   varchar   │
+├────────┼─────────┼──────────┼─────────┼────────┼─────────────┤
+│ 210121 │ U       │ 19930703 │ ISR     │    193 │ NULL        │
+│ 201454 │ R       │ 19840623 │ UZB     │    190 │ Q236858     │
+│ 200128 │ R       │ 19760608 │ USA     │    189 │ Q11677      │
+│ 200764 │ R       │ 19830310 │ RUS     │    189 │ Q233408     │
+│ 201648 │ R       │ 19900228 │ GBR     │    189 │ Q461706     │
+└────────┴─────────┴──────────┴─────────┴────────┴─────────────┘
+----
+
+And `* ILIKE` is case insensitive:
+
+[source, sql]
+----
+FROM players
+SELECT * ILIKE 'Name%'
+ORDER BY height DESC
+LIMIT 5;
+----
+
+== SELECT * RENAME
+
+This feature allows for elegant column renaming while keeping all other columns.
+Before this release, we could exclude some fields and then add them as aliases later:
+
+[source, sql]
+----
+.mode line
+----
+
+[source, sql]
+----
+FROM players
+SELECT * EXCLUDE('name_f', 'name_l'), name_f AS first_name, name_l AS surname
+ORDER BY height DESC
+LIMIT 1;
+----
+
+[source, text]
+----
+         id = 210121
+       hand = U
+        dob = 19930703
+        ioc = ISR
+     height = 193
+wikidata_id = NULL
+ first_name = Or
+    surname = Sasson
+----
+
+Now, we can rename them in place using `* RENAME`:
+
+[source, sql]
+----
+FROM players
+SELECT * RENAME(name_f AS first_name, name_l AS surname)
+ORDER BY height DESC
+LIMIT 1;
+----
+
+[source, text]
+----
+         id = 210121
+ first_name = Or
+    surname = Sasson
+       hand = U
+        dob = 19930703
+        ioc = ISR
+     height = 193
+wikidata_id = NULL
+----
+
+
+== Prefixed aliases
+
+The new prefix alias syntax provides a cleaner way to rename columns:
+
+[source, sql]
+----
+.mode duckbox
+----
+
+[source, sql]
+----
+FROM p: players
+SELECT first_name: p.name_f, surname: p.name_l, country: p.ioc
+ORDER BY height DESC
+LIMIT 5;
+----
+
+[source, text]
+----
+┌────────────┬──────────────┬─────────┐
+│ first_name │   surname    │ country │
+│  varchar   │   varchar    │ varchar │
+├────────────┼──────────────┼─────────┤
+│ Or         │ Sasson       │ ISR     │
+│ Akgul      │ Amanmuradova │ UZB     │
+│ Lindsay    │ Davenport    │ USA     │
+│ Elena      │ Bovina       │ RUS     │
+│ Naomi      │ Broady       │ GBR     │
+└────────────┴──────────────┴─────────┘
+----
+
+This new syntax is more concise than the traditional AS keyword and makes queries more readable, especially when dealing with multiple table aliases.
+
+Each of these features contributes to making DuckDB queries more expressive and maintainable, while reducing the amount of boilerplate code needed for common operations.

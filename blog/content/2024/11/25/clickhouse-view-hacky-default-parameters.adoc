@@ -1,6 +1,6 @@
 +++
 draft = false
-date="2024-10-25 00:44:37"
+date="2024-11-25 00:44:37"
 title="ClickHouse: A hacky way to default parameters in a view"
 tag=['clickhouse', 'til']
 category=['TIL']
